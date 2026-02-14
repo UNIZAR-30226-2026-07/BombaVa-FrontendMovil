@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#6200EE</color>
+    <color name="purple_700">#3700B3</color>
+    <color name="teal_200">#03DAC5</color>
+    <color name="teal_700">#018786</color>
+    <color name="black">#FF000000</color>
+
+    <color name="ocean_dark_bg">#0D2B45</color>
+
+    <color name="ocean_blue">#0D2B45</color>
+
+    <color name="ocean_grid">#1A4060</color>
+
+    <color name="wood_top_highlight">#EDC9A3</color>
+    <color name="wood_main_face">#C19A6B</color>
+    <color name="wood_dark_shadow">#8B5A2B</color>
+    <color name="wood_border">#E6CBAA</color>
+    <color name="wood_deep_3d">#5C3A1E</color>
+    <color name="wood_text_color">#4E3324</color>
+    <color name="wood_btn">#C19A6B</color>
+
+    <color name="colorPrimary">#0D2B45</color>
+    <color name="colorPrimaryDark">#081B2B</color>
+    <color name="colorAccent">#C19A6B</color>
+    <color name="colorPrimaryQuad">#2196F3</color>
+    <color name="colorPrimaryReserva">#00BCD4</color>
+
+
+
+    <color name="white">#FFFFFF</color>
+    <color name="wood_light">#BCAAA4</color>
+    <color name="wood_medium">#6D4C41</color>
+    <color name="wood_dark">#3E2723</color>
+    <color name="sea_blue">#2196F3</color>
+    <color name="selection_yellow">#FFEB3B</color>
+    <color name="grid_border">#000000</color>
+
+    <color name="ship_1">#A1887F</color> <color name="ship_3">#795548</color> <color name="ship_5">#4E342E</color> </resources>

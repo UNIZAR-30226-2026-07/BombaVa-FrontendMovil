@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">BombaVaFrontMovil</string>
+    <string name="settings_title">CONFIGURACIÓN</string>
+    <string name="language_label">Idioma / Language</string>
+    <string name="music_label">Música Ambiente</string>
+    <string name="btn_save">GUARDAR Y SALIR</string>
+</resources>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" /> <solid android:color="@color/wood_deep_3d" />
+            <padding android:bottom="10dp" /> </shape>
+    </item>
+
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="24dp" />
+            <gradient
+                android:angle="270"
+                android:type="linear"
+                android:startColor="@color/wood_top_highlight"
+                android:centerColor="@color/wood_main_face"
+                android:endColor="@color/wood_dark_shadow" />
+            <stroke
+                android:width="3dp"
+                android:color="@color/wood_border" />
+        </shape>
+    </item>
+</layer-list>
