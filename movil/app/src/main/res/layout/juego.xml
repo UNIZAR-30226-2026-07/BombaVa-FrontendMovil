@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#051937"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/wooden_style"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        app:layout_constraintTop_toTopOf="parent">
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+            <ProgressBar android:id="@+id/barFuel" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="18dp" android:progress="80" android:progressTint="#FF5252" />
+            <ProgressBar android:id="@+id/barAmmo" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="18dp" android:layout_marginTop="8dp" android:progress="40" android:progressTint="#4CAF50" />
+        </LinearLayout>
+        <ImageButton android:id="@+id/btnPause" android:layout_width="50dp" android:layout_height="50dp" android:layout_marginStart="12dp" android:background="@drawable/wooden_style" android:src="@android:drawable/ic_media_pause" app:tint="@color/wood_dark" />
+    </LinearLayout>
+
+    <FrameLayout android:id="@+id/boardContainer" android:layout_width="0dp" android:layout_height="0dp" android:layout_marginTop="12dp" android:layout_marginBottom="12dp" android:background="@drawable/wooden_style" android:padding="6dp" app:layout_constraintDimensionRatio="1:1" app:layout_constraintTop_toBottomOf="@id/header" app:layout_constraintBottom_toTopOf="@id/footerContainer" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toEndOf="parent">
+        <androidx.recyclerview.widget.RecyclerView android:id="@+id/rvBoard" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/grid_border" />
+    </FrameLayout>
+
+    <FrameLayout android:id="@+id/footerContainer" android:layout_width="match_parent" android:layout_height="100dp" android:background="@drawable/wooden_style" app:layout_constraintBottom_toBottomOf="parent">
+
+        <TextView android:id="@+id/txtNoSelection" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="No hay ningún barco seleccionado" android:textColor="@color/wood_dark" android:textSize="16sp" android:textStyle="bold" />
+
+        <LinearLayout android:id="@+id/layoutMainActions" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical" android:visibility="gone">
+            <Button android:id="@+id/btnMainAttack" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="ATACAR" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:textStyle="bold" />
+            <View android:layout_width="2dp" android:layout_height="40dp" android:background="@color/wood_dark" />
+            <Button android:id="@+id/btnMainMove" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="MOVIMIENTO" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:textStyle="bold" />
+            <View android:layout_width="2dp" android:layout_height="40dp" android:background="@color/wood_dark" />
+            <ImageButton android:id="@+id/btnInfo" android:layout_width="50dp" android:layout_height="50dp" android:src="@android:drawable/ic_dialog_info" android:background="@android:color/transparent" app:tint="@color/wood_dark" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/layoutAttackActions" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="horizontal" android:visibility="gone">
+            <Button android:id="@+id/btnAtk1" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="ATK 1" android:background="@android:color/transparent" android:textColor="@color/wood_dark" />
+            <Button android:id="@+id/btnAtk2" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="ATK 2" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:visibility="gone" />
+            <Button android:id="@+id/btnAtk3" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:text="ATK 3" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:visibility="gone" />
+        </LinearLayout>
+
+        <GridLayout android:id="@+id/layoutMoveActions" android:layout_width="match_parent" android:layout_height="match_parent" android:columnCount="2" android:rowCount="2" android:visibility="gone">
+            <Button android:id="@+id/btnForward" android:layout_width="0dp" android:layout_height="0dp" android:layout_columnWeight="1" android:layout_rowWeight="1" android:text="Delante" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:textSize="12sp" />
+            <Button android:id="@+id/btnBackward" android:layout_width="0dp" android:layout_height="0dp" android:layout_columnWeight="1" android:layout_rowWeight="1" android:text="Atrás" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:textSize="12sp" />
+            <Button android:id="@+id/btnRotateL" android:layout_width="0dp" android:layout_height="0dp" android:layout_columnWeight="1" android:layout_rowWeight="1" android:text="Rot. Izq" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:textSize="12sp" />
+            <Button android:id="@+id/btnRotateR" android:layout_width="0dp" android:layout_height="0dp" android:layout_columnWeight="1" android:layout_rowWeight="1" android:text="Rot. Der" android:background="@android:color/transparent" android:textColor="@color/wood_dark" android:textSize="12sp" />
+        </GridLayout>
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

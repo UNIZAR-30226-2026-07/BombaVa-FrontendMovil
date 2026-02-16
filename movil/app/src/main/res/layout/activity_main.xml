@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ocean_dark_bg"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="24dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/style_wood_button_circle"
+            android:src="@android:drawable/ic_menu_preferences"
+            app:tint="@color/wood_text_color"
+            android:padding="14dp"
+            android:scaleType="fitCenter"
+            android:layout_marginEnd="16dp"
+            android:contentDescription="Ajustes"/>
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/btnProfile"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:background="@drawable/style_wood_button_circle"
+            app:srcCompat="@drawable/ic_person_simple_silhouette"
+            app:tint="@color/wood_text_color"
+            android:padding="14dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="Perfil"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingHorizontal="30dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.6">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnConfigFlota"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:background="@drawable/style_wood_button_rect"
+            android:text="CONFIGURAR FLOTA"
+            android:textColor="@color/wood_text_color"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:layout_marginBottom="16dp"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnCompetitivo"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:background="@drawable/style_wood_button_rect"
+            android:text="COMPETITIVO"
+            android:textColor="@color/wood_text_color"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:layout_marginBottom="16dp"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnPractica"
+            android:layout_width="match_parent"
+            android:layout_height="90dp"
+            android:background="@drawable/style_wood_button_rect"
+            android:text="PRÁCTICA"
+            android:textColor="@color/wood_text_color"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:layout_marginBottom="16dp"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnUnirse"
+            android:layout_width="match_parent"
+            android:layout_height="100dp"
+            android:background="@drawable/style_wood_button_rect"
+            android:text="UNIRSE"
+            android:textColor="@color/wood_text_color"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textAllCaps="true"/>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
