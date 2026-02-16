@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 //prueba
+//prueba2
 public class Casilla {
     private int fila, columna;
     private boolean seleccionado = false;
