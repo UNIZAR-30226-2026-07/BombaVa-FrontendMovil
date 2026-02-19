@@ -1,12 +1,12 @@
 package com.example.bombavafrontmovil;
-//prueba
-//prueba2
+
 public class Casilla {
     private int fila, columna;
     private boolean seleccionado = false;
-    private int tipoBarco = 0; // 0:Agua, 1, 3, 5
-    private int idBarco = -1;  // ID para agrupar celdas
+    private int tipoBarco = 0;
+    private int idBarco = -1;
     private int vidaActual, vidaMax;
+    private boolean esProa = false; // NUEVO: Identifica la parte delantera
 
     public Casilla(int fila, int columna) {
         this.fila = fila;
@@ -22,7 +22,7 @@ public class Casilla {
     public int getTipoBarco() { return tipoBarco; }
     public void setTipoBarco(int tipoBarco) {
         this.tipoBarco = tipoBarco;
-        this.vidaMax = tipoBarco; // La vida inicial es igual al tamaño
+        this.vidaMax = tipoBarco;
         this.vidaActual = tipoBarco;
     }
 
@@ -30,5 +30,9 @@ public class Casilla {
     public void setIdBarco(int idBarco) { this.idBarco = idBarco; }
     public boolean isTieneBarco() { return tipoBarco > 0; }
     public int getVidaActual() { return vidaActual; }
+    public void setVidaActual(int vidaActual) { this.vidaActual = vidaActual; } // Añadido
     public int getVidaMax() { return vidaMax; }
+
+    public boolean isEsProa() { return esProa; }
+    public void setEsProa(boolean esProa) { this.esProa = esProa; }
 }
