@@ -23,11 +23,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // Inicializar vistas
-        // btnConfigFlota = findViewById(R.id.btnConfigFlota);
         btnCompetitivo = findViewById(R.id.btnCompetitivo);
         btnPractica = findViewById(R.id.btnPractica);
-        btnUnirse = findViewById(R.id.btnUnirse); // Este es el botón clave
+        btnUnirse = findViewById(R.id.btnUnirse);
+        btnConfigFlota = findViewById(R.id.btnConfigFlota);
 
+        btnConfigFlota.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ConfigurarFlotaActivity.class);
+            startActivity(intent);
+        });
 
         btnCompetitivo.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, LobbyActivity.class);

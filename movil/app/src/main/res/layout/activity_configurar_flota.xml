@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ocean_dark_bg"
+    android:padding="@dimen/big_padding">
+
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Configura tu Flota"
+        android:textColor="@color/colorAccent"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/board_frame"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/border_tablero_madera"
+        android:padding="8dp"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintTop_toBottomOf="@id/tv_title"
+        app:layout_constraintBottom_toTopOf="@+id/layout_controles_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvBoard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/sea_blue"/>
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_controles_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:id="@+id/layout_controles"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_ship_5x1"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="5x1" />
+
+            <Button
+                android:id="@+id/btn_ship_3x1"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="3x1" />
+
+            <Button
+                android:id="@+id/btn_ship_1x1"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="1x1" />
+
+            <Button
+                android:id="@+id/btn_rotate"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="Rotar" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layout_controles_armas"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_ametralladora"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="Ametralladora" />
+
+            <Button
+                android:id="@+id/btn_misil"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="Misil" />
+
+            <Button
+                android:id="@+id/btn_torpedo"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="Torpedo" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_confirmar"
+            style="@style/BotonMadera"
+            android:layout_width="match_parent"
+            android:text="Continuar"
+            android:layout_marginTop="8dp"/>
+
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
