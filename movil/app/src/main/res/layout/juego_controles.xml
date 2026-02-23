@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
+    android:background="@drawable/wooden_style">
+
+    <TextView
+        android:id="@+id/txtNoSelection"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="No hay ningún barco seleccionado"
+        android:textColor="@color/wood_dark"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/layoutMainActions"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/btnMainAttack"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="ATACAR"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/wood_dark" />
+
+        <Button
+            android:id="@+id/btnMainMove"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1.35"
+            android:text="MOVIMIENTO"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/wood_dark" />
+
+        <ImageButton
+            android:id="@+id/btnInfo"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_marginHorizontal="10dp"
+            android:src="@android:drawable/ic_dialog_info"
+            android:background="@android:color/transparent"
+            android:scaleType="fitCenter"
+            android:padding="6dp"
+            app:tint="@color/wood_dark" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutAttackActions"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/btnAtk1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="ATK 1"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/divAtk2"
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/wood_dark"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnAtk2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="ATK 2"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:visibility="gone"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/divAtk3"
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/wood_dark"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnAtk3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="ATK 3"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:visibility="gone"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/divAtk4"
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/wood_dark"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnAtk4"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="ATK 4"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:visibility="gone"
+            android:textStyle="bold" />
+
+        <View
+            android:id="@+id/divAtk5"
+            android:layout_width="2dp"
+            android:layout_height="match_parent"
+            android:background="@color/wood_dark"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnAtk5"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="ATK 5"
+            android:background="@android:color/transparent"
+            android:textColor="@color/wood_dark"
+            android:visibility="gone"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutMoveActions"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnForward"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="Delante"
+                android:background="@android:color/transparent"
+                android:textColor="@color/wood_dark"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="match_parent"
+                android:background="@color/wood_dark" />
+
+            <Button
+                android:id="@+id/btnBackward"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="Atrás"
+                android:background="@android:color/transparent"
+                android:textColor="@color/wood_dark"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="2dp"
+            android:background="@color/wood_dark" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnRotateL"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="Rot. Izq"
+                android:background="@android:color/transparent"
+                android:textColor="@color/wood_dark"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="2dp"
+                android:layout_height="match_parent"
+                android:background="@color/wood_dark" />
+
+            <Button
+                android:id="@+id/btnRotateR"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="Rot. Der"
+                android:background="@android:color/transparent"
+                android:textColor="@color/wood_dark"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -1,15 +1,19 @@
 package com.example.bombavafrontmovil;
 
+import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> {
-    private List<Casilla> tableroDatos;
-    private OnCasillaClickListener listener;
+
+    private final List<Casilla> tableroDatos;
+    private final OnCasillaClickListener listener;
 
     public interface OnCasillaClickListener { void onCasillaClick(Casilla casilla); }
 
@@ -19,8 +23,11 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
-        public final View waterView;
-        public ViewHolder(View view) { super(view); waterView = view.findViewById(R.id.view_water); }
+        public final ImageView waterView;
+        public ViewHolder(View view) {
+            super(view);
+            waterView = (ImageView) view.findViewById(R.id.view_water);
+        }
     }
 
     @NonNull
@@ -29,9 +36,11 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         View v = LayoutInflater.from(vg.getContext()).inflate(R.layout.celda, vg, false);
         vg.post(() -> {
             int size = vg.getWidth() / 15;
-            v.getLayoutParams().width = size;
-            v.getLayoutParams().height = size;
-            v.requestLayout();
+            if (size > 0) {
+                v.getLayoutParams().width = size;
+                v.getLayoutParams().height = size;
+                v.requestLayout();
+            }
         });
         return new ViewHolder(v);
     }
@@ -40,26 +49,51 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder vh, int pos) {
         Casilla c = tableroDatos.get(pos);
 
-        // Color por tipo y selección
-        if (c.isSeleccionado()) vh.waterView.setBackgroundResource(R.color.selection_yellow);
-        else if (c.getTipoBarco() == 1) vh.waterView.setBackgroundResource(R.color.ship_1);
-        else if (c.getTipoBarco() == 3) vh.waterView.setBackgroundResource(R.color.ship_3);
-        else if (c.getTipoBarco() == 5) vh.waterView.setBackgroundResource(R.color.ship_5);
-        else vh.waterView.setBackgroundResource(R.color.sea_blue);
+        // 1. LIMPIEZA
+        vh.waterView.setRotation(0);
+        vh.waterView.clearColorFilter();
+        vh.waterView.setImageDrawable(null);
+        vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
+        vh.waterView.getBackground().clearColorFilter();
 
-        vh.itemView.setOnClickListener(v -> {
-            int targetId = c.getIdBarco();
-            // Selección grupal por ID
-            for (Casilla casilla : tableroDatos) {
-                if (targetId != -1 && casilla.getIdBarco() == targetId) {
-                    casilla.setSeleccionado(true);
-                } else {
-                    casilla.setSeleccionado(false);
-                }
+        // 2. ¿HAY BARCO?
+        if (c.isTieneBarco()) {
+
+            // A) IMAGEN
+            if (c.isEsProa()) vh.waterView.setImageResource(R.drawable.barco_proa);
+            else if (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1) vh.waterView.setImageResource(R.drawable.barco_popa);
+            else vh.waterView.setImageResource(R.drawable.barco_medio);
+
+            // B) ROTACIÓN
+            vh.waterView.setRotation(c.getDireccion() * 90);
+
+            // C) TINTES E ILUMINACIÓN
+            if (c.isSeleccionado()) {
+                // --- SOLUCIÓN VISUAL ---
+                // Usamos Color.argb(alfa, rojo, verde, azul).
+                // 100 de alfa significa que es semi-transparente.
+                // SRC_ATOP pinta el color SOLO donde hay barco, respetando la transparencia.
+                vh.waterView.setColorFilter(Color.argb(100, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
             }
-            notifyDataSetChanged();
-            listener.onCasillaClick(c);
-        });
+            else if (c.getVidaCelda() <= 0) {
+                vh.waterView.setColorFilter(Color.DKGRAY, PorterDuff.Mode.MULTIPLY);
+            }
+            else if (c.getVidaCelda() == 1) {
+                vh.waterView.setColorFilter(Color.parseColor("#E64A19"), PorterDuff.Mode.SRC_ATOP);
+            }
+            else if (!c.isEsAliado()) {
+                vh.waterView.setColorFilter(Color.parseColor("#FFCDD2"), PorterDuff.Mode.MULTIPLY);
+            }
+
+        } else {
+            // AGUA
+            if (c.isSeleccionado()) {
+                // Si es agua seleccionada, teñimos el fondo suavemente
+                vh.waterView.getBackground().setColorFilter(Color.parseColor("#8081D4FA"), PorterDuff.Mode.SRC_ATOP);
+            }
+        }
+
+        vh.itemView.setOnClickListener(v -> listener.onCasillaClick(c));
     }
 
     @Override
