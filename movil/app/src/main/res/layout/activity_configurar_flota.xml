@@ -87,28 +87,58 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:visibility="gone"
-            android:orientation="horizontal">
+            android:orientation="vertical">
 
-            <Button
-                android:id="@+id/btn_ametralladora"
-                style="@style/BotonMadera"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:text="Ametralladora" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btn_misil"
-                style="@style/BotonMadera"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:text="Misil" />
+                <Button
+                    android:id="@+id/btn_ametralladora"
+                    style="@style/BotonMadera"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:text="Ametr." />
 
-            <Button
-                android:id="@+id/btn_torpedo"
-                style="@style/BotonMadera"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:text="Torpedo" />
+                <Button
+                    android:id="@+id/btn_misil"
+                    style="@style/BotonMadera"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:text="Misil" />
+
+                <Button
+                    android:id="@+id/btn_torpedo"
+                    style="@style/BotonMadera"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:textSize="12sp"
+                    android:text="Torpedo" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_cancelar_arma"
+                    style="@style/BotonMadera"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="Cancelar" />
+
+                <Button
+                    android:id="@+id/btn_guardar_arma"
+                    style="@style/BotonMadera"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:text="Equipar Arma" />
+            </LinearLayout>
         </LinearLayout>
 
         <Button
