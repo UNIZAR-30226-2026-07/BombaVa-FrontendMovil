@@ -1,7 +1,6 @@
 package com.example.bombavafrontmovil;
 
 import android.graphics.Color;
-import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -15,350 +14,200 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ConfigurarFlotaActivity extends AppCompatActivity {
 
-    public static class CeldaVisual {
-        int colorAgua;
-        int idImagenBarco = 0;
-        float rotacion = 0f;
-        boolean seleccionadaParaArma = false;
-
-        public CeldaVisual(int colorAgua) {
-            this.colorAgua = colorAgua;
-        }
-    }
-
+    private GestorConfiguracionFlota gestorLogica;
+    private BotonesUIHelper uiHelper; // <-- NUEVO: Maneja los colores de los botones
     private ConfigurarFlotaAdapter adaptador;
     private List<CeldaVisual> celdasTablero;
-    private int[] casillasOcupadas = new int[225];
 
-    private Map<Integer, String> armasEquipadasPorBarco = new HashMap<>();
-
+    // Estados
     private boolean enHorizontal = true;
-    private int tamanoSeleccionado = 0;
-    private int idBarcoActual = 1;
-    private int faseActual = 1;
-
-    private int idBarcoSeleccionadoParaArma = 0;
+    private int tamanoSeleccionado = 0, faseActual = 1, idBarcoSeleccionadoParaArma = 0;
     private String armaTemporal = "";
 
-    private boolean barco5Colocado = false, barco3Colocado = false, barco1Colocado = false;
-
+    // Vistas contenedoras
     private LinearLayout layoutControlesColocacion, layoutControlesArmas;
-
-    private Button btnConfirmar, btnRotar, btnShip5, btnShip3, btnShip1;
-    private Button btnAmetralladora, btnMisil, btnTorpedo, btnCancelarArma, btnGuardarArma;
-
-    private int colorAguaEnemiga, colorAguaNeutra, colorAguaAliada;
+    private Button btnRotar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_configurar_flota);
 
-        colorAguaEnemiga = Color.parseColor("#90CAF9");
-        colorAguaNeutra = Color.parseColor("#4FC3F7");
-        colorAguaAliada = ContextCompat.getColor(this, R.color.sea_blue);
-
-        vincularVistas();
+        gestorLogica = new GestorConfiguracionFlota();
+        vincularVistasYListeners();
         configurarTablero();
-        configurarListeners();
     }
 
-    private void vincularVistas() {
+    private void vincularVistasYListeners() {
         layoutControlesColocacion = findViewById(R.id.layout_controles);
         layoutControlesArmas = findViewById(R.id.layout_controles_armas);
-        btnConfirmar = findViewById(R.id.btn_confirmar);
-
-        btnShip5 = findViewById(R.id.btn_ship_5x1);
-        btnShip3 = findViewById(R.id.btn_ship_3x1);
-        btnShip1 = findViewById(R.id.btn_ship_1x1);
         btnRotar = findViewById(R.id.btn_rotate);
-        btnRotar.setText("Rotar (H)");
 
-        btnAmetralladora = findViewById(R.id.btn_ametralladora);
-        btnMisil = findViewById(R.id.btn_misil);
-        btnTorpedo = findViewById(R.id.btn_torpedo);
-        btnCancelarArma = findViewById(R.id.btn_cancelar_arma);
-        btnGuardarArma = findViewById(R.id.btn_guardar_arma);
+        Button btnShip5 = findViewById(R.id.btn_ship_5x1);
+        Button btnShip3 = findViewById(R.id.btn_ship_3x1);
+        Button btnShip1 = findViewById(R.id.btn_ship_1x1);
+        Button btnAm = findViewById(R.id.btn_ametralladora);
+        Button btnMi = findViewById(R.id.btn_misil);
+        Button btnTo = findViewById(R.id.btn_torpedo);
+
+        // Inicializamos el Helper que controlará los colores de estos botones
+        uiHelper = new BotonesUIHelper(btnShip5, btnShip3, btnShip1, btnAm, btnMi, btnTo);
+
+        btnShip5.setOnClickListener(v -> { tamanoSeleccionado = 5; uiHelper.resaltarBarco(5); });
+        btnShip3.setOnClickListener(v -> { tamanoSeleccionado = 3; uiHelper.resaltarBarco(3); });
+        btnShip1.setOnClickListener(v -> { tamanoSeleccionado = 1; uiHelper.resaltarBarco(1); });
+        btnRotar.setOnClickListener(v -> { enHorizontal = !enHorizontal; btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)"); });
+
+        btnAm.setOnClickListener(v -> seleccionarArmaTemporal("Ametralladora"));
+        btnMi.setOnClickListener(v -> seleccionarArmaTemporal("Misil"));
+        btnTo.setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
+
+        findViewById(R.id.btn_cancelar_arma).setOnClickListener(v -> cancelarSeleccionArma());
+        findViewById(R.id.btn_guardar_arma).setOnClickListener(v -> guardarArmaBarco());
+        findViewById(R.id.btn_confirmar).setOnClickListener(v -> avanzarFase());
     }
 
     private void configurarTablero() {
         RecyclerView rvTablero = findViewById(R.id.rvBoard);
         celdasTablero = new ArrayList<>();
+        int colEnemiga = Color.parseColor("#90CAF9"), colNeutra = Color.parseColor("#4FC3F7"), colAliada = ContextCompat.getColor(this, R.color.sea_blue);
 
         for (int i = 0; i < 225; i++) {
-            int fila = i / 15;
-            int colorBase = (fila < 5) ? colorAguaEnemiga : ((fila < 10) ? colorAguaNeutra : colorAguaAliada);
-            celdasTablero.add(new CeldaVisual(colorBase));
+            celdasTablero.add(new CeldaVisual((i / 15 < 5) ? colEnemiga : ((i / 15 < 10) ? colNeutra : colAliada)));
         }
 
-        rvTablero.setHasFixedSize(true);
-        rvTablero.setItemAnimator(null);
-
+        rvTablero.setHasFixedSize(true); rvTablero.setItemAnimator(null);
         rvTablero.setLayoutManager(new GridLayoutManager(this, 15));
         adaptador = new ConfigurarFlotaAdapter(celdasTablero, this::manejarToqueCelda);
         rvTablero.setAdapter(adaptador);
     }
 
-    private void configurarListeners() {
-        btnShip5.setOnClickListener(v -> { tamanoSeleccionado = 5; actualizarBotonesSeleccionColocacion(5); });
-        btnShip3.setOnClickListener(v -> { tamanoSeleccionado = 3; actualizarBotonesSeleccionColocacion(3); });
-        btnShip1.setOnClickListener(v -> { tamanoSeleccionado = 1; actualizarBotonesSeleccionColocacion(1); });
+    private void manejarToqueCelda(int pos) {
+        int idBarco = gestorLogica.getIdBarcoEn(pos);
+        if (faseActual == 2) {
+            if (idBarco != 0) abrirPanelArmas(idBarco);
+            else cancelarSeleccionArma();
+        } else {
+            intentarColocarOQuitarBarco(pos, idBarco);
+        }
+    }
 
-        btnRotar.setOnClickListener(v -> {
-            enHorizontal = !enHorizontal;
-            btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)");
-        });
+    private void intentarColocarOQuitarBarco(int pos, int idBarcoExistente) {
+        if (idBarcoExistente != 0) {
+            if (tamanoSeleccionado == 0) borrarBarcoUI(idBarcoExistente);
+            else Toast.makeText(this, "No puedes colocar un barco encima de otro", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (tamanoSeleccionado == 0) return;
 
-        btnAmetralladora.setOnClickListener(v -> seleccionarArmaTemporal("Ametralladora"));
-        btnMisil.setOnClickListener(v -> seleccionarArmaTemporal("Misil"));
-        btnTorpedo.setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
+        int posAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, enHorizontal);
+        int validacion = gestorLogica.validarColocacion(posAjustada, tamanoSeleccionado, enHorizontal);
 
-        btnCancelarArma.setOnClickListener(v -> cancelarSeleccionArma());
-        btnGuardarArma.setOnClickListener(v -> guardarArmaBarco());
+        if (validacion == 1) Toast.makeText(this, "Zona inválida", Toast.LENGTH_SHORT).show();
+        else if (validacion == 2) Toast.makeText(this, "Choca con otro barco", Toast.LENGTH_SHORT).show();
+        else {
+            gestorLogica.colocarBarco(posAjustada, tamanoSeleccionado, enHorizontal);
+            dibujarBarcoEnVista(posAjustada);
+            tamanoSeleccionado = 0;
+            uiHelper.resaltarBarco(0);
+            uiHelper.ocultarBarcosColocados(gestorLogica.estaBarcoColocado(5), gestorLogica.estaBarcoColocado(3), gestorLogica.estaBarcoColocado(1));
+            adaptador.notifyDataSetChanged();
+        }
+    }
 
-        btnConfirmar.setOnClickListener(v -> avanzarFase());
+    private void dibujarBarcoEnVista(int posAjustada) {
+        for (int i = 0; i < tamanoSeleccionado; i++) {
+            CeldaVisual celda = celdasTablero.get(enHorizontal ? (posAjustada + i) : (posAjustada + (i * 15)));
+            celda.rotacion = enHorizontal ? 90f : 0f;
+            if (tamanoSeleccionado == 1) celda.idImagenBarco = R.drawable.barco_medio;
+            else if (i == 0) celda.idImagenBarco = enHorizontal ? R.drawable.barco_popa : R.drawable.barco_proa;
+            else if (i == tamanoSeleccionado - 1) celda.idImagenBarco = enHorizontal ? R.drawable.barco_proa : R.drawable.barco_popa;
+            else celda.idImagenBarco = R.drawable.barco_medio;
+        }
+    }
+
+    private void borrarBarcoUI(int idBarco) {
+        for (int i = 0; i < 225; i++) {
+            if (gestorLogica.getIdBarcoEn(i) == idBarco) {
+                celdasTablero.get(i).idImagenBarco = 0; celdasTablero.get(i).seleccionadaParaArma = false;
+            }
+        }
+        gestorLogica.borrarBarco(idBarco);
+        uiHelper.ocultarBarcosColocados(gestorLogica.estaBarcoColocado(5), gestorLogica.estaBarcoColocado(3), gestorLogica.estaBarcoColocado(1));
+        adaptador.notifyDataSetChanged();
+    }
+
+    private void abrirPanelArmas(int idBarco) {
+        idBarcoSeleccionadoParaArma = idBarco;
+        armaTemporal = "";
+        actualizarMarcadorBarco(idBarco);
+
+        // Averiguamos el tamaño del barco seleccionado
+        int tamano = gestorLogica.getTamanoBarco(idBarco);
+
+        // Le pasamos al Helper el tamaño y qué armas tiene ya puestas
+        uiHelper.actualizarBotonesArmas(
+                tamano,
+                gestorLogica.tieneArmaEquipada(idBarco, "Ametralladora"),
+                gestorLogica.tieneArmaEquipada(idBarco, "Misil"),
+                gestorLogica.tieneArmaEquipada(idBarco, "Torpedo")
+        );
+
+        uiHelper.resaltarArma("");
+        layoutControlesArmas.setVisibility(View.VISIBLE);
     }
 
     private void seleccionarArmaTemporal(String tipo) {
         armaTemporal = tipo;
-        actualizarBotonesArmaTemporal();
-    }
-
-    private void actualizarBotonesArmaTemporal() {
-        btnAmetralladora.setAlpha(1.0f); btnMisil.setAlpha(1.0f); btnTorpedo.setAlpha(1.0f);
-        btnAmetralladora.getBackground().mutate().clearColorFilter();
-        btnMisil.getBackground().mutate().clearColorFilter();
-        btnTorpedo.getBackground().mutate().clearColorFilter();
-
-        if (armaTemporal.equals("Ametralladora")) {
-            btnAmetralladora.getBackground().mutate().setColorFilter(Color.argb(120, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            btnMisil.setAlpha(0.6f); btnTorpedo.setAlpha(0.6f);
-        } else if (armaTemporal.equals("Misil")) {
-            btnMisil.getBackground().mutate().setColorFilter(Color.argb(120, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            btnAmetralladora.setAlpha(0.6f); btnTorpedo.setAlpha(0.6f);
-        } else if (armaTemporal.equals("Torpedo")) {
-            btnTorpedo.getBackground().mutate().setColorFilter(Color.argb(120, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            btnAmetralladora.setAlpha(0.6f); btnMisil.setAlpha(0.6f);
-        }
+        uiHelper.resaltarArma(tipo);
     }
 
     private void guardarArmaBarco() {
-        if (idBarcoSeleccionadoParaArma != 0) {
-            if (armaTemporal.isEmpty()) {
-                Toast.makeText(this, "Selecciona un arma o pulsa Cancelar para no hacer cambios", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            armasEquipadasPorBarco.put(idBarcoSeleccionadoParaArma, armaTemporal);
-            Toast.makeText(this, armaTemporal + " equipada al barco!", Toast.LENGTH_SHORT).show();
-            cancelarSeleccionArma();
+        if (idBarcoSeleccionadoParaArma != 0 && !armaTemporal.isEmpty()) {
+            gestorLogica.equiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
+            Toast.makeText(this, armaTemporal + " equipada!", Toast.LENGTH_SHORT).show();
+
+            // MAGIA: En lugar de cerrar el panel, lo "refrescamos".
+            // Así el botón del arma que acabamos de equipar desaparecerá mágicamente
+            // y podremos equipar la siguiente sin volver a tocar el barco.
+            abrirPanelArmas(idBarcoSeleccionadoParaArma);
+        } else {
+            Toast.makeText(this, "Selecciona un arma primero", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private void actualizarBotonesSeleccionColocacion(int tamano) {
-        btnShip5.setAlpha(1.0f); btnShip3.setAlpha(1.0f); btnShip1.setAlpha(1.0f);
-        btnShip5.getBackground().mutate().clearColorFilter();
-        btnShip3.getBackground().mutate().clearColorFilter();
-        btnShip1.getBackground().mutate().clearColorFilter();
-
-        if (tamano == 5) {
-            btnShip5.getBackground().mutate().setColorFilter(Color.argb(120, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            btnShip3.setAlpha(0.6f); btnShip1.setAlpha(0.6f);
-        } else if (tamano == 3) {
-            btnShip3.getBackground().mutate().setColorFilter(Color.argb(120, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            btnShip5.setAlpha(0.6f); btnShip1.setAlpha(0.6f);
-        } else if (tamano == 1) {
-            btnShip1.getBackground().mutate().setColorFilter(Color.argb(120, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            btnShip5.setAlpha(0.6f); btnShip3.setAlpha(0.6f);
-        }
-    }
-
-    private void manejarToqueCelda(int pos) {
-        if (faseActual == 2) {
-            int idBarco = casillasOcupadas[pos];
-            if (idBarco != 0) {
-                actualizarMarcadorBarco(idBarco);
-                idBarcoSeleccionadoParaArma = idBarco;
-
-                // Limpiamos la selección visual para obligarle a elegir de las armas restantes
-                armaTemporal = "";
-
-                actualizarVisibilidadBotonesArmas();
-                actualizarBotonesArmaTemporal();
-
-                layoutControlesArmas.setVisibility(View.VISIBLE);
-            } else {
-                cancelarSeleccionArma();
-            }
-            return;
-        }
-        colocarBarco(pos);
-    }
-
-    // --- MAGIA AQUÍ: Las armas ya equipadas en cualquier barco DESAPARECEN ---
-    private void actualizarVisibilidadBotonesArmas() {
-        boolean ametralladoraUsada = armasEquipadasPorBarco.containsValue("Ametralladora");
-        boolean misilUsado = armasEquipadasPorBarco.containsValue("Misil");
-        boolean torpedoUsado = armasEquipadasPorBarco.containsValue("Torpedo");
-
-        btnAmetralladora.setVisibility(ametralladoraUsada ? View.GONE : View.VISIBLE);
-        btnMisil.setVisibility(misilUsado ? View.GONE : View.VISIBLE);
-        btnTorpedo.setVisibility(torpedoUsado ? View.GONE : View.VISIBLE);
     }
 
     private void cancelarSeleccionArma() {
-        limpiarMarcadorBarco();
+        actualizarMarcadorBarco(0);
         armaTemporal = "";
         layoutControlesArmas.setVisibility(View.GONE);
     }
 
-    private void colocarBarco(int pos) {
-        if (casillasOcupadas[pos] != 0) {
-            if (tamanoSeleccionado == 0) {
-                borrarBarco(casillasOcupadas[pos]);
-            } else {
-                Toast.makeText(this, "Error: No puedes colocar un barco encima de otro", Toast.LENGTH_SHORT).show();
-            }
-            return;
-        }
-
-        if (tamanoSeleccionado == 0) return;
-
-        int fila = pos / 15;
-        int col = pos % 15;
-
-        if (enHorizontal && (col + tamanoSeleccionado > 15)) {
-            col = 15 - tamanoSeleccionado;
-            pos = (fila * 15) + col;
-        }
-        if (!enHorizontal && (fila + tamanoSeleccionado > 15)) {
-            fila = 15 - tamanoSeleccionado;
-            pos = (fila * 15) + col;
-        }
-
-        if (fila < 10) {
-            Toast.makeText(this, "ZONA RESTRINGIDA: Debes colocar tu flota en tu zona", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        for (int i = 0; i < tamanoSeleccionado; i++) {
-            int check = enHorizontal ? (pos + i) : (pos + (i * 15));
-            if (casillasOcupadas[check] != 0) {
-                Toast.makeText(this, "Error: El barco choca con otro ya colocado", Toast.LENGTH_SHORT).show();
-                return;
-            }
-        }
-
-        float rotacion = enHorizontal ? 90f : 0f;
-
-        int imgProa = R.drawable.barco_proa;
-        int imgMedio = R.drawable.barco_medio;
-        int imgPopa = R.drawable.barco_popa;
-        int imgUnico = R.drawable.barco_medio;
-
-        for (int i = 0; i < tamanoSeleccionado; i++) {
-            int p = enHorizontal ? (pos + i) : (pos + (i * 15));
-            casillasOcupadas[p] = idBarcoActual;
-            CeldaVisual celda = celdasTablero.get(p);
-
-            celda.rotacion = rotacion;
-
-            if (tamanoSeleccionado == 1) {
-                celda.idImagenBarco = imgUnico;
-            } else {
-                if (enHorizontal) {
-                    if (i == 0) celda.idImagenBarco = imgPopa;
-                    else if (i == tamanoSeleccionado - 1) celda.idImagenBarco = imgProa;
-                    else celda.idImagenBarco = imgMedio;
-                } else {
-                    if (i == 0) celda.idImagenBarco = imgProa;
-                    else if (i == tamanoSeleccionado - 1) celda.idImagenBarco = imgPopa;
-                    else celda.idImagenBarco = imgMedio;
-                }
-            }
-        }
-
-        if (tamanoSeleccionado == 5) { barco5Colocado = true; btnShip5.setVisibility(View.GONE); }
-        if (tamanoSeleccionado == 3) { barco3Colocado = true; btnShip3.setVisibility(View.GONE); }
-        if (tamanoSeleccionado == 1) { barco1Colocado = true; btnShip1.setVisibility(View.GONE); }
-
-        idBarcoActual++;
-        tamanoSeleccionado = 0;
-        actualizarBotonesSeleccionColocacion(0);
+    private void actualizarMarcadorBarco(int idBarco) {
+        for (int i = 0; i < 225; i++) celdasTablero.get(i).seleccionadaParaArma = (idBarco != 0 && gestorLogica.getIdBarcoEn(i) == idBarco);
+        idBarcoSeleccionadoParaArma = idBarco;
         adaptador.notifyDataSetChanged();
-    }
-
-    private void borrarBarco(int id) {
-        for (int i = 0; i < 225; i++) {
-            if (casillasOcupadas[i] == id) {
-                casillasOcupadas[i] = 0;
-                celdasTablero.get(i).idImagenBarco = 0;
-                celdasTablero.get(i).seleccionadaParaArma = false;
-            }
-        }
-        armasEquipadasPorBarco.remove(id);
-
-        actualizarEstadosBarcos();
-        adaptador.notifyDataSetChanged();
-    }
-
-    private void actualizarEstadosBarcos() {
-        barco5Colocado = false; barco3Colocado = false; barco1Colocado = false;
-        for (int id : casillasOcupadas) {
-            if (id == 0) continue;
-            int count = 0;
-            for (int x : casillasOcupadas) if (x == id) count++;
-            if (count == 5) barco5Colocado = true;
-            if (count == 3) barco3Colocado = true;
-            if (count == 1) barco1Colocado = true;
-        }
-        btnShip5.setVisibility(barco5Colocado ? View.GONE : View.VISIBLE);
-        btnShip3.setVisibility(barco3Colocado ? View.GONE : View.VISIBLE);
-        btnShip1.setVisibility(barco1Colocado ? View.GONE : View.VISIBLE);
     }
 
     private void avanzarFase() {
         if (faseActual == 1) {
-            if (barco5Colocado && barco3Colocado && barco1Colocado) {
+            // Fase 1: Sigue siendo obligatorio colocar los 3 barcos
+            if (gestorLogica.estaBarcoColocado(5) && gestorLogica.estaBarcoColocado(3) && gestorLogica.estaBarcoColocado(1)) {
                 faseActual = 2;
                 layoutControlesColocacion.setVisibility(View.GONE);
                 ((TextView)findViewById(R.id.tv_title)).setText("Equipa tus Armas");
-                Toast.makeText(this, "Selecciona un barco para equipar", Toast.LENGTH_SHORT).show();
+                // Le damos una pista al jugador de que esto es opcional
+                Toast.makeText(this, "Equipa tus armas (opcional) y pulsa Confirmar", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(this, "Coloca todos los barcos", Toast.LENGTH_SHORT).show();
             }
         } else {
-            if (armasEquipadasPorBarco.size() < 3) {
-                Toast.makeText(this, "Debes repartir las 3 armas en tus 3 barcos", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            System.out.println("Configuración de Armas lista para enviar: " + armasEquipadasPorBarco.toString());
-            Toast.makeText(this, "Configuración completada con éxito", Toast.LENGTH_SHORT).show();
+            // Fase 2: Como las armas son opcionales, simplemente terminamos la Activity y guardamos
+            Toast.makeText(this, "¡Flota lista para el combate!", Toast.LENGTH_SHORT).show();
             finish();
         }
-    }
-
-    private void actualizarMarcadorBarco(int idBarco) {
-        limpiarMarcadorBarco();
-        for (int i = 0; i < 225; i++) {
-            if (casillasOcupadas[i] == idBarco) {
-                celdasTablero.get(i).seleccionadaParaArma = true;
-            }
-        }
-        adaptador.notifyDataSetChanged();
-    }
-
-    private void limpiarMarcadorBarco() {
-        for (int i = 0; i < 225; i++) {
-            celdasTablero.get(i).seleccionadaParaArma = false;
-        }
-        idBarcoSeleccionadoParaArma = 0;
-        adaptador.notifyDataSetChanged();
     }
 }
