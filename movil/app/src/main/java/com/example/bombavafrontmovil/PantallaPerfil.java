@@ -2,7 +2,9 @@ package com.example.bombavafrontmovil;
 
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.Button;
+import android.content.Intent;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -17,10 +19,16 @@ public class PantallaPerfil extends BaseActivity {
 
         Button btnLogout = findViewById(R.id.btnLogout);
 
-        btnLogout.setOnClickListener(v -> {
-            // Simulación de cerrar sesión
-            Toast.makeText(this, "Sesión cerrada correctamente", Toast.LENGTH_SHORT).show();
-            finish(); // Cierra esta pantalla y vuelve al menú
+        btnLogout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Al cerrar sesión, lo enviamos de vuelta al MainActivity
+                Intent intent = new Intent(PantallaPerfil.this, MainActivity.class);
+                // Estas "flags" limpian el historial para que no pueda volver al perfil dándole "Atrás"
+                intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+                finish();
+            }
         });
     }
 

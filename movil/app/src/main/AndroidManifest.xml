@@ -46,6 +46,11 @@
             android:name=".ConfigurarFlotaActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".LoginActivity"
+            android:exported="false"/>
+
+
     </application>
 
 </manifest>
