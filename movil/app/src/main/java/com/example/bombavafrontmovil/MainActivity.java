@@ -11,6 +11,7 @@ import android.widget.ImageButton;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog; // Importante
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.AppCompatImageButton;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -51,15 +52,13 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        ImageButton btnProfile = findViewById(R.id.btnProfile);
+        // Busca tu botón de perfil por su ID
+        AppCompatImageButton btnPerfil = findViewById(R.id.btnProfile);
 
-
-        btnProfile.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, PantallaPerfil.class);
-                startActivity(intent);
-            }
+        btnPerfil.setOnClickListener(v -> {
+            // Te lleva a la pantalla de Login/Registro
+            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+            startActivity(intent);
         });
 
         ImageButton btnSettings = findViewById(R.id.btnSettings);

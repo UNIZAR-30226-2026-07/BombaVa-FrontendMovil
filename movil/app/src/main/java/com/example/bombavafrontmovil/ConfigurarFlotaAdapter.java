@@ -14,14 +14,14 @@ import java.util.List;
 
 public class ConfigurarFlotaAdapter extends RecyclerView.Adapter<ConfigurarFlotaAdapter.ViewHolder> {
 
-    private final List<ConfigurarFlotaActivity.CeldaVisual> celdasTablero;
+    private final List<CeldaVisual> celdasTablero;
     private final OnCeldaClickListener listener;
 
     public interface OnCeldaClickListener {
         void onCeldaClick(int posicion);
     }
 
-    public ConfigurarFlotaAdapter(List<ConfigurarFlotaActivity.CeldaVisual> celdasTablero, OnCeldaClickListener listener) {
+    public ConfigurarFlotaAdapter(List<CeldaVisual> celdasTablero, OnCeldaClickListener listener) {
         this.celdasTablero = celdasTablero;
         this.listener = listener;
     }
@@ -61,7 +61,7 @@ public class ConfigurarFlotaAdapter extends RecyclerView.Adapter<ConfigurarFlota
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        ConfigurarFlotaActivity.CeldaVisual celda = celdasTablero.get(position);
+        CeldaVisual celda = celdasTablero.get(position);
 
         holder.layoutFondo.setBackgroundColor(celda.colorAgua);
 
