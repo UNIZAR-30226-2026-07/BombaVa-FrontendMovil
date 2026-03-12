@@ -5,30 +5,48 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/ocean_dark_bg"
-    android:padding="@dimen/big_padding">
+    android:padding="16dp">
 
     <TextView
         android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Configura tu Flota"
+        android:layout_marginTop="32dp"
+        android:text="CONFIGURA TU FLOTA"
+        android:textAllCaps="true"
         android:textColor="@color/colorAccent"
-        android:textSize="24sp"
+        android:textSize="32sp"
         android:textStyle="bold"
+        android:gravity="center"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/btn_info_leyenda"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_dialog_info"
+        app:layout_constraintTop_toBottomOf="@+id/tv_title"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@color/colorAccent" />
 
     <FrameLayout
         android:id="@+id/board_frame"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="24dp"
         android:background="@drawable/border_tablero_madera"
         android:padding="8dp"
         app:layout_constraintDimensionRatio="1:1"
-        app:layout_constraintTop_toBottomOf="@id/tv_title"
+        app:layout_constraintTop_toBottomOf="@id/btn_info_leyenda"
         app:layout_constraintBottom_toTopOf="@+id/layout_controles_container"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -45,7 +63,9 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <LinearLayout
             android:id="@+id/layout_controles"
@@ -57,29 +77,37 @@
                 android:id="@+id/btn_ship_5x1"
                 style="@style/BotonMadera"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="5x1" />
+                android:textAllCaps="true"
+                android:text="5X1" />
 
             <Button
                 android:id="@+id/btn_ship_3x1"
                 style="@style/BotonMadera"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="3x1" />
+                android:textAllCaps="true"
+                android:text="3X1" />
 
             <Button
                 android:id="@+id/btn_ship_1x1"
                 style="@style/BotonMadera"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="1x1" />
+                android:textAllCaps="true"
+                android:text="1X1" />
 
             <Button
                 android:id="@+id/btn_rotate"
                 style="@style/BotonMadera"
                 android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Rotar" />
+                android:textAllCaps="true"
+                android:text="ROTAR" />
         </LinearLayout>
 
         <LinearLayout
@@ -98,25 +126,31 @@
                     android:id="@+id/btn_ametralladora"
                     style="@style/BotonMadera"
                     android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textSize="12sp"
-                    android:text="Ametr." />
+                    android:textAllCaps="true"
+                    android:text="AMETR." />
 
                 <Button
                     android:id="@+id/btn_misil"
                     style="@style/BotonMadera"
                     android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textSize="12sp"
-                    android:text="Misil" />
+                    android:textAllCaps="true"
+                    android:text="MISIL" />
 
                 <Button
                     android:id="@+id/btn_torpedo"
                     style="@style/BotonMadera"
                     android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:textSize="12sp"
-                    android:text="Torpedo" />
+                    android:textAllCaps="true"
+                    android:text="TORPEDO" />
             </LinearLayout>
 
             <LinearLayout
@@ -129,24 +163,51 @@
                     android:id="@+id/btn_cancelar_arma"
                     style="@style/BotonMadera"
                     android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Cancelar" />
+                    android:textAllCaps="true"
+                    android:text="CANCELAR" />
 
                 <Button
                     android:id="@+id/btn_guardar_arma"
                     style="@style/BotonMadera"
                     android:layout_width="0dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Equipar Arma" />
+                    android:textAllCaps="true"
+                    android:text="ACCIÓN" />
             </LinearLayout>
         </LinearLayout>
 
-        <Button
-            android:id="@+id/btn_confirmar"
-            style="@style/BotonMadera"
+        <LinearLayout
+            android:id="@+id/layout_acciones_finales"
             android:layout_width="match_parent"
-            android:text="Continuar"
-            android:layout_marginTop="8dp"/>
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_limpiar_todo"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#D32F2F"
+                android:textAllCaps="true"
+                android:text="LIMPIAR TODO"
+                android:textColor="@android:color/white" />
+
+            <Button
+                android:id="@+id/btn_confirmar"
+                style="@style/BotonMadera"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:textAllCaps="true"
+                android:text="CONTINUAR" />
+        </LinearLayout>
 
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

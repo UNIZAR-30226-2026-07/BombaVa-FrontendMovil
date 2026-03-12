@@ -1,6 +1,7 @@
 package com.example.bombavafrontmovil;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.SeekBar;
@@ -10,11 +11,15 @@ import android.widget.Toast;
 public class PantallaAjustes extends BaseActivity {
 
     private boolean esIngles = false;
+    private SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_ajustes);
+
+        // Instanciamos SharedPreferences una sola vez para toda la clase
+        prefs = getSharedPreferences("AjustesApp", MODE_PRIVATE);
 
         // 1. Referencias de la UI
         Button btnBack = findViewById(R.id.btnBackSettings);
@@ -23,54 +28,74 @@ public class PantallaAjustes extends BaseActivity {
         Switch switchVibration = findViewById(R.id.switchVibration);
         SeekBar seekBarVolume = findViewById(R.id.seekBarVolume);
 
-        // 2. Comprobar idioma actual para configurar el estado inicial
-        String currentLang = getSharedPreferences("AjustesApp", MODE_PRIVATE)
-                .getString("idioma_preferido", "es");
+        // ==========================================
+        // 2. CARGAR AJUSTES AL ABRIR LA PANTALLA
+        // ==========================================
 
+        // Idioma
+        String currentLang = prefs.getString("idioma_preferido", "es");
         esIngles = currentLang.equals("en");
         btnLanguage.setText(esIngles ? "EN" : "ES");
 
-        // 3. UN SOLO Listener para el botón de idioma
+        // Vibración (por defecto activada: true)
+        switchVibration.setChecked(prefs.getBoolean("vibracion_activada", true));
+
+        // Música (por defecto activada: true)
+        switchMusic.setChecked(prefs.getBoolean("musica_activada", true));
+
+        // Volumen (por defecto al 50%)
+        seekBarVolume.setProgress(prefs.getInt("volumen_musica", 50));
+
+
+        // ==========================================
+        // 3. LISTENERS PARA GUARDAR LOS CAMBIOS
+        // ==========================================
+
+        // Listener Idioma (El que ya tenías)
         btnLanguage.setOnClickListener(v -> {
-            // Cambiamos el valor
             String nuevoIdioma = esIngles ? "es" : "en";
+            prefs.edit().putString("idioma_preferido", nuevoIdioma).apply();
 
-            // Guardamos en SharedPreferences
-            getSharedPreferences("AjustesApp", MODE_PRIVATE)
-                    .edit()
-                    .putString("idioma_preferido", nuevoIdioma)
-                    .apply();
-
-            // REINICIO DE LA APP:
-            // Intentamos obtener el intent de lanzamiento de forma segura
             Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-
             if (intent != null) {
-                // Limpiamos toda la pila de pantallas para que no queden pantallas en el idioma viejo
                 intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                 startActivity(intent);
-                finish(); // Cerramos la pantalla actual de ajustes
+                finish();
             } else {
-                // Si por alguna razón falla el reinicio total, usamos el método simple
                 recreate();
             }
         });
 
-        // 4. Botón volver
-        btnBack.setOnClickListener(v -> finish());
+        // Listener Vibración
+        switchVibration.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.edit().putBoolean("vibracion_activada", isChecked).apply();
+        });
 
-        // 5. Lógica del SeekBar
+        // Listener Música
+        switchMusic.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.edit().putBoolean("musica_activada", isChecked).apply();
+            // TODO: Aquí luego podrías pausar o reanudar tu servicio de música directamente
+        });
+
+        // Listener Volumen
         seekBarVolume.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {}
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                // Si quieres que el volumen cambie en tiempo real mientras arrastra, hazlo aquí
+            }
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {}
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                Toast.makeText(PantallaAjustes.this, "Volumen: " + seekBar.getProgress() + "%", Toast.LENGTH_SHORT).show();
+                int volumenActual = seekBar.getProgress();
+                prefs.edit().putInt("volumen_musica", volumenActual).apply();
+                Toast.makeText(PantallaAjustes.this, "Volumen guardado: " + volumenActual + "%", Toast.LENGTH_SHORT).show();
             }
         });
+
+        // Botón volver
+        btnBack.setOnClickListener(v -> finish());
     }
 }

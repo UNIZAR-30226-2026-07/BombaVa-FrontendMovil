@@ -1,115 +1,123 @@
 package com.example.bombavafrontmovil;
 
+import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.Toast;
-import androidx.appcompat.app.AlertDialog; // Importante
+
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.AppCompatImageButton;
 
 public class MainActivity extends AppCompatActivity {
 
-    private Button btnConfigFlota, btnCompetitivo, btnPractica, btnUnirse;
-    private ImageButton btnSettings, btnProfile;
+    private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Inicializar vistas
+        // Enlazamos las vistas
         btnCompetitivo = findViewById(R.id.btnCompetitivo);
-        btnPractica = findViewById(R.id.btnPractica);
         btnUnirse = findViewById(R.id.btnUnirse);
-        btnConfigFlota = findViewById(R.id.btnConfigFlota);
+        btnConfigurarFlota = findViewById(R.id.btnConfigFlota);
+        btnPerfil = findViewById(R.id.btnProfile);
 
-        btnConfigFlota.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, ConfigurarFlotaActivity.class);
-            startActivity(intent);
-        });
+        btnAjustes = findViewById(R.id.btnSettings);
 
-        btnCompetitivo.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, LobbyActivity.class);
-            startActivity(intent);
-        });
+        // Zonas restringidas (requieren login)
+        if (btnCompetitivo != null) {
+            btnCompetitivo.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isUsuarioLogueado()) {
+                        startActivity(new Intent(MainActivity.this, PantallaJuego.class));
+                    } else {
+                        mostrarDialogoAlistamiento();
+                    }
+                }
+            });
+        }
 
-        btnUnirse.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, PantallaUnirse.class);
-                startActivity(intent);
-            }
-        });
+        if (btnUnirse != null) {
+            btnUnirse.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isUsuarioLogueado()) {
+                        startActivity(new Intent(MainActivity.this, PantallaUnirse.class));
+                    } else {
+                        mostrarDialogoAlistamiento();
+                    }
+                }
+            });
+        }
 
-        btnPractica.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
-            startActivity(intent);
-        });
+        if (btnConfigurarFlota != null) {
+            btnConfigurarFlota.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isUsuarioLogueado()) {
+                        startActivity(new Intent(MainActivity.this, ConfigurarFlotaActivity.class));
+                    } else {
+                        mostrarDialogoAlistamiento();
+                    }
+                }
+            });
+        }
 
-        // Busca tu botón de perfil por su ID
-        AppCompatImageButton btnPerfil = findViewById(R.id.btnProfile);
+        // Botón de Perfil (Login o Perfil según el estado)
+        if (btnPerfil != null) {
+            btnPerfil.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isUsuarioLogueado()) {
+                        startActivity(new Intent(MainActivity.this, PantallaPerfil.class));
+                    } else {
+                        startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                    }
+                }
+            });
+        }
 
-        btnPerfil.setOnClickListener(v -> {
-            // Te lleva a la pantalla de Login/Registro
-            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-            startActivity(intent);
-        });
-
-        ImageButton btnSettings = findViewById(R.id.btnSettings);
-
-
-        btnSettings.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(MainActivity.this, PantallaAjustes.class);
-                startActivity(intent);
-            }
-        });
+        if (btnAjustes != null) {
+            btnAjustes.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    // Navegamos directamente a la pantalla de Ajustes
+                    startActivity(new Intent(MainActivity.this, PantallaAjustes.class));
+                }
+            });
+        }
     }
 
-    private void mostrarDialogoUnirsePartida() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Unirse a partida");
-        builder.setMessage("Introduce el código de la sala (4 caracteres):");
+    // --- MÉTODOS DE SEGURIDAD NAVAL ---
 
-        // Configurar el campo de texto (input)
-        final EditText input = new EditText(this);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
-        builder.setView(input);
+    private boolean isUsuarioLogueado() {
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+        return token != null && !token.isEmpty();
+    }
 
-        // Botón ACEPTAR
-        builder.setPositiveButton("Entrar", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String codigo = input.getText().toString().toUpperCase();
-
-                // Validación simple (simulamos que "si tiene 4 letras, existe")
-                if (codigo.length() == 4) {
-                    // CÓDIGO VÁLIDO -> Vamos al juego
-                    Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
-                    // Opcional: Pasamos el código a la siguiente pantalla por si hace falta
-                    intent.putExtra("CODIGO_SALA", codigo);
-                    startActivity(intent);
-                } else {
-                    Toast.makeText(MainActivity.this, "El código debe tener 4 caracteres", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
-        // Botón CANCELAR
-        builder.setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
-
-        builder.show();
+    private void mostrarDialogoAlistamiento() {
+        new AlertDialog.Builder(this)
+                .setTitle("¡Acceso Restringido!")
+                .setMessage("Atención: Necesitas estar alistado en la flota para acceder a esta sección de la Sala de Mando.\n\n¿Deseas identificarte o crear una cuenta ahora?")
+                .setPositiveButton("Identificarse", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+                        startActivity(intent);
+                    }
+                })
+                .setNegativeButton("Permanecer en cubierta", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                })
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setCancelable(true)
+                .show();
     }
 }

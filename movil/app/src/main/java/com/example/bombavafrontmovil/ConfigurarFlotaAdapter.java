@@ -65,6 +65,18 @@ public class ConfigurarFlotaAdapter extends RecyclerView.Adapter<ConfigurarFlota
 
         holder.layoutFondo.setBackgroundColor(celda.colorAgua);
 
+        int fila = position / 15;
+        if (fila >= 10) {
+            // Fila 0 a 9: Zona Aliada
+            holder.layoutFondo.setBackgroundResource(R.drawable.bg_agua_aliada);
+        } else if (fila >= 5) {
+            // Fila 10 y 11: Zona Neutra
+            holder.layoutFondo.setBackgroundResource(R.drawable.bg_agua_neutra);
+        } else {
+            // Fila 12 a 14: Zona Enemiga
+            holder.layoutFondo.setBackgroundResource(R.drawable.bg_agua_enemiga);
+        }
+
         if (celda.idImagenBarco != 0) {
             // Mostramos la imagen del barco y la rotamos
             holder.imgBarco.setVisibility(View.VISIBLE);
