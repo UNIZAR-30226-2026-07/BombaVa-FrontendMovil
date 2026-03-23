@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -7,8 +8,16 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.bombavafrontmovil.network.SocketManager;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import io.socket.client.Socket;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class PantallaJuego extends AppCompatActivity {
     // UI
@@ -32,6 +41,10 @@ public class PantallaJuego extends AppCompatActivity {
     private int danoEnEspera = 0;
     private int combustible = 10;
     private int municion = 10;
+
+    // Sockets
+    private Socket mSocket;
+    private android.app.AlertDialog dialogoEspera;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,6 +117,24 @@ public class PantallaJuego extends AppCompatActivity {
         // 4. CONFIGURAR BOTONES
         configurarBotonesAccion();
         configurarBotonInfo();
+
+        // Recuperamos la instancia del socket
+        mSocket = SocketManager.getInstance().getSocket();
+
+        // Leemos los datos que nos envía la pantalla anterior
+        Intent intent = getIntent();
+        boolean esHost = intent.getBooleanExtra("ES_HOST", false);
+        String codigoSala = intent.getStringExtra("CODIGO_SALA");
+        String matchId = intent.getStringExtra("MATCH_ID"); // Vendrá lleno si somos el invitado
+
+        if (esHost && codigoSala != null) {
+            // SOMOS EL CREADOR: Mostramos el Pop-up y esperamos
+            mostrarPopUpEspera(codigoSala);
+            configurarEscuchaRival();
+        } else if (matchId != null) {
+            // SOMOS EL INVITADO: Ya tenemos el ID del match, nos unimos directamente al juego
+            unirseAlJuegoReal(matchId);
+        }
     }
 
     private void initViews() {
@@ -334,5 +365,68 @@ public class PantallaJuego extends AppCompatActivity {
         if(layAtk != null) layAtk.setVisibility(View.GONE);
         if(layMove != null) layMove.setVisibility(View.GONE);
         v.setVisibility(View.VISIBLE);
+    }
+
+    private void mostrarPopUpEspera(String codigo) {
+        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
+        builder.setTitle("Esperando Rival...");
+        builder.setMessage("Tu código de sala es:\n\n" + codigo + "\n\nComparte este código con tu amigo para que se una. La partida empezará automáticamente.");
+
+        // MUY IMPORTANTE: Esto impide que el usuario cierre el pop-up tocando fuera
+        builder.setCancelable(false);
+
+        dialogoEspera = builder.create();
+        dialogoEspera.show();
+    }
+
+    private void configurarEscuchaRival() {
+        mSocket.on("match:ready", args -> {
+            runOnUiThread(() -> {
+                try {
+                    // El servidor avisa que el rival ha entrado
+                    JSONObject data = (JSONObject) args[0];
+                    String matchId = data.getString("matchId");
+
+                    // 1. Cerramos el Pop-up!
+                    if (dialogoEspera != null && dialogoEspera.isShowing()) {
+                        dialogoEspera.dismiss();
+                    }
+
+                    Toast.makeText(this, "¡El rival se ha unido! A los cañones.", Toast.LENGTH_SHORT).show();
+
+                    // 2. Nos conectamos al tablero de juego del servidor
+                    unirseAlJuegoReal(matchId);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+    }
+
+    private void unirseAlJuegoReal(String matchId) {
+        try {
+            // Según la documentación de tu API, mandamos game:join
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            mSocket.emit("game:join", payload);
+
+            // Opcional: escuchar si la conexión al tablero fue exitosa
+            mSocket.on("game:joined", args -> {
+                runOnUiThread(() -> Toast.makeText(this, "Conectado al tablero.", Toast.LENGTH_SHORT).show());
+            });
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mSocket != null) {
+            mSocket.off("match:ready");
+            mSocket.off("game:joined");
+        }
     }
 }

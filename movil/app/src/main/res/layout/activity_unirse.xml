@@ -44,7 +44,7 @@
         android:textColorHint="#8B5A2B"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:maxLength="4"
+        android:maxLength="6"
         android:textAllCaps="true"
         android:inputType="textCapCharacters"
         app:layout_constraintWidth_percent="0.8"

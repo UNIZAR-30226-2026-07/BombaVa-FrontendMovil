@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
 
-    private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes;
+    private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
         btnUnirse = findViewById(R.id.btnUnirse);
         btnConfigurarFlota = findViewById(R.id.btnConfigFlota);
         btnPerfil = findViewById(R.id.btnProfile);
-
+        btnPractica = findViewById(R.id.btnPractica);
         btnAjustes = findViewById(R.id.btnSettings);
 
         // Zonas restringidas (requieren login)
@@ -86,6 +86,19 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View v) {
                     // Navegamos directamente a la pantalla de Ajustes
                     startActivity(new Intent(MainActivity.this, PantallaAjustes.class));
+                }
+            });
+        }
+
+        if (btnPractica != null) {
+            btnPractica.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isUsuarioLogueado()) {
+                        startActivity(new Intent(MainActivity.this, LobbyActivity.class));
+                    } else {
+                        mostrarDialogoAlistamiento();
+                    }
                 }
             });
         }
