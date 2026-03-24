@@ -57,6 +57,9 @@
             android:name=".LoginActivity"
             android:exported="false"/>
 
+        <activity
+            android:name=".EditarPerfilActivity"
+            android:exported="false" />
 
     </application>
 

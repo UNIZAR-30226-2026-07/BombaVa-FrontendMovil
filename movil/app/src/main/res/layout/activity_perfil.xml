@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/ocean_dark_bg"
     android:orientation="vertical"
     android:padding="32dp"
-    android:gravity="center"> <ImageView
-    android:layout_width="160dp"
-    android:layout_height="160dp"
-    android:src="@drawable/img_almirante_tallado"
-    android:contentDescription="Retrato tallado del Almirante"
-    android:layout_marginTop="32dp"
-    android:scaleType="centerInside" />
+    android:gravity="center">
+
+    <ImageView
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:src="@drawable/img_almirante_tallado"
+        android:contentDescription="Retrato tallado del Almirante"
+        android:layout_marginTop="32dp"
+        android:scaleType="centerInside" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -39,40 +42,83 @@
             android:layout_height="wrap_content"
             android:text="ALMIRANTE"
             android:textColor="@color/wood_dark"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.1"/>
-
-        <TextView
-            android:id="@+id/tv_perfil_username"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Cargando..."
-            android:textColor="@color/wood_dark_shadow"
             android:textSize="28sp"
             android:textStyle="bold"
-            android:layout_marginBottom="16dp"
-            android:gravity="center"/>
+            android:letterSpacing="0.1"
+            android:layout_marginBottom="24dp"/>
 
         <TextView
-            android:id="@+id/tv_perfil_email"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Comunicaciones..."
-            android:textColor="@color/wood_text_color"
+            android:text="USUARIO:"
+            android:textColor="@color/wood_dark"
             android:textSize="18sp"
-            android:layout_marginBottom="12dp"
-            android:gravity="center"/>
+            android:textStyle="bold"
+            android:alpha="0.8" /> <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp"
+            android:minHeight="44dp">
+
+            <TextView
+                android:id="@+id/tv_perfil_username"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="SERGITOFOX"
+                android:textColor="@color/wood_dark"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnEditarPerfil"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical|end"
+            android:background="@drawable/bg_circulo_boton"
+            android:contentDescription="Editar Perfil"
+            android:elevation="2dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_lapiz"
+            app:tint="#FFFFFF" />
+    </FrameLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CORREO:"
+            android:textColor="@color/wood_dark"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:alpha="0.8" /> <TextView
+        android:id="@+id/tv_perfil_email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="44dp"
+        android:text="serfoznad@gmail.com"
+        android:textColor="@color/wood_dark"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"/>
 
         <TextView
             android:id="@+id/tv_perfil_status"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Conectando..."
-            android:textColor="@color/teal_700"
+            android:text="Estado: LISTO PARA COMBATE"
+            android:textColor="#2E7D32"
             android:textSize="16sp"
-            android:textStyle="italic"
-            android:gravity="center"/>
+            android:textStyle="italic|bold"
+            android:gravity="center" />
     </LinearLayout>
 
     <Button
@@ -93,7 +139,7 @@
         android:text="CERRAR SESIÓN"
         android:textSize="16sp"
         android:backgroundTint="#D02204"
-        android:textColor="@color/colorPrimary"
+        android:textColor="@color/white"
         android:textStyle="bold"/>
 
 </LinearLayout>

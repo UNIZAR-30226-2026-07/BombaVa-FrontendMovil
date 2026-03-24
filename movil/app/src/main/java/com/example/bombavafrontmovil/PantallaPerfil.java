@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -24,6 +25,7 @@ public class PantallaPerfil extends AppCompatActivity {
 
     private TextView tvUsername, tvEmail, tvStatus;
     private Button btnSalaMando, btnCerrarSesion;
+    private ImageButton btnEditar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,6 +38,7 @@ public class PantallaPerfil extends AppCompatActivity {
         tvStatus = findViewById(R.id.tv_perfil_status);
         btnSalaMando = findViewById(R.id.btn_sala_mando);
         btnCerrarSesion = findViewById(R.id.btn_cerrar_sesion);
+        btnEditar = findViewById(R.id.btnEditarPerfil);
 
         // Configuramos el botón de la Sala de Mando
         btnSalaMando.setOnClickListener(new View.OnClickListener() {
@@ -53,7 +56,33 @@ public class PantallaPerfil extends AppCompatActivity {
             }
         });
 
-        // Procedemos a descargar los datos del Almirante
+        // La primera vez que entramos, cargamos los datos
+        cargarDatosDelUsuario();
+
+        btnEditar.setOnClickListener(v -> {
+            Intent intent = new Intent(PantallaPerfil.this, EditarPerfilActivity.class);
+
+            // Obtenemos el texto completo de los TextView
+            String textoUsuario = tvUsername.getText().toString();
+            String textoCorreo = tvEmail.getText().toString();
+
+            // Limpiamos los textos
+            String usuarioLimpio = textoUsuario.replace("USUARIO: ", "").trim();
+            String correoLimpio = textoCorreo.replace("CORREO: ", "").replace("EMAIL: ", "").trim();
+
+            // Pasamos los datos
+            intent.putExtra("USUARIO_ACTUAL", usuarioLimpio);
+            intent.putExtra("CORREO_ACTUAL", correoLimpio);
+
+            startActivity(intent);
+        });
+    }
+
+    // Este metodo se llama SIEMPRE que vuelves a esta pantalla
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Al volver de EditarPerfilActivity, volvemos a descargar los datos actualizados
         cargarDatosDelUsuario();
     }
 
@@ -76,11 +105,11 @@ public class PantallaPerfil extends AppCompatActivity {
                     User usuario = response.body();
 
                     if (usuario.getUsername() != null) {
-                        tvUsername.setText("USUARIO: " + usuario.getUsername().toUpperCase());
+                        tvUsername.setText(usuario.getUsername().toUpperCase());
                     } else {
                         tvUsername.setText("USUARIO NO ENCONTRADO");
                     }
-                    tvEmail.setText(usuario.getEmail() != null ? "CORREO: " + usuario.getEmail() : "Correo disponible...");
+                    tvEmail.setText(usuario.getEmail() != null ? usuario.getEmail() : "Correo disponible...");
                     tvStatus.setText("Estado: LISTO PARA COMBATE");
                 } else {
                     // Si el token ha caducado o el server da error 401/403

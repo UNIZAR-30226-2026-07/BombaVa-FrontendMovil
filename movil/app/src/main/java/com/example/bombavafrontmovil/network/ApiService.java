@@ -1,6 +1,8 @@
 package com.example.bombavafrontmovil.network;
 
 import com.example.bombavafrontmovil.models.*;
+
+import java.util.HashMap;
 import java.util.List;
 
 import retrofit2.http.PATCH;
@@ -33,6 +35,10 @@ public interface ApiService {
 
     @PATCH("/api/inventory/decks/{id}/activate")
     Call<Void> activarMazo(@Header("Authorization") String token, @Path("id") String deckId);
+
+    @PATCH("api/auth/me")
+    Call<Void> actualizarPerfil( @Header("Authorization") String token, @Body HashMap<String, String> datosUsuario
+    );
 
     @GET("/api/inventory/decks")
     Call<List<FleetConfigRequest>> obtenerMazo(@Header("Authorization") String token);
