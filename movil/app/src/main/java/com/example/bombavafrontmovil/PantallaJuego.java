@@ -4,8 +4,11 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,35 +24,42 @@ public class PantallaJuego extends AppCompatActivity {
     private GestorJuego gestor;
     private List<Casilla> matriz = new ArrayList<>();
     private BoardAdapter adapter;
-
-    // MEMORIA DE SELECCIÓN
     private String idBarcoSeleccionado = null;
 
+    // Vistas principales
     private View layNoSel, layMain, layMove, layAtk;
     private TextView txtInfoTitulo, txtInfoGlobal, txtInfoCeldas, txtTurnoStatus;
     private View panelInfoBarco;
     private Button btnPasarTurno;
+    private ImageButton btnPause;
 
-    private boolean modoAtaque = false;
+    // Armas
+    private Button btnAtk1, btnAtk2, btnAtk3;
+    private View divAtk2, divAtk3;
+
+    // Recursos
+    private ProgressBar barFuel, barAmmo;
+    private TextView txtFuel, txtAmmo;
+
+    // Control de tipo de ataque: 0=Ninguno, 1=Cañón, 2=Mina (Torpedo es inmediato)
+    private int tipoAtaque = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.juego);
 
-        // --- RECOGER DATOS AUTOMÁTICAMENTE DE LA PANTALLA ANTERIOR ---
+        // RECOGER DATOS (Automático o manual para debug)
         token = getIntent().getStringExtra("TOKEN");
         matchId = getIntent().getStringExtra("MATCH_ID");
         myUserId = getIntent().getStringExtra("USER_ID");
 
-        // Un aviso por si acaso entras desde "Práctica" y están vacíos
-        if (token == null || matchId == null) {
-            Toast.makeText(this, "Aviso: Modo Práctica sin conexión real", Toast.LENGTH_SHORT).show();
-        }
+        // --- MODO DEBUG SI ESTÁN VACÍOS ---
+        if(token == null) token = "PON_TU_TOKEN_AQUI";
+        if(matchId == null) matchId = "PON_TU_MATCH_ID_AQUI";
+        if(myUserId == null) myUserId = "PON_TU_USER_ID_AQUI";
 
         initViews();
-
-        // Inicializar tablero 15x15
         for (int i = 0; i < 225; i++) matriz.add(new Casilla(i / 15, i % 15));
 
         RecyclerView rv = findViewById(R.id.rvBoard);
@@ -57,22 +67,24 @@ public class PantallaJuego extends AppCompatActivity {
         rv.setItemAnimator(null);
 
         adapter = new BoardAdapter(matriz, c -> {
-            // BLOQUEO POR TURNO
             if (!gestor.isEsMiTurno()) {
-                Toast.makeText(this, "Es el turno del oponente", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Espera tu turno", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            if (modoAtaque) {
+            if (tipoAtaque > 0) {
                 if (idBarcoSeleccionado != null) {
-                    // ATAQUE OFICIAL: ship:attack:cannon
-                    gestor.atacarCanon(idBarcoSeleccionado, c.getColumna(), c.getFila());
-                    Toast.makeText(this, "¡Fuego enviado!", Toast.LENGTH_SHORT).show();
-                    modoAtaque = false;
+                    if (tipoAtaque == 1) {
+                        gestor.atacarCanon(idBarcoSeleccionado, c.getColumna(), c.getFila());
+                        Toast.makeText(this, "¡Cañonazo!", Toast.LENGTH_SHORT).show();
+                    } else if (tipoAtaque == 2) {
+                        gestor.ponerMina(idBarcoSeleccionado, c.getColumna(), c.getFila());
+                        Toast.makeText(this, "¡Mina desplegada!", Toast.LENGTH_SHORT).show();
+                    }
+                    tipoAtaque = 0;
                     mostrar(layMain);
                 }
             } else {
-                // SELECCIÓN DE BARCO PROPIO
                 if (c.isTieneBarco() && c.isEsAliado()) {
                     idBarcoSeleccionado = c.getIdBarcoStr();
                     mostrar(layMain);
@@ -85,125 +97,135 @@ public class PantallaJuego extends AppCompatActivity {
         });
         rv.setAdapter(adapter);
 
-        // CONEXIÓN AL GESTOR ADAPTADO AL BACKEND OFICIAL
-        gestor = new GestorJuego(token, matchId, myUserId, () -> {
-            runOnUiThread(() -> {
-                actualizarInterfazTurno();
-                actualizarMatrizVisual();
-            });
+        // CONEXIÓN CON EL NUEVO LISTENER DE EVENTOS
+        gestor = new GestorJuego(token, matchId, myUserId, new GestorJuego.PartidaListener() {
+            @Override
+            public void onActualizarTablero() {
+                runOnUiThread(() -> {
+                    actualizarInterfazTurno();
+                    actualizarMatrizVisual();
+                });
+            }
+
+            @Override
+            public void onRecursosActualizados(int fuel, int ammo) {
+                runOnUiThread(() -> {
+                    if (fuel >= 0) { barFuel.setProgress(fuel); txtFuel.setText(String.valueOf(fuel)); }
+                    if (ammo >= 0) { barAmmo.setProgress(ammo); txtAmmo.setText(String.valueOf(ammo)); }
+                });
+            }
+
+            @Override
+            public void onPartidaTerminada(String ganadorId, String razon) {
+                runOnUiThread(() -> mostrarDialogoFin(ganadorId, razon));
+            }
         });
 
         configurarBotones();
+    }
+
+    private void mostrarDialogoFin(String ganadorId, String razon) {
+        boolean heGanado = ganadorId.equals(myUserId);
+        String titulo = heGanado ? "¡VICTORIA! 🏆" : "¡DERROTA! 💥";
+        String mensaje = heGanado ? "Has destruido a la flota enemiga." : "Tu flota yace en el fondo del mar.";
+
+        if ("surrender".equals(razon)) {
+            mensaje = heGanado ? "El enemigo se ha rendido cobardemente." : "Te has rendido.";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(titulo)
+                .setMessage(mensaje)
+                .setCancelable(false)
+                .setPositiveButton("Volver al Puerto", (dialog, which) -> finish())
+                .show();
     }
 
     private void actualizarInterfazTurno() {
         if (gestor.isEsMiTurno()) {
             txtTurnoStatus.setText("TU TURNO");
             txtTurnoStatus.setTextColor(getResources().getColor(android.R.color.holo_green_light));
-            btnPasarTurno.setEnabled(true);
-            btnPasarTurno.setAlpha(1.0f);
+            btnPasarTurno.setEnabled(true); btnPasarTurno.setAlpha(1.0f);
         } else {
             txtTurnoStatus.setText("TURNO ENEMIGO");
             txtTurnoStatus.setTextColor(getResources().getColor(android.R.color.holo_red_light));
-            btnPasarTurno.setEnabled(false);
-            btnPasarTurno.setAlpha(0.5f);
-            mostrar(layNoSel); // Ocultamos menús de acción si no es nuestro turno
+            btnPasarTurno.setEnabled(false); btnPasarTurno.setAlpha(0.5f);
+            mostrar(layNoSel);
         }
     }
 
     private void actualizarMatrizVisual() {
-        // FOTO ANTES PARA DIFFING (Fluidez)
-        String[] idsAnteriores = new String[225];
-        boolean[] seleccionAnterior = new boolean[225];
-        int[] direccionAnterior = new int[225];
-
+        String[] idsAnt = new String[225]; boolean[] selAnt = new boolean[225]; int[] dirAnt = new int[225];
         for (int i = 0; i < 225; i++) {
             Casilla c = matriz.get(i);
-            idsAnteriores[i] = c.getIdBarcoStr();
-            seleccionAnterior[i] = c.isSeleccionado();
-            direccionAnterior[i] = c.getDireccion();
+            idsAnt[i] = c.getIdBarcoStr(); selAnt[i] = c.isSeleccionado(); dirAnt[i] = c.getDireccion();
+            c.setTieneBarco(false); c.setIdBarcoStr(null); c.setSeleccionado(false);
         }
 
-        // RESET LÓGICO
-        for (Casilla c : matriz) {
-            c.setTieneBarco(false);
-            c.setIdBarcoStr(null);
-            c.setSeleccionado(false);
-        }
-
-        // CARGAR DATOS NUEVOS DEL SERVIDOR
         for (BarcoLogico b : gestor.getFlota()) {
-            boolean esElSeleccionado = (idBarcoSeleccionado != null && idBarcoSeleccionado.equals(b.id));
-
+            boolean esSel = (idBarcoSeleccionado != null && idBarcoSeleccionado.equals(b.id));
             for (int[] celda : b.getCeldas()) {
                 int idx = celda[0] * 15 + celda[1];
                 if (idx >= 0 && idx < 225) {
                     Casilla c = matriz.get(idx);
-                    c.setTieneBarco(true);
-                    c.setIdBarcoStr(b.id);
-                    c.setTipoBarco(b.tipo);
-                    c.setEsProa(celda[2] == 1);
-                    c.setIndiceEnBarco(celda[3]);
-                    c.setEsAliado(b.esAliado);
+                    c.setTieneBarco(true); c.setIdBarcoStr(b.id); c.setTipoBarco(b.tipo);
+                    c.setEsProa(celda[2] == 1); c.setIndiceEnBarco(celda[3]); c.setEsAliado(b.esAliado);
 
                     int dirNum = 0;
-                    if ("E".equals(b.orientation)) dirNum = 1;
-                    else if ("S".equals(b.orientation)) dirNum = 2;
-                    else if ("W".equals(b.orientation)) dirNum = 3;
+                    if ("E".equals(b.orientation)) dirNum = 1; else if ("S".equals(b.orientation)) dirNum = 2; else if ("W".equals(b.orientation)) dirNum = 3;
                     c.setDireccion(dirNum);
-
-                    if (esElSeleccionado) c.setSeleccionado(true);
+                    if (esSel) c.setSeleccionado(true);
                 }
             }
         }
 
-        // COMPARAR Y REFRESCAR SOLO LO QUE CAMBIÓ
         for (int i = 0; i < 225; i++) {
             Casilla c = matriz.get(i);
-            boolean idCambio = (c.getIdBarcoStr() == null && idsAnteriores[i] != null) ||
-                    (c.getIdBarcoStr() != null && !c.getIdBarcoStr().equals(idsAnteriores[i]));
-            boolean selCambio = (c.isSeleccionado() != seleccionAnterior[i]);
-            boolean dirCambio = (c.getDireccion() != direccionAnterior[i]);
-
-            if (idCambio || selCambio || dirCambio) {
+            boolean idCambio = (c.getIdBarcoStr() == null && idsAnt[i] != null) || (c.getIdBarcoStr() != null && !c.getIdBarcoStr().equals(idsAnt[i]));
+            if (idCambio || c.isSeleccionado() != selAnt[i] || c.getDireccion() != dirAnt[i]) {
                 adapter.notifyItemChanged(i);
             }
         }
     }
 
     private void configurarBotones() {
-        // MENÚS
         findViewById(R.id.btnMainMove).setOnClickListener(v -> mostrar(layMove));
         findViewById(R.id.btnMainAttack).setOnClickListener(v -> mostrar(layAtk));
 
-        // PASAR TURNO (match:turn_end)
-        btnPasarTurno.setOnClickListener(v -> {
-            gestor.pasarTurno();
-            Toast.makeText(this, "Fin del turno", Toast.LENGTH_SHORT).show();
+        btnPasarTurno.setOnClickListener(v -> gestor.pasarTurno());
+
+        // PAUSA / RENDIRSE
+        btnPause.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Pausa Táctica")
+                    .setMessage("¿Qué deseas hacer Comandante?")
+                    .setPositiveButton("Reanudar", null)
+                    .setNegativeButton("Huir (Rendirse)", (dialog, which) -> gestor.rendirse())
+                    .show();
         });
 
-        // MOVIMIENTO (ship:move)
+        // MOVIMIENTO
         View.OnClickListener movListener = v -> {
             if (idBarcoSeleccionado == null) return;
             String dir = "N";
-            if (v.getId() == R.id.btnBackward) dir = "S";
-            else if (v.getId() == R.id.btnRotateL) dir = "W";
-            else if (v.getId() == R.id.btnRotateR) dir = "E";
-
+            if (v.getId() == R.id.btnBackward) dir = "S"; else if (v.getId() == R.id.btnRotateL) dir = "W"; else if (v.getId() == R.id.btnRotateR) dir = "E";
             gestor.moverBarco(idBarcoSeleccionado, dir);
             mostrar(layMain);
         };
-        findViewById(R.id.btnForward).setOnClickListener(movListener);
-        findViewById(R.id.btnBackward).setOnClickListener(movListener);
-        findViewById(R.id.btnRotateL).setOnClickListener(movListener);
-        findViewById(R.id.btnRotateR).setOnClickListener(movListener);
+        findViewById(R.id.btnForward).setOnClickListener(movListener); findViewById(R.id.btnBackward).setOnClickListener(movListener);
+        findViewById(R.id.btnRotateL).setOnClickListener(movListener); findViewById(R.id.btnRotateR).setOnClickListener(movListener);
 
-        // ATAQUE
-        findViewById(R.id.btnAtk1).setOnClickListener(v -> {
-            modoAtaque = true;
-            Toast.makeText(this, "🎯 Selecciona objetivo en el mapa", Toast.LENGTH_SHORT).show();
-            mostrar(layNoSel);
+        // ARMAS
+        btnAtk1.setOnClickListener(v -> { tipoAtaque = 1; Toast.makeText(this, "🎯 Toca el objetivo del Cañón", Toast.LENGTH_SHORT).show(); mostrar(layNoSel); });
+
+        btnAtk2.setOnClickListener(v -> {
+            // El torpedo no necesita objetivo, va recto
+            gestor.lanzarTorpedo(idBarcoSeleccionado);
+            Toast.makeText(this, "🚀 Torpedo en el agua!", Toast.LENGTH_SHORT).show();
+            mostrar(layMain);
         });
+
+        btnAtk3.setOnClickListener(v -> { tipoAtaque = 2; Toast.makeText(this, "💣 Toca una casilla adyacente para la Mina", Toast.LENGTH_SHORT).show(); mostrar(layNoSel); });
 
         // INFO
         findViewById(R.id.btnInfo).setOnClickListener(v -> {
@@ -211,7 +233,6 @@ public class PantallaJuego extends AppCompatActivity {
                 BarcoLogico b = gestor.obtenerBarco(idBarcoSeleccionado);
                 if (b != null) {
                     txtInfoTitulo.setText("ID: " + b.id.substring(0, 8));
-                    txtInfoGlobal.setText("Bando: " + (b.esAliado ? "Aliado" : "Enemigo"));
                     txtInfoCeldas.setText("Pos: " + b.x + "," + b.y + "\nDir: " + b.orientation);
                     panelInfoBarco.setVisibility(View.VISIBLE);
                 }
@@ -221,25 +242,31 @@ public class PantallaJuego extends AppCompatActivity {
     }
 
     private void initViews() {
-        layNoSel = findViewById(R.id.txtNoSelection);
-        layMain = findViewById(R.id.layoutMainActions);
-        layMove = findViewById(R.id.layoutMoveActions);
-        layAtk = findViewById(R.id.layoutAttackActions);
-        panelInfoBarco = findViewById(R.id.panelInfoBarco);
-        txtInfoTitulo = findViewById(R.id.txtInfoTitulo);
-        txtInfoGlobal = findViewById(R.id.txtInfoGlobal);
-        txtInfoCeldas = findViewById(R.id.txtInfoCeldas);
+        layNoSel = findViewById(R.id.txtNoSelection); layMain = findViewById(R.id.layoutMainActions);
+        layMove = findViewById(R.id.layoutMoveActions); layAtk = findViewById(R.id.layoutAttackActions);
+        panelInfoBarco = findViewById(R.id.panelInfoBarco); txtInfoTitulo = findViewById(R.id.txtInfoTitulo);
+        txtInfoGlobal = findViewById(R.id.txtInfoGlobal); txtInfoCeldas = findViewById(R.id.txtInfoCeldas);
 
-        // ELEMENTOS DE TURNO
-        txtTurnoStatus = findViewById(R.id.txtTurnoStatus); // Añade este TextView a tu XML
-        btnPasarTurno = findViewById(R.id.btnPasarTurno);   // Añade este Button a tu XML
+        txtTurnoStatus = findViewById(R.id.txtTurnoStatus); btnPasarTurno = findViewById(R.id.btnPasarTurno);
+        btnPause = findViewById(R.id.btnPause);
+
+        // Recursos (Ajustamos max para mayor precisión, el backend manda números grandes)
+        barFuel = findViewById(R.id.barFuel); txtFuel = findViewById(R.id.txtFuel);
+        barAmmo = findViewById(R.id.barAmmo); txtAmmo = findViewById(R.id.txtAmmo);
+        barFuel.setMax(100); barAmmo.setMax(20);
+
+        // Armas (Hacemos visibles los botones 2 y 3 del XML y cambiamos textos)
+        btnAtk1 = findViewById(R.id.btnAtk1); btnAtk1.setText("Cañón");
+        btnAtk2 = findViewById(R.id.btnAtk2); btnAtk2.setVisibility(View.VISIBLE); btnAtk2.setText("Torpedo");
+        btnAtk3 = findViewById(R.id.btnAtk3); btnAtk3.setVisibility(View.VISIBLE); btnAtk3.setText("Mina");
+
+        divAtk2 = findViewById(R.id.divAtk2); divAtk2.setVisibility(View.VISIBLE);
+        divAtk3 = findViewById(R.id.divAtk3); divAtk3.setVisibility(View.VISIBLE);
     }
 
     private void mostrar(View v) {
-        if(layNoSel != null) layNoSel.setVisibility(View.GONE);
-        if(layMain != null) layMain.setVisibility(View.GONE);
-        if(layAtk != null) layAtk.setVisibility(View.GONE);
-        if(layMove != null) layMove.setVisibility(View.GONE);
+        layNoSel.setVisibility(View.GONE); layMain.setVisibility(View.GONE);
+        layAtk.setVisibility(View.GONE); layMove.setVisibility(View.GONE);
         if(v != null) v.setVisibility(View.VISIBLE);
     }
 

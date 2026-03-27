@@ -15,13 +15,20 @@ public class GestorJuego {
     private List<BarcoLogico> flota = new ArrayList<>();
     private String matchId;
     private String myUserId;
-    private Runnable onUpdateListener;
-    private boolean esMiTurno = true; // Asumimos true al principio, el server lo corregirá
+    private PartidaListener listener;
+    private boolean esMiTurno = true;
 
-    public GestorJuego(String token, String matchId, String userId, Runnable onUpdateListener) {
+    //  Interfaz de comunicación avanzada con la pantalla
+    public interface PartidaListener {
+        void onActualizarTablero();
+        void onRecursosActualizados(int fuel, int ammo);
+        void onPartidaTerminada(String ganadorId, String razon);
+    }
+
+    public GestorJuego(String token, String matchId, String userId, PartidaListener listener) {
         this.matchId = matchId;
         this.myUserId = userId;
-        this.onUpdateListener = onUpdateListener;
+        this.listener = listener;
         conectarSocket(token);
     }
 
@@ -35,10 +42,10 @@ public class GestorJuego {
             socket.on(Socket.EVENT_CONNECT, args -> {
                 Log.d("BombaVa", " CONECTADO AL SERVIDOR OFICIAL");
                 socket.emit("game:join", matchId);
-                socket.emit("game:get_status", matchId); // Mantenemos esto por si acaso
+                socket.emit("game:get_status", matchId);
             });
 
-            // 1. RECIBIR ESTADO
+            // 1. ESTADO INICIAL
             socket.on("game:status", args -> {
                 try {
                     JSONObject data = (JSONObject) args[0];
@@ -62,16 +69,17 @@ public class GestorJuego {
                             ));
                         }
                     }
-                    if (onUpdateListener != null) onUpdateListener.run();
+                    if (listener != null) listener.onActualizarTablero();
                 } catch (Exception e) { Log.e("BombaVa", "Error estado: " + e.getMessage()); }
             });
 
-            // 2. MOVIMIENTO
+            // 2. MOVIMIENTO (Y coste de combustible )
             socket.on("ship:moved", args -> {
                 try {
                     JSONObject data = (JSONObject) args[0];
                     String shipId = data.getString("shipId");
                     JSONObject pos = data.getJSONObject("position");
+
                     for (BarcoLogico b : flota) {
                         if (b.id != null && b.id.equals(shipId)) {
                             b.x = pos.getInt("x");
@@ -79,18 +87,30 @@ public class GestorJuego {
                             break;
                         }
                     }
-                    if (onUpdateListener != null) onUpdateListener.run();
+
+                    // Si el servidor nos devuelve el fuel restante, lo actualizamos
+                    if(data.has("fuelReserve") && listener != null) {
+                        // Asumimos municion intacta al mover
+                        listener.onRecursosActualizados(data.getInt("fuelReserve"), -1);
+                    }
+                    if (listener != null) listener.onActualizarTablero();
                 } catch (Exception e) { e.printStackTrace(); }
             });
 
-            // 3. CAMBIO DE TURNO
+            // 3. CAMBIO DE TURNO Y RECURSOS
             socket.on("match:turn_changed", args -> {
                 try {
                     JSONObject data = (JSONObject) args[0];
-                    String nextPlayerId = data.getString("nextPlayerId");
-                    esMiTurno = nextPlayerId.equals(myUserId);
-                    Log.d("BombaVa", "🔄 Turno cambiado. ¿Es el mío?: " + esMiTurno);
-                    if (onUpdateListener != null) onUpdateListener.run();
+                    esMiTurno = data.getString("nextPlayerId").equals(myUserId);
+
+                    // Leer los nuevos recursos (Combustible y Munición)
+                    if (data.has("resources")) {
+                        JSONObject res = data.getJSONObject("resources");
+                        int fuel = res.getInt("fuel");
+                        int ammo = res.getInt("ammo");
+                        if (listener != null) listener.onRecursosActualizados(fuel, ammo);
+                    }
+                    if (listener != null) listener.onActualizarTablero();
                 } catch (Exception e) { e.printStackTrace(); }
             });
 
@@ -99,8 +119,22 @@ public class GestorJuego {
                 try {
                     JSONObject data = (JSONObject) args[0];
                     boolean hit = data.getBoolean("hit");
-                    Log.d("BombaVa", hit ? "💥 ¡IMPACTO CONFIRMADO!" : "💦 ¡AGUA!");
-                    // Aquí podrías actualizar la vida de la casilla objetivo
+                    Log.d("BombaVa", hit ? "💥 ¡IMPACTO!" : "💦 ¡AGUA!");
+
+                    // Actualizar munición si viene en el ataque
+                    if (data.has("ammoCurrent") && listener != null) {
+                        listener.onRecursosActualizados(-1, data.getInt("ammoCurrent"));
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            });
+
+            // 5. FIN DE LA PARTIDA
+            socket.on("match:finished", args -> {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    String winnerId = data.getString("winnerId");
+                    String reason = data.getString("reason");
+                    if (listener != null) listener.onPartidaTerminada(winnerId, reason);
                 } catch (Exception e) { e.printStackTrace(); }
             });
 
@@ -108,57 +142,72 @@ public class GestorJuego {
         } catch (URISyntaxException e) { e.printStackTrace(); }
     }
 
-    // --- ACCIONES AL SERVIDOR ---
+    // --- ACCIONES DE JUEGO ---
 
     public void moverBarco(String shipId, String direction) {
         if (!esMiTurno) return;
         try {
             JSONObject payload = new JSONObject();
-            payload.put("matchId", matchId);
-            payload.put("shipId", shipId);
-            payload.put("direction", direction);
+            payload.put("matchId", matchId); payload.put("shipId", shipId); payload.put("direction", direction);
             socket.emit("ship:move", payload);
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
-    // Adaptado al endpoint oficial: ship:attack:cannon
     public void atacarCanon(String shipId, int targetX, int targetY) {
         if (!esMiTurno) return;
         try {
-            JSONObject payload = new JSONObject();
-            payload.put("matchId", matchId);
-            payload.put("shipId", shipId); // La doc oficial pide shipId
-
-            JSONObject target = new JSONObject();
-            target.put("x", targetX);
-            target.put("y", targetY);
-            payload.put("target", target);
-
-            socket.emit("ship:attack:cannon", payload);
-            Log.d("BombaVa", "🚀 Disparando cañón a " + targetX + "," + targetY);
+            JSONObject p = new JSONObject(); p.put("matchId", matchId); p.put("shipId", shipId);
+            JSONObject target = new JSONObject(); target.put("x", targetX); target.put("y", targetY);
+            p.put("target", target);
+            socket.emit("ship:attack:cannon", p);
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
-    // Adaptado al endpoint oficial: match:turn_end
+    //  Lanzar Torpedo (Va recto, no necesita X e Y)
+    public void lanzarTorpedo(String shipId) {
+        if (!esMiTurno) return;
+        try {
+            JSONObject p = new JSONObject(); p.put("matchId", matchId); p.put("shipId", shipId);
+            socket.emit("ship:attack:torpedo", p);
+        } catch (JSONException e) { e.printStackTrace(); }
+    }
+
+    //  Poner Mina (Necesita X e Y adyacente)
+    public void ponerMina(String shipId, int targetX, int targetY) {
+        if (!esMiTurno) return;
+        try {
+            JSONObject p = new JSONObject(); p.put("matchId", matchId); p.put("shipId", shipId);
+            JSONObject target = new JSONObject(); target.put("x", targetX); target.put("y", targetY);
+            p.put("target", target);
+            socket.emit("ship:attack:mine", p);
+        } catch (JSONException e) { e.printStackTrace(); }
+    }
+
     public void pasarTurno() {
         if (!esMiTurno) return;
         try {
-            JSONObject payload = new JSONObject();
-            payload.put("matchId", matchId);
-            socket.emit("match:turn_end", payload);
-            esMiTurno = false; // Bloqueo local instantáneo
-            if (onUpdateListener != null) onUpdateListener.run();
+            JSONObject p = new JSONObject(); p.put("matchId", matchId);
+            socket.emit("match:turn_end", p);
+            esMiTurno = false;
+            if (listener != null) listener.onActualizarTablero();
+        } catch (JSONException e) { e.printStackTrace(); }
+    }
+
+    // Rendirse
+    public void rendirse() {
+        try {
+            JSONObject p = new JSONObject(); p.put("matchId", matchId);
+            socket.emit("match:surrender", p);
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
     public BarcoLogico obtenerBarco(String idBuscado) {
         for (BarcoLogico b : flota) {
-            if (b.id != null && b.id.equals(idBuscado)) {
-                return b;
-            }
+            if (b.id != null && b.id.equals(idBuscado)) return b;
         }
-        return null; // Si no lo encuentra, devuelve null
+        return null;
     }
+
     public boolean isEsMiTurno() { return esMiTurno; }
     public List<BarcoLogico> getFlota() { return flota; }
     public void desconectar() { if (socket != null) socket.disconnect(); }
