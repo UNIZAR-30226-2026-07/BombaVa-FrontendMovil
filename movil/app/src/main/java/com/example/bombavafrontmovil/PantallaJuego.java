@@ -14,10 +14,9 @@ import java.util.List;
 
 public class PantallaJuego extends AppCompatActivity {
 
-    // --- RECUERDA ACTUALIZAR ESTOS VALORES CON LOS QUE SALGAN EN TU TERMINAL ---
-    private static final String TOKEN_TEMPORAL = "TU_TOKEN_AQUI";
-    private static final String MATCH_ID_TEMPORAL = "TU_MATCH_ID_AQUI";
-    private static final String MY_USER_ID = "TU_USER_ID_AQUI";
+    private String token;
+    private String matchId;
+    private String myUserId;
 
     private GestorJuego gestor;
     private List<Casilla> matriz = new ArrayList<>();
@@ -37,6 +36,16 @@ public class PantallaJuego extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.juego);
+
+        // --- RECOGER DATOS AUTOMÁTICAMENTE DE LA PANTALLA ANTERIOR ---
+        token = getIntent().getStringExtra("TOKEN");
+        matchId = getIntent().getStringExtra("MATCH_ID");
+        myUserId = getIntent().getStringExtra("USER_ID");
+
+        // Un aviso por si acaso entras desde "Práctica" y están vacíos
+        if (token == null || matchId == null) {
+            Toast.makeText(this, "Aviso: Modo Práctica sin conexión real", Toast.LENGTH_SHORT).show();
+        }
 
         initViews();
 
@@ -77,7 +86,7 @@ public class PantallaJuego extends AppCompatActivity {
         rv.setAdapter(adapter);
 
         // CONEXIÓN AL GESTOR ADAPTADO AL BACKEND OFICIAL
-        gestor = new GestorJuego(TOKEN_TEMPORAL, MATCH_ID_TEMPORAL, MY_USER_ID, () -> {
+        gestor = new GestorJuego(token, matchId, myUserId, () -> {
             runOnUiThread(() -> {
                 actualizarInterfazTurno();
                 actualizarMatrizVisual();

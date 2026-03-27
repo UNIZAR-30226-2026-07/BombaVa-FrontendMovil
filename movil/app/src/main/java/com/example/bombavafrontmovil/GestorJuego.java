@@ -151,6 +151,14 @@ public class GestorJuego {
         } catch (JSONException e) { e.printStackTrace(); }
     }
 
+    public BarcoLogico obtenerBarco(String idBuscado) {
+        for (BarcoLogico b : flota) {
+            if (b.id != null && b.id.equals(idBuscado)) {
+                return b;
+            }
+        }
+        return null; // Si no lo encuentra, devuelve null
+    }
     public boolean isEsMiTurno() { return esMiTurno; }
     public List<BarcoLogico> getFlota() { return flota; }
     public void desconectar() { if (socket != null) socket.disconnect(); }
