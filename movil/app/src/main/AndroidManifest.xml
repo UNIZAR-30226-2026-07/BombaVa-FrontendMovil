@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,6 +13,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BombaVaFrontMovil"
+        android:usesCleartextTraffic="true"
         tools:targetApi="31">
 
         <activity
@@ -22,35 +25,11 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".PantallaJuego"
-            android:exported="false" />
-
-        <activity
-            android:name=".LobbyActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".PantallaUnirse"
-            android:exported="false" />
-
-        <activity
-            android:name=".PantallaPerfil"
-            android:exported="false" />
-
-        <activity
-            android:name=".PantallaAjustes"
-            android:exported="false" />
-
-        <activity
-            android:name=".ConfigurarFlotaActivity"
-            android:exported="false" />
-
-        <activity
-            android:name=".LoginActivity"
-            android:exported="false"/>
-
-
+        <activity android:name=".PantallaJuego" android:exported="false" />
+        <activity android:name=".LobbyActivity" android:exported="false" />
+        <activity android:name=".PantallaUnirse" android:exported="false" />
+        <activity android:name=".PantallaPerfil" android:exported="false" />
+        <activity android:name=".PantallaAjustes" android:exported="false" />
+        <activity android:name=".ConfigurarFlotaActivity" android:exported="false" />
     </application>
-
 </manifest>
