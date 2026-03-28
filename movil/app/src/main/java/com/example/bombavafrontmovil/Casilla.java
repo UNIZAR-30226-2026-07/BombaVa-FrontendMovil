@@ -4,21 +4,21 @@ public class Casilla {
     private int fila, columna;
     private boolean seleccionado = false;
 
-    // Datos del barco
-    private int tipoBarco = 0;
-    private int idBarco = -1;
+    // Estado del barco
+    private boolean tieneBarco = false;
+    private int idBarco = -1;       // ID antiguo (int) - Lo mantenemos por compatibilidad
+    private String idBarcoStr = null; // ID nuevo (UUID del servidor)
+    private int tipoBarco = 0;      // Tamaño
     private boolean esAliado = true;
 
-    // IMPORTANTE: Variable nueva para la rotación de la imagen
+    // Rotación y visualización
     private int direccion = 0; // 0=Norte, 1=Este, 2=Sur, 3=Oeste
+    private boolean esProa = false;
+    private int indiceEnBarco = 0;
 
-    // Datos visuales de la parte del barco
-    private boolean esProa = false; // Identifica la parte delantera
-    private int indiceEnBarco = 0;  // Identifica si es medio o popa
-
-    // Salud
-    private int vidaCelda = 3; // Vida de esta casilla específica
-    private int vidaActual, vidaMax; // Vida general (la que tenías tú)
+    // Vida
+    private int vidaCelda = 3;
+    private int vidaActual, vidaMax;
 
     public Casilla(int fila, int columna) {
         this.fila = fila;
@@ -33,23 +33,33 @@ public class Casilla {
     public boolean isSeleccionado() { return seleccionado; }
     public void setSeleccionado(boolean seleccionado) { this.seleccionado = seleccionado; }
 
+    public boolean isTieneBarco() { return tieneBarco; }
+    public void setTieneBarco(boolean tieneBarco) { this.tieneBarco = tieneBarco; }
+
+    // ID numérico (Legacy)
+    public int getIdBarco() { return idBarco; }
+    public void setIdBarco(int idBarco) {
+        this.idBarco = idBarco;
+        if (idBarco != -1) this.tieneBarco = true;
+    }
+
+    // ID Texto (Nuevo Backend)
+    public String getIdBarcoStr() { return idBarcoStr; }
+    public void setIdBarcoStr(String idBarcoStr) {
+        this.idBarcoStr = idBarcoStr;
+        // Si el ID no es nulo, significa que hay barco
+        this.tieneBarco = (idBarcoStr != null);
+    }
+
     public int getTipoBarco() { return tipoBarco; }
     public void setTipoBarco(int tipoBarco) {
         this.tipoBarco = tipoBarco;
-        // Mantenemos tu lógica de vida global
         this.vidaMax = tipoBarco;
         this.vidaActual = tipoBarco;
     }
 
-    public int getIdBarco() { return idBarco; }
-    public void setIdBarco(int idBarco) { this.idBarco = idBarco; }
-
-    public boolean isTieneBarco() { return tipoBarco > 0; }
-
-    // --- ESTO ES LO QUE ARREGLA EL ERROR DEL ADAPTADOR ---
     public int getDireccion() { return direccion; }
     public void setDireccion(int direccion) { this.direccion = direccion; }
-    // -----------------------------------------------------
 
     public boolean isEsAliado() { return esAliado; }
     public void setEsAliado(boolean esAliado) { this.esAliado = esAliado; }
@@ -63,7 +73,6 @@ public class Casilla {
     public boolean isEsProa() { return esProa; }
     public void setEsProa(boolean esProa) { this.esProa = esProa; }
 
-    // Tus getters/setters originales de vida global
     public int getVidaActual() { return vidaActual; }
     public void setVidaActual(int vidaActual) { this.vidaActual = vidaActual; }
     public int getVidaMax() { return vidaMax; }

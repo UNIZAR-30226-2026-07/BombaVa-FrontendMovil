@@ -2,9 +2,14 @@ package com.example.bombavafrontmovil;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -20,27 +25,33 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public class PantallaJuego extends AppCompatActivity {
-    // UI
-    private View layNoSel, layMain, layAtk, layMove;
-    private Button btnAtk2, btnAtk3;
-    private android.widget.ProgressBar barFuel, barAmmo;
-    private android.widget.TextView txtFuel, txtAmmo;
 
-    // Panel Info
-    private View panelInfoBarco;
-    private android.widget.TextView txtInfoTitulo, txtInfoGlobal, txtInfoCeldas;
+    private String token;
+    private String matchId;
+    private String myUserId;
 
-    // Lógica
     private GestorJuego gestor;
     private List<Casilla> matriz = new ArrayList<>();
     private BoardAdapter adapter;
-    private Casilla sel = null;
+    private String idBarcoSeleccionado = null;
 
-    // Estado
-    private boolean modoAtaque = false;
-    private int danoEnEspera = 0;
-    private int combustible = 10;
-    private int municion = 10;
+    // Vistas principales
+    private View layNoSel, layMain, layMove, layAtk;
+    private TextView txtInfoTitulo, txtInfoGlobal, txtInfoCeldas, txtTurnoStatus;
+    private View panelInfoBarco;
+    private Button btnPasarTurno;
+    private ImageButton btnPause;
+
+    // Armas
+    private Button btnAtk1, btnAtk2, btnAtk3;
+    private View divAtk2, divAtk3;
+
+    // Recursos
+    private ProgressBar barFuel, barAmmo;
+    private TextView txtFuel, txtAmmo;
+
+    // Control de tipo de ataque: 0=Ninguno, 1=Cañón, 2=Mina (Torpedo es inmediato)
+    private int tipoAtaque = 0;
 
     // Sockets
     private Socket mSocket;
@@ -51,65 +62,50 @@ public class PantallaJuego extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.juego);
 
-        // 1. INICIALIZAR LÓGICA
-        gestor = new GestorJuego();
+        // RECOGER DATOS (Automático o manual para debug)
+        token = getIntent().getStringExtra("TOKEN");
+        matchId = getIntent().getStringExtra("MATCH_ID");
+        myUserId = getIntent().getStringExtra("USER_ID");
+
+        // --- MODO DEBUG SI ESTÁN VACÍOS ---
+        if(token == null) token = "PON_TU_TOKEN_AQUI";
+        if(matchId == null) matchId = "PON_TU_MATCH_ID_AQUI";
+        if(myUserId == null) myUserId = "PON_TU_USER_ID_AQUI";
+
+        initViews();
         for (int i = 0; i < 225; i++) matriz.add(new Casilla(i / 15, i % 15));
 
-        // 2. VINCULAR VISTAS
-        initViews();
-        actualizarRecursosVisuales();
-
-        // 3. CONFIGURAR TABLERO
         RecyclerView rv = findViewById(R.id.rvBoard);
         rv.setLayoutManager(new GridLayoutManager(this, 15));
         rv.setItemAnimator(null);
 
-        actualizarMatrizVisual(); // Pinta la flota inicial del gestor
-
         adapter = new BoardAdapter(matriz, c -> {
-            if (modoAtaque) {
-                ejecutarAtaque(c);
+            if (!gestor.isEsMiTurno()) {
+                Toast.makeText(this, "Espera tu turno", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (tipoAtaque > 0) {
+                if (idBarcoSeleccionado != null) {
+                    if (tipoAtaque == 1) {
+                        gestor.atacarCanon(idBarcoSeleccionado, c.getColumna(), c.getFila());
+                        Toast.makeText(this, "¡Cañonazo!", Toast.LENGTH_SHORT).show();
+                    } else if (tipoAtaque == 2) {
+                        gestor.ponerMina(idBarcoSeleccionado, c.getColumna(), c.getFila());
+                        Toast.makeText(this, "¡Mina desplegada!", Toast.LENGTH_SHORT).show();
+                    }
+                    tipoAtaque = 0;
+                    mostrar(layMain);
+                }
             } else {
-                // 1. Guardamos ID del barco anterior
-                int idBarcoAnterior = (sel != null && sel.isTieneBarco()) ? sel.getIdBarco() : -1;
-                // Guardamos índice si era agua (para despintar la selección de agua)
-                int idxAguaAnterior = (sel != null && !sel.isTieneBarco()) ? sel.getFila() * 15 + sel.getColumna() : -1;
-
-                // 2. Actualizamos lógica
-                sel = c;
-                actualizarMatrizVisual(); // Actualiza datos, PERO YA NO REPINTA
-
-                // 3. Guardamos ID del nuevo barco
-                int idBarcoNuevo = (sel != null && sel.isTieneBarco()) ? sel.getIdBarco() : -1;
-                int idxAguaNuevo = (sel != null && !sel.isTieneBarco()) ? sel.getFila() * 15 + sel.getColumna() : -1;
-
-                // --- OPTIMIZACIÓN MÁXIMA ---
-
-                // A) Si había un barco seleccionado antes, lo "apagamos"
-                if (idBarcoAnterior != -1) {
-                    BarcoLogico bAnt = gestor.obtenerBarco(idBarcoAnterior);
-                    if (bAnt != null) {
-                        for (int[] pos : bAnt.getCeldas()) {
-                            adapter.notifyItemChanged(pos[0] * 15 + pos[1]);
-                        }
-                    }
+                if (c.isTieneBarco() && c.isEsAliado()) {
+                    idBarcoSeleccionado = c.getIdBarcoStr();
+                    mostrar(layMain);
+                } else {
+                    idBarcoSeleccionado = null;
+                    mostrar(layNoSel);
                 }
-
-                // B) Si hemos seleccionado un barco nuevo, lo "encendemos"
-                if (idBarcoNuevo != -1 && idBarcoNuevo != idBarcoAnterior) {
-                    BarcoLogico bNuevo = gestor.obtenerBarco(idBarcoNuevo);
-                    if (bNuevo != null) {
-                        for (int[] pos : bNuevo.getCeldas()) {
-                            adapter.notifyItemChanged(pos[0] * 15 + pos[1]);
-                        }
-                    }
-                }
-
-                // C) Gestión de selecciones en el agua (clics fallidos)
-                if (idxAguaAnterior != -1) adapter.notifyItemChanged(idxAguaAnterior);
-                if (idxAguaNuevo != -1) adapter.notifyItemChanged(idxAguaNuevo);
-
-                mostrar((c.isTieneBarco() && c.isEsAliado()) ? layMain : layNoSel);
+                actualizarMatrizVisual();
             }
         });
         rv.setAdapter(adapter);
@@ -197,174 +193,173 @@ public class PantallaJuego extends AppCompatActivity {
                 return;
             }
 
-            if (municion > 0) {
-                modoAtaque = true;
-                danoEnEspera = barcoReal.danoArmas[index];
-                Toast.makeText(this, "🎯 Selecciona objetivo enemigo", Toast.LENGTH_LONG).show();
-            } else {
-                Toast.makeText(this, "¡Sin munición!", Toast.LENGTH_SHORT).show();
+            @Override
+            public void onRecursosActualizados(int fuel, int ammo) {
+                runOnUiThread(() -> {
+                    if (fuel >= 0) { barFuel.setProgress(fuel); txtFuel.setText(String.valueOf(fuel)); }
+                    if (ammo >= 0) { barAmmo.setProgress(ammo); txtAmmo.setText(String.valueOf(ammo)); }
+                });
             }
-        };
-        findViewById(R.id.btnAtk1).setOnClickListener(accionAtk);
-        findViewById(R.id.btnAtk2).setOnClickListener(accionAtk);
-        findViewById(R.id.btnAtk3).setOnClickListener(accionAtk);
-        findViewById(R.id.btnAtk4).setOnClickListener(accionAtk);
-        findViewById(R.id.btnAtk5).setOnClickListener(accionAtk);
 
-        // BOTONES DE MOVIMIENTO (Logic)
-        View.OnClickListener accionMov = v -> {
-            if (combustible > 0) {
-                int accion = 0;
-                if (v.getId() == R.id.btnForward) accion = 1;
-                else if (v.getId() == R.id.btnBackward) accion = 2;
-                else if (v.getId() == R.id.btnRotateL) accion = 3;
-                else if (v.getId() == R.id.btnRotateR) accion = 4;
-
-                intentarMovimiento(accion);
-                mostrar(layMain);
-            } else {
-                Toast.makeText(this, "¡Sin combustible!", Toast.LENGTH_SHORT).show();
+            @Override
+            public void onPartidaTerminada(String ganadorId, String razon) {
+                runOnUiThread(() -> mostrarDialogoFin(ganadorId, razon));
             }
-        };
-        findViewById(R.id.btnForward).setOnClickListener(accionMov);
-        findViewById(R.id.btnBackward).setOnClickListener(accionMov);
-        findViewById(R.id.btnRotateL).setOnClickListener(accionMov);
-        findViewById(R.id.btnRotateR).setOnClickListener(accionMov);
+        });
+
+        configurarBotones();
     }
 
-    private void configurarBotonInfo() {
-        findViewById(R.id.btnInfo).setOnClickListener(v -> {
-            if (sel != null && sel.isTieneBarco()) {
-                BarcoLogico b = gestor.obtenerBarco(sel.getIdBarco());
-                if (b != null) {
-                    txtInfoTitulo.setText(b.esAliado ? "NUESTRA NAVE (Tipo " + b.tipo + ")" : "ENEMIGO (Tipo " + b.tipo + ")");
-                    txtInfoGlobal.setText("Estructura: " + Math.max(0, b.vidaGeneral) + " HP");
+    private void mostrarDialogoFin(String ganadorId, String razon) {
+        boolean heGanado = ganadorId.equals(myUserId);
+        String titulo = heGanado ? "¡VICTORIA! 🏆" : "¡DERROTA! 💥";
+        String mensaje = heGanado ? "Has destruido a la flota enemiga." : "Tu flota yace en el fondo del mar.";
 
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < b.tipo; i++) {
-                        sb.append("Arma ").append(i + 1).append(": ");
-                        sb.append(b.vidaCeldas[i] <= 0 ? "ROTA ❌\n" : b.vidaCeldas[i] + "/3 HP 🟢\n");
-                    }
-                    txtInfoCeldas.setText(sb.toString());
+        if ("surrender".equals(razon)) {
+            mensaje = heGanado ? "El enemigo se ha rendido cobardemente." : "Te has rendido.";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle(titulo)
+                .setMessage(mensaje)
+                .setCancelable(false)
+                .setPositiveButton("Volver al Puerto", (dialog, which) -> finish())
+                .show();
+    }
+
+    private void actualizarInterfazTurno() {
+        if (gestor.isEsMiTurno()) {
+            txtTurnoStatus.setText("TU TURNO");
+            txtTurnoStatus.setTextColor(getResources().getColor(android.R.color.holo_green_light));
+            btnPasarTurno.setEnabled(true); btnPasarTurno.setAlpha(1.0f);
+        } else {
+            txtTurnoStatus.setText("TURNO ENEMIGO");
+            txtTurnoStatus.setTextColor(getResources().getColor(android.R.color.holo_red_light));
+            btnPasarTurno.setEnabled(false); btnPasarTurno.setAlpha(0.5f);
+            mostrar(layNoSel);
+        }
+    }
+
+    private void actualizarMatrizVisual() {
+        String[] idsAnt = new String[225]; boolean[] selAnt = new boolean[225]; int[] dirAnt = new int[225];
+        for (int i = 0; i < 225; i++) {
+            Casilla c = matriz.get(i);
+            idsAnt[i] = c.getIdBarcoStr(); selAnt[i] = c.isSeleccionado(); dirAnt[i] = c.getDireccion();
+            c.setTieneBarco(false); c.setIdBarcoStr(null); c.setSeleccionado(false);
+        }
+
+        for (BarcoLogico b : gestor.getFlota()) {
+            boolean esSel = (idBarcoSeleccionado != null && idBarcoSeleccionado.equals(b.id));
+            for (int[] celda : b.getCeldas()) {
+                int idx = celda[0] * 15 + celda[1];
+                if (idx >= 0 && idx < 225) {
+                    Casilla c = matriz.get(idx);
+                    c.setTieneBarco(true); c.setIdBarcoStr(b.id); c.setTipoBarco(b.tipo);
+                    c.setEsProa(celda[2] == 1); c.setIndiceEnBarco(celda[3]); c.setEsAliado(b.esAliado);
+
+                    int dirNum = 0;
+                    if ("E".equals(b.orientation)) dirNum = 1; else if ("S".equals(b.orientation)) dirNum = 2; else if ("W".equals(b.orientation)) dirNum = 3;
+                    c.setDireccion(dirNum);
+                    if (esSel) c.setSeleccionado(true);
+                }
+            }
+        }
+
+        for (int i = 0; i < 225; i++) {
+            Casilla c = matriz.get(i);
+            boolean idCambio = (c.getIdBarcoStr() == null && idsAnt[i] != null) || (c.getIdBarcoStr() != null && !c.getIdBarcoStr().equals(idsAnt[i]));
+            if (idCambio || c.isSeleccionado() != selAnt[i] || c.getDireccion() != dirAnt[i]) {
+                adapter.notifyItemChanged(i);
+            }
+        }
+    }
+
+    private void configurarBotones() {
+        findViewById(R.id.btnMainMove).setOnClickListener(v -> mostrar(layMove));
+        findViewById(R.id.btnMainAttack).setOnClickListener(v -> mostrar(layAtk));
+
+        btnPasarTurno.setOnClickListener(v -> gestor.pasarTurno());
+
+        // PAUSA / RENDIRSE
+        btnPause.setOnClickListener(v -> {
+            new AlertDialog.Builder(this)
+                    .setTitle("Pausa Táctica")
+                    .setMessage("¿Qué deseas hacer Comandante?")
+                    .setPositiveButton("Reanudar", null)
+                    .setNegativeButton("Huir (Rendirse)", (dialog, which) -> gestor.rendirse())
+                    .show();
+        });
+
+        // MOVIMIENTO
+        View.OnClickListener movListener = v -> {
+            if (idBarcoSeleccionado == null) return;
+            String dir = "N";
+            if (v.getId() == R.id.btnBackward) dir = "S"; else if (v.getId() == R.id.btnRotateL) dir = "W"; else if (v.getId() == R.id.btnRotateR) dir = "E";
+            gestor.moverBarco(idBarcoSeleccionado, dir);
+            mostrar(layMain);
+        };
+        findViewById(R.id.btnForward).setOnClickListener(movListener); findViewById(R.id.btnBackward).setOnClickListener(movListener);
+        findViewById(R.id.btnRotateL).setOnClickListener(movListener); findViewById(R.id.btnRotateR).setOnClickListener(movListener);
+
+        // ARMAS
+        btnAtk1.setOnClickListener(v -> { tipoAtaque = 1; Toast.makeText(this, "🎯 Toca el objetivo del Cañón", Toast.LENGTH_SHORT).show(); mostrar(layNoSel); });
+
+        btnAtk2.setOnClickListener(v -> {
+            // El torpedo no necesita objetivo, va recto
+            gestor.lanzarTorpedo(idBarcoSeleccionado);
+            Toast.makeText(this, "🚀 Torpedo en el agua!", Toast.LENGTH_SHORT).show();
+            mostrar(layMain);
+        });
+
+        btnAtk3.setOnClickListener(v -> { tipoAtaque = 2; Toast.makeText(this, "💣 Toca una casilla adyacente para la Mina", Toast.LENGTH_SHORT).show(); mostrar(layNoSel); });
+
+        // INFO
+        findViewById(R.id.btnInfo).setOnClickListener(v -> {
+            if (idBarcoSeleccionado != null) {
+                BarcoLogico b = gestor.obtenerBarco(idBarcoSeleccionado);
+                if (b != null) {
+                    txtInfoTitulo.setText("ID: " + b.id.substring(0, 8));
+                    txtInfoCeldas.setText("Pos: " + b.x + "," + b.y + "\nDir: " + b.orientation);
                     panelInfoBarco.setVisibility(View.VISIBLE);
                 }
             }
         });
+        findViewById(R.id.btnCloseInfo).setOnClickListener(v -> panelInfoBarco.setVisibility(View.GONE));
     }
 
-    private void intentarMovimiento(int accion) {
-        BarcoLogico barcoReal = gestor.obtenerBarco(sel.getIdBarco());
-        if (barcoReal == null) return;
+    private void initViews() {
+        layNoSel = findViewById(R.id.txtNoSelection); layMain = findViewById(R.id.layoutMainActions);
+        layMove = findViewById(R.id.layoutMoveActions); layAtk = findViewById(R.id.layoutAttackActions);
+        panelInfoBarco = findViewById(R.id.panelInfoBarco); txtInfoTitulo = findViewById(R.id.txtInfoTitulo);
+        txtInfoGlobal = findViewById(R.id.txtInfoGlobal); txtInfoCeldas = findViewById(R.id.txtInfoCeldas);
 
-        // 1. Guardamos DÓNDE ESTABA (para borrarlo de ahí visualmente)
-        List<Integer> indicesCambio = new ArrayList<>();
-        for (int[] c : barcoReal.getCeldas()) indicesCambio.add(c[0] * 15 + c[1]);
+        txtTurnoStatus = findViewById(R.id.txtTurnoStatus); btnPasarTurno = findViewById(R.id.btnPasarTurno);
+        btnPause = findViewById(R.id.btnPause);
 
-        // 2. Intentamos mover
-        boolean exito = gestor.intentarMoverBarco(barcoReal, accion, matriz);
+        // Recursos (Ajustamos max para mayor precisión, el backend manda números grandes)
+        barFuel = findViewById(R.id.barFuel); txtFuel = findViewById(R.id.txtFuel);
+        barAmmo = findViewById(R.id.barAmmo); txtAmmo = findViewById(R.id.txtAmmo);
+        barFuel.setMax(100); barAmmo.setMax(20);
 
-        if (exito) {
-            combustible--;
-            actualizarRecursosVisuales();
-            Toast.makeText(this, "Movimiento completado", Toast.LENGTH_SHORT).show();
+        // Armas (Hacemos visibles los botones 2 y 3 del XML y cambiamos textos)
+        btnAtk1 = findViewById(R.id.btnAtk1); btnAtk1.setText("Cañón");
+        btnAtk2 = findViewById(R.id.btnAtk2); btnAtk2.setVisibility(View.VISIBLE); btnAtk2.setText("Torpedo");
+        btnAtk3 = findViewById(R.id.btnAtk3); btnAtk3.setVisibility(View.VISIBLE); btnAtk3.setText("Mina");
 
-            // 3. Guardamos DÓNDE ESTÁ AHORA (para pintarlo en el nuevo sitio)
-            for (int[] c : barcoReal.getCeldas()) {
-                int idx = c[0] * 15 + c[1];
-                // Solo añadimos si no estaba ya en la lista (evitar duplicados en rotaciones)
-                if (!indicesCambio.contains(idx)) indicesCambio.add(idx);
-            }
-
-            // 4. Actualizamos datos y repintamos SOLO esas celdas
-            actualizarMatrizVisual(); // Ahora es "silenciosa"
-            if(adapter != null) {
-                for(int i : indicesCambio) adapter.notifyItemChanged(i);
-            }
-        } else {
-            Toast.makeText(this, "Bloqueado (Límite o Choque)", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void ejecutarAtaque(Casilla objetivo) {
-        modoAtaque = false;
-        municion--;
-        actualizarRecursosVisuales();
-
-        List<Integer> afectados = new ArrayList<>();
-        afectados.add(objetivo.getFila() * 15 + objetivo.getColumna());
-
-        if (objetivo.isTieneBarco()) {
-            BarcoLogico enemigo = gestor.obtenerBarco(objetivo.getIdBarco());
-            if (enemigo != null && !enemigo.esAliado) {
-                // Añadimos todo el barco enemigo a la lista de repintado
-                for (int[] c : enemigo.getCeldas()) afectados.add(c[0] * 15 + c[1]);
-
-                int idxCelda = objetivo.getIndiceEnBarco();
-                if (enemigo.vidaCeldas[idxCelda] > 0) enemigo.vidaCeldas[idxCelda]--;
-                enemigo.vidaGeneral -= danoEnEspera;
-
-                String msj = "¡IMPACTO! -" + danoEnEspera;
-                if (enemigo.vidaCeldas[idxCelda] == 0) msj += "\n¡Arma destruida!";
-                Toast.makeText(this, msj, Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Fuego amigo no permitido", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(this, "¡Agua!", Toast.LENGTH_SHORT).show();
-        }
-
-        actualizarMatrizVisual();
-        if(adapter != null) for(int i : afectados) adapter.notifyItemChanged(i);
-        mostrar(layMain);
-    }
-
-    private void actualizarMatrizVisual() {
-        // 1. Limpiamos el tablero (DATOS)
-        int idSel = (sel != null && sel.isTieneBarco()) ? sel.getIdBarco() : -1;
-        for (Casilla c : matriz) {
-            c.setTipoBarco(0);
-            c.setIdBarco(-1);
-            c.setEsProa(false);
-            c.setSeleccionado(false);
-            c.setDireccion(0);
-        }
-
-        // 2. Colocamos los barcos de la flota (DATOS)
-        for (BarcoLogico b : gestor.getFlota()) {
-            for (int[] celda : b.getCeldas()) {
-                int idx = celda[0] * 15 + celda[1];
-
-                if (idx >= 0 && idx < matriz.size()) {
-                    Casilla c = matriz.get(idx);
-                    c.setTipoBarco(b.tipo);
-                    c.setIdBarco(b.id);
-                    c.setEsProa(celda[2] == 1);
-                    c.setIndiceEnBarco(celda[3]);
-                    c.setDireccion(b.dir); // Rotación
-                    c.setEsAliado(b.esAliado);
-                    c.setVidaCelda(b.vidaCeldas[celda[3]]);
-
-                    if (b.id == idSel) {
-                        c.setSeleccionado(true);
-                        sel = c;
-                    }
-                }
-            }
-        }
-
-    }
-
-    private void actualizarRecursosVisuales() {
-        barFuel.setProgress(combustible); txtFuel.setText(String.valueOf(combustible));
-        barAmmo.setProgress(municion); txtAmmo.setText(String.valueOf(municion));
+        divAtk2 = findViewById(R.id.divAtk2); divAtk2.setVisibility(View.VISIBLE);
+        divAtk3 = findViewById(R.id.divAtk3); divAtk3.setVisibility(View.VISIBLE);
     }
 
     private void mostrar(View v) {
-        if(layNoSel != null) layNoSel.setVisibility(View.GONE);
-        if(layMain != null) layMain.setVisibility(View.GONE);
-        if(layAtk != null) layAtk.setVisibility(View.GONE);
-        if(layMove != null) layMove.setVisibility(View.GONE);
-        v.setVisibility(View.VISIBLE);
+        layNoSel.setVisibility(View.GONE); layMain.setVisibility(View.GONE);
+        layAtk.setVisibility(View.GONE); layMove.setVisibility(View.GONE);
+        if(v != null) v.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (gestor != null) gestor.desconectar();
     }
 
     private void mostrarPopUpEspera(String codigo) {

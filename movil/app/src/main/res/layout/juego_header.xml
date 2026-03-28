@@ -5,112 +5,145 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:background="@drawable/wooden_style"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:padding="12dp">
 
-    <LinearLayout
-        android:layout_width="0dp"
+    <RelativeLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:gravity="center_vertical">
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:id="@+id/txtTurnoStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CONECTANDO..."
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true" />
+
+        <Button
+            android:id="@+id/btnPasarTurno"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pasar Turno"
+            android:backgroundTint="#424242"
+            android:textColor="#FFFFFF"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:layout_weight="1"
+            android:orientation="vertical"
             android:gravity="center_vertical">
 
-            <TextView
-                android:layout_width="125dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="⛽ Combustible:"
-                android:textColor="#FF5252"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:shadowColor="#000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="2" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <ProgressBar
-                android:id="@+id/barFuel"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="16dp"
-                android:progress="10"
-                android:max="10"
-                android:progressTint="#FF5252"
-                android:progressBackgroundTint="#80000000" />
+                <TextView
+                    android:layout_width="125dp"
+                    android:layout_height="wrap_content"
+                    android:text="⛽ Combustible:"
+                    android:textColor="#FF5252"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:shadowColor="#000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="2" />
 
-            <TextView
-                android:id="@+id/txtFuel"
-                android:layout_width="32dp"
+                <ProgressBar
+                    android:id="@+id/barFuel"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="16dp"
+                    android:progress="10"
+                    android:max="10"
+                    android:progressTint="#FF5252"
+                    android:progressBackgroundTint="#80000000" />
+
+                <TextView
+                    android:id="@+id/txtFuel"
+                    android:layout_width="32dp"
+                    android:layout_height="wrap_content"
+                    android:text="10"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="end"
+                    android:shadowColor="#000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="2" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="10"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:gravity="end"
-                android:shadowColor="#000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="2" />
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="125dp"
+                    android:layout_height="wrap_content"
+                    android:text="⚔️ Munición:"
+                    android:textColor="#4CAF50"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:shadowColor="#000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="2" />
+
+                <ProgressBar
+                    android:id="@+id/barAmmo"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="16dp"
+                    android:progress="10"
+                    android:max="10"
+                    android:progressTint="#4CAF50"
+                    android:progressBackgroundTint="#80000000" />
+
+                <TextView
+                    android:id="@+id/txtAmmo"
+                    android:layout_width="32dp"
+                    android:layout_height="wrap_content"
+                    android:text="10"
+                    android:textColor="@android:color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="end"
+                    android:shadowColor="#000000"
+                    android:shadowDx="2"
+                    android:shadowDy="2"
+                    android:shadowRadius="2" />
+            </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="125dp"
-                android:layout_height="wrap_content"
-                android:text="⚔️ Munición:"
-                android:textColor="#4CAF50"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:shadowColor="#000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="2" />
-
-            <ProgressBar
-                android:id="@+id/barAmmo"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="16dp"
-                android:progress="10"
-                android:max="10"
-                android:progressTint="#4CAF50"
-                android:progressBackgroundTint="#80000000" />
-
-            <TextView
-                android:id="@+id/txtAmmo"
-                android:layout_width="32dp"
-                android:layout_height="wrap_content"
-                android:text="10"
-                android:textColor="@android:color/white"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:gravity="end"
-                android:shadowColor="#000000"
-                android:shadowDx="2"
-                android:shadowDy="2"
-                android:shadowRadius="2" />
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/btnPause"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/wooden_style"
+            android:src="@android:drawable/ic_media_pause"
+            app:tint="@color/wood_dark" />
     </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/btnPause"
-        android:layout_width="50dp"
-        android:layout_height="50dp"
-        android:layout_marginStart="12dp"
-        android:background="@drawable/wooden_style"
-        android:src="@android:drawable/ic_media_pause"
-        app:tint="@color/wood_dark" />
 </LinearLayout>
