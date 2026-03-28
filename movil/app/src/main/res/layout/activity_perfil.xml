@@ -1,150 +1,145 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/ocean_dark_bg"
-    android:padding="24dp">
-
-    <TextView
-        android:id="@+id/tvProfileTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="HOJA DE SERVICIO"
-        android:textColor="@color/wood_top_highlight"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="20dp"/>
+    android:orientation="vertical"
+    android:padding="32dp"
+    android:gravity="center">
 
     <ImageView
-        android:id="@+id/imgAvatar"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:src="@drawable/img_almirante_tallado"
+        android:contentDescription="Retrato tallado del Almirante"
         android:layout_marginTop="32dp"
-        android:background="@drawable/style_wood_button_circle"
-        android:padding="24dp"
-        android:src="@drawable/ic_person_simple_silhouette"
-        app:tint="@color/wood_text_color"
-        app:layout_constraintTop_toBottomOf="@id/tvProfileTitle"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:scaleType="centerInside" />
 
     <TextView
-        android:id="@+id/tvUsername"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Capitán Simulador"
-        android:textColor="@color/wood_border"
-        android:textSize="24sp"
+        android:text="HOJA DE SERVICIOS"
+        android:textColor="@color/wood_top_highlight"
+        android:textSize="26sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/imgAvatar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <TextView
-        android:id="@+id/tvRank"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Rango: Grumete de Agua Dulce"
-        android:textColor="#8B5A2B"
-        android:textSize="16sp"
-        app:layout_constraintTop_toBottomOf="@id/tvUsername"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:layout_marginBottom="32dp"
+        android:gravity="center"/>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/bg_tablero_madera"
         android:orientation="vertical"
-        android:background="@drawable/style_wood_button_rect"
-        android:padding="20dp"
-        android:layout_marginTop="32dp"
-        app:layout_constraintTop_toBottomOf="@id/tvRank"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:padding="24dp"
+        android:gravity="center"
+        android:elevation="8dp"
+        android:layout_marginBottom="40dp">
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="ESTADÍSTICAS DE COMBATE"
-            android:textColor="@color/wood_text_color"
+            android:text="ALMIRANTE"
+            android:textColor="@color/wood_dark"
+            android:textSize="28sp"
             android:textStyle="bold"
+            android:letterSpacing="0.1"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="USUARIO:"
+            android:textColor="@color/wood_dark"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:alpha="0.8" /> <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:gravity="center"
-            android:layout_marginBottom="16dp"/>
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp"
+            android:minHeight="44dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Partidas Jugadas:"
-                android:textColor="@color/wood_text_color"/>
-            <TextView
+                android:id="@+id/tv_perfil_username"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="42"
-                android:textStyle="bold"
-                android:textColor="@color/wood_text_color"/>
+                android:gravity="center"
+                android:text="SERGITOFOX"
+                android:textColor="@color/wood_dark"
+                android:textSize="20sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="8dp">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Victorias:"
-                android:textColor="@color/wood_text_color"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="15"
-                android:textStyle="bold"
-                android:textColor="@color/wood_text_color"/>
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/btnEditarPerfil"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical|end"
+            android:background="@drawable/bg_circulo_boton"
+            android:contentDescription="Editar Perfil"
+            android:elevation="2dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_lapiz"
+            app:tint="#FFFFFF" />
+    </FrameLayout>
 
-        <LinearLayout
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="CORREO:"
+            android:textColor="@color/wood_dark"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:alpha="0.8" /> <TextView
+        android:id="@+id/tv_perfil_email"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="44dp"
+        android:text="serfoznad@gmail.com"
+        android:textColor="@color/wood_dark"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"/>
+
+        <TextView
+            android:id="@+id/tv_perfil_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Precisión de tiro:"
-                android:textColor="@color/wood_text_color"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="68%"
-                android:textStyle="bold"
-                android:textColor="@color/wood_text_color"/>
-        </LinearLayout>
+            android:text="Estado: LISTO PARA COMBATE"
+            android:textColor="#2E7D32"
+            android:textSize="16sp"
+            android:textStyle="italic|bold"
+            android:gravity="center" />
     </LinearLayout>
 
     <Button
-        android:id="@+id/btnLogout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Cerrar Sesión"
-        android:textColor="@android:color/white"
-        android:backgroundTint="#B71C1C"
-        android:layout_marginBottom="32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
+        android:id="@+id/btn_sala_mando"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:text="IR A LA SALA DE MANDO"
+        android:textSize="18sp"
+        android:backgroundTint="@color/wood_btn"
+        android:textColor="@color/wood_dark"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp"/>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <Button
+        android:id="@+id/btn_cerrar_sesion"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:text="CERRAR SESIÓN"
+        android:textSize="16sp"
+        android:backgroundTint="#D02204"
+        android:textColor="@color/white"
+        android:textStyle="bold"/>
+
+</LinearLayout>

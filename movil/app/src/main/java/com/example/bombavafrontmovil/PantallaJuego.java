@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -12,8 +13,16 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.bombavafrontmovil.network.SocketManager;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import io.socket.client.Socket;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class PantallaJuego extends AppCompatActivity {
 
@@ -43,6 +52,10 @@ public class PantallaJuego extends AppCompatActivity {
 
     // Control de tipo de ataque: 0=Ninguno, 1=Cañón, 2=Mina (Torpedo es inmediato)
     private int tipoAtaque = 0;
+
+    // Sockets
+    private Socket mSocket;
+    private android.app.Dialog dialogoEspera;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,14 +110,87 @@ public class PantallaJuego extends AppCompatActivity {
         });
         rv.setAdapter(adapter);
 
-        // CONEXIÓN CON EL NUEVO LISTENER DE EVENTOS
-        gestor = new GestorJuego(token, matchId, myUserId, new GestorJuego.PartidaListener() {
-            @Override
-            public void onActualizarTablero() {
-                runOnUiThread(() -> {
-                    actualizarInterfazTurno();
-                    actualizarMatrizVisual();
-                });
+        // 4. CONFIGURAR BOTONES
+        configurarBotonesAccion();
+        configurarBotonInfo();
+
+        // Recuperamos la instancia del socket
+        mSocket = SocketManager.getInstance().getSocket();
+
+        // Leemos los datos que nos envía la pantalla anterior
+        Intent intent = getIntent();
+        boolean esHost = intent.getBooleanExtra("ES_HOST", false);
+        String codigoSala = intent.getStringExtra("CODIGO_SALA");
+        String matchId = intent.getStringExtra("MATCH_ID"); // Vendrá lleno si somos el invitado
+
+        if (esHost && codigoSala != null) {
+            // SOMOS EL CREADOR: Mostramos el Pop-up y esperamos
+            mostrarPopUpEspera(codigoSala);
+            configurarEscuchaRival();
+        } else if (matchId != null) {
+            // SOMOS EL INVITADO: Ya tenemos el ID del match, nos unimos directamente al juego
+            unirseAlJuegoReal(matchId);
+        }
+    }
+
+    private void initViews() {
+        layNoSel = findViewById(R.id.txtNoSelection);
+        layMain = findViewById(R.id.layoutMainActions);
+        layAtk = findViewById(R.id.layoutAttackActions);
+        layMove = findViewById(R.id.layoutMoveActions);
+
+        btnAtk2 = findViewById(R.id.btnAtk2);
+        btnAtk3 = findViewById(R.id.btnAtk3);
+
+        barFuel = findViewById(R.id.barFuel);
+        barAmmo = findViewById(R.id.barAmmo);
+        txtFuel = findViewById(R.id.txtFuel);
+        txtAmmo = findViewById(R.id.txtAmmo);
+
+        barFuel.setMax(10); barAmmo.setMax(10);
+
+        // Referencias panel info
+        panelInfoBarco = findViewById(R.id.panelInfoBarco);
+        txtInfoTitulo = findViewById(R.id.txtInfoTitulo);
+        txtInfoGlobal = findViewById(R.id.txtInfoGlobal);
+        txtInfoCeldas = findViewById(R.id.txtInfoCeldas);
+        findViewById(R.id.btnCloseInfo).setOnClickListener(v -> panelInfoBarco.setVisibility(View.GONE));
+    }
+
+    private void configurarBotonesAccion() {
+        // ATAQUE
+        findViewById(R.id.btnMainAttack).setOnClickListener(v -> {
+            int size = sel.getTipoBarco();
+            // Control de visibilidad de botones de ataque
+            btnAtk2.setVisibility(size >= 2 ? View.VISIBLE : View.GONE);
+            findViewById(R.id.divAtk2).setVisibility(size >= 2 ? View.VISIBLE : View.GONE);
+            btnAtk3.setVisibility(size >= 3 ? View.VISIBLE : View.GONE);
+            findViewById(R.id.divAtk3).setVisibility(size >= 3 ? View.VISIBLE : View.GONE);
+            findViewById(R.id.btnAtk4).setVisibility(size >= 4 ? View.VISIBLE : View.GONE);
+            findViewById(R.id.divAtk4).setVisibility(size >= 4 ? View.VISIBLE : View.GONE);
+            findViewById(R.id.btnAtk5).setVisibility(size == 5 ? View.VISIBLE : View.GONE);
+            findViewById(R.id.divAtk5).setVisibility(size == 5 ? View.VISIBLE : View.GONE);
+
+            mostrar(layAtk);
+        });
+
+        // MOVIMIENTO
+        findViewById(R.id.btnMainMove).setOnClickListener(v -> mostrar(layMove));
+
+        // BOTONES DE ATAQUE (Logic)
+        View.OnClickListener accionAtk = v -> {
+            int index = 0;
+            if (v.getId() == R.id.btnAtk2) index = 1;
+            if (v.getId() == R.id.btnAtk3) index = 2;
+            if (v.getId() == R.id.btnAtk4) index = 3;
+            if (v.getId() == R.id.btnAtk5) index = 4;
+
+            BarcoLogico barcoReal = gestor.obtenerBarco(sel.getIdBarco());
+            if (barcoReal == null) return;
+
+            if (barcoReal.vidaCeldas[index] <= 0) {
+                Toast.makeText(this, "⚠️ Arma destruida.", Toast.LENGTH_SHORT).show();
+                return;
             }
 
             @Override
@@ -274,5 +360,100 @@ public class PantallaJuego extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (gestor != null) gestor.desconectar();
+    }
+
+    private void mostrarPopUpEspera(String codigo) {
+        // Crear el diálogo personalizado
+        dialogoEspera = new android.app.Dialog(this);
+        dialogoEspera.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialogoEspera.setContentView(R.layout.dialog_codigo_partida);
+
+        // Esto impide que el usuario cierre el pop-up tocando fuera
+        dialogoEspera.setCancelable(false);
+
+        // Hacer fondo transparente
+        if (dialogoEspera.getWindow() != null) {
+            dialogoEspera.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        // Vincular las vistas del XML del popup
+        android.widget.TextView tvCodigo = dialogoEspera.findViewById(R.id.tv_codigo_generado);
+        android.widget.Button btnCopiar = dialogoEspera.findViewById(R.id.btn_copiar_codigo);
+        android.widget.Button btnCerrar = dialogoEspera.findViewById(R.id.btn_cerrar_popup);
+
+        // Mostrar el código real generado por el servidor
+        tvCodigo.setText(codigo);
+
+        // Configurar el botón de COPIAR
+        btnCopiar.setOnClickListener(v -> {
+            // Lógica real para copiar al portapapeles del móvil
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("Código de Partida", codigo);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "¡Código copiado al portapapeles!", Toast.LENGTH_SHORT).show();
+        });
+
+        // Configurar el botón de CERRAR
+        btnCerrar.setOnClickListener(v -> {
+            dialogoEspera.dismiss();
+            Toast.makeText(this, "Esperando rival en segundo plano...", Toast.LENGTH_SHORT).show();
+            // Nota: Si quieres que al cerrar el popup se cancele la partida y vuelva atrás,
+            // puedes poner aquí un 'finish();' en su lugar.
+            finish();
+        });
+
+        // Mostrar el popup
+        dialogoEspera.show();
+    }
+
+    private void configurarEscuchaRival() {
+        mSocket.on("match:ready", args -> {
+            runOnUiThread(() -> {
+                try {
+                    // El servidor avisa que el rival ha entrado
+                    JSONObject data = (JSONObject) args[0];
+                    String matchId = data.getString("matchId");
+
+                    // Cerramos el Pop-up!
+                    if (dialogoEspera != null && dialogoEspera.isShowing()) {
+                        dialogoEspera.dismiss();
+                    }
+
+                    Toast.makeText(this, "¡El rival se ha unido! A los cañones.", Toast.LENGTH_SHORT).show();
+
+                    // Nos conectamos al tablero de juego del servidor
+                    unirseAlJuegoReal(matchId);
+
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+    }
+
+    private void unirseAlJuegoReal(String matchId) {
+        try {
+            // Según la documentación de tu API, mandamos game:join
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            mSocket.emit("game:join", payload);
+
+            // Opcional: escuchar si la conexión al tablero fue exitosa
+            mSocket.on("game:joined", args -> {
+                runOnUiThread(() -> Toast.makeText(this, "Conectado al tablero.", Toast.LENGTH_SHORT).show());
+            });
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mSocket != null) {
+            mSocket.off("match:ready");
+            mSocket.off("game:joined");
+        }
     }
 }
