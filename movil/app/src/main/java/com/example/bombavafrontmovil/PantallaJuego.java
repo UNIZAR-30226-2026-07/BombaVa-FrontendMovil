@@ -44,7 +44,7 @@ public class PantallaJuego extends AppCompatActivity {
 
     // Sockets
     private Socket mSocket;
-    private android.app.AlertDialog dialogoEspera;
+    private android.app.Dialog dialogoEspera;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -368,14 +368,46 @@ public class PantallaJuego extends AppCompatActivity {
     }
 
     private void mostrarPopUpEspera(String codigo) {
-        android.app.AlertDialog.Builder builder = new android.app.AlertDialog.Builder(this);
-        builder.setTitle("Esperando Rival...");
-        builder.setMessage("Tu código de sala es:\n\n" + codigo + "\n\nComparte este código con tu amigo para que se una. La partida empezará automáticamente.");
+        // Crear el diálogo personalizado
+        dialogoEspera = new android.app.Dialog(this);
+        dialogoEspera.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialogoEspera.setContentView(R.layout.dialog_codigo_partida);
 
-        // MUY IMPORTANTE: Esto impide que el usuario cierre el pop-up tocando fuera
-        builder.setCancelable(false);
+        // Esto impide que el usuario cierre el pop-up tocando fuera
+        dialogoEspera.setCancelable(false);
 
-        dialogoEspera = builder.create();
+        // Hacer fondo transparente
+        if (dialogoEspera.getWindow() != null) {
+            dialogoEspera.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        // Vincular las vistas del XML del popup
+        android.widget.TextView tvCodigo = dialogoEspera.findViewById(R.id.tv_codigo_generado);
+        android.widget.Button btnCopiar = dialogoEspera.findViewById(R.id.btn_copiar_codigo);
+        android.widget.Button btnCerrar = dialogoEspera.findViewById(R.id.btn_cerrar_popup);
+
+        // Mostrar el código real generado por el servidor
+        tvCodigo.setText(codigo);
+
+        // Configurar el botón de COPIAR
+        btnCopiar.setOnClickListener(v -> {
+            // Lógica real para copiar al portapapeles del móvil
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(android.content.Context.CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("Código de Partida", codigo);
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(this, "¡Código copiado al portapapeles!", Toast.LENGTH_SHORT).show();
+        });
+
+        // Configurar el botón de CERRAR
+        btnCerrar.setOnClickListener(v -> {
+            dialogoEspera.dismiss();
+            Toast.makeText(this, "Esperando rival en segundo plano...", Toast.LENGTH_SHORT).show();
+            // Nota: Si quieres que al cerrar el popup se cancele la partida y vuelva atrás,
+            // puedes poner aquí un 'finish();' en su lugar.
+            finish();
+        });
+
+        // Mostrar el popup
         dialogoEspera.show();
     }
 
@@ -387,14 +419,14 @@ public class PantallaJuego extends AppCompatActivity {
                     JSONObject data = (JSONObject) args[0];
                     String matchId = data.getString("matchId");
 
-                    // 1. Cerramos el Pop-up!
+                    // Cerramos el Pop-up!
                     if (dialogoEspera != null && dialogoEspera.isShowing()) {
                         dialogoEspera.dismiss();
                     }
 
                     Toast.makeText(this, "¡El rival se ha unido! A los cañones.", Toast.LENGTH_SHORT).show();
 
-                    // 2. Nos conectamos al tablero de juego del servidor
+                    // Nos conectamos al tablero de juego del servidor
                     unirseAlJuegoReal(matchId);
 
                 } catch (JSONException e) {

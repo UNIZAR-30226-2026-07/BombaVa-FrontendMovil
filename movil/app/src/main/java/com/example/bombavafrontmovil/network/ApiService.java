@@ -5,6 +5,7 @@ import com.example.bombavafrontmovil.models.*;
 import java.util.HashMap;
 import java.util.List;
 
+import retrofit2.http.DELETE;
 import retrofit2.http.PATCH;
 import retrofit2.http.PUT;
 import retrofit2.http.Path;
@@ -27,9 +28,6 @@ public interface ApiService {
     @GET("/api/inventory/ships")
     Call<List<UserShip>> obtenerInventarioBarcos(@Header("Authorization") String token);
 
-    @PATCH("/api/inventory/ships/{shipId}/equip")
-    Call<UserShip> equiparArma(@Path("shipId") String shipId, @Header("Authorization") String token, @Body EquipWeaponRequest request);
-
     @POST("/api/inventory/decks")
     Call<Void> crearMazoFlota(@Header("Authorization") String token, @Body FleetConfigRequest request);
 
@@ -42,4 +40,13 @@ public interface ApiService {
 
     @GET("/api/inventory/decks")
     Call<List<FleetConfigRequest>> obtenerMazo(@Header("Authorization") String token);
+
+    @GET("/api/inventory/weapons")
+    Call<List<Weapon>> obtenerArmasDisponibles(@Header("Authorization") String token);
+
+    @PATCH("/api/inventory/ships/{shipId}/equip")
+    Call<UserShip> equiparArma(@Path("shipId") String shipId, @Header("Authorization") String token, @Body EquipWeaponRequest request);
+
+    @DELETE("/api/inventory/ships/{shipId}/weapons/{weaponSlug}")
+    Call<Void> desequiparArma(@Path("shipId") String shipId, @Path("weaponSlug") String weaponSlug, @Header("Authorization") String token);
 }

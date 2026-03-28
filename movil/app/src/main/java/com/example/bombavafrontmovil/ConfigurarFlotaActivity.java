@@ -26,35 +26,46 @@ import com.example.bombavafrontmovil.models.*;
 import com.example.bombavafrontmovil.network.ApiClient;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
 public class ConfigurarFlotaActivity extends AppCompatActivity {
+
     private String realIdBarco5 = "", realIdBarco3 = "", realIdBarco1 = "";
     private GestorConfiguracionFlota gestorLogica;
     private BotonesUIHelper uiHelper;
     private ConfigurarFlotaAdapter adaptador;
     private List<CeldaVisual> celdasTablero;
     private List<UserShip> inventarioBarcos = new ArrayList<>();
+
     private boolean enHorizontal = true;
     private int tamanoSeleccionado = 0, faseActual = 1, idBarcoSeleccionadoParaArma = 0;
     private String armaTemporal = "";
-    private String idMazoActivo = null;
 
     private LinearLayout layoutControlesColocacion, layoutControlesArmas;
     private Button btnRotar, btnGuardarArma;
+
+    private Map<String, Set<String>> armasOriginalesBackend = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_configurar_flota);
+
         gestorLogica = new GestorConfiguracionFlota();
+
         vincularVistasYListeners();
         configurarTablero();
+
         descargarInventarioDelCuartelGeneral();
+        descargarArmasDisponibles();
 
         ImageView btnInfoLeyenda = findViewById(R.id.btn_info_leyenda);
         btnInfoLeyenda.setOnClickListener(v -> mostrarDialogoLeyenda());
@@ -66,16 +77,27 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         btnRotar = findViewById(R.id.btn_rotate);
         btnGuardarArma = findViewById(R.id.btn_guardar_arma);
 
-        Button btnShip5 = findViewById(R.id.btn_ship_5x1), btnShip3 = findViewById(R.id.btn_ship_3x1), btnShip1 = findViewById(R.id.btn_ship_1x1);
-        uiHelper = new BotonesUIHelper(btnShip5, btnShip3, btnShip1, findViewById(R.id.btn_ametralladora), findViewById(R.id.btn_misil), findViewById(R.id.btn_torpedo));
+        Button btnShip5 = findViewById(R.id.btn_ship_5x1),
+                btnShip3 = findViewById(R.id.btn_ship_3x1),
+                btnShip1 = findViewById(R.id.btn_ship_1x1);
+
+        uiHelper = new BotonesUIHelper(btnShip5, btnShip3, btnShip1,
+                findViewById(R.id.btn_ametralladora),
+                findViewById(R.id.btn_misil),
+                findViewById(R.id.btn_torpedo));
 
         btnShip5.setOnClickListener(v -> { tamanoSeleccionado = 5; uiHelper.resaltarBarco(5); });
         btnShip3.setOnClickListener(v -> { tamanoSeleccionado = 3; uiHelper.resaltarBarco(3); });
         btnShip1.setOnClickListener(v -> { tamanoSeleccionado = 1; uiHelper.resaltarBarco(1); });
-        btnRotar.setOnClickListener(v -> { enHorizontal = !enHorizontal; btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)"); });
 
-        findViewById(R.id.btn_ametralladora).setOnClickListener(v -> seleccionarArmaTemporal("Ametralladora"));
-        findViewById(R.id.btn_misil).setOnClickListener(v -> seleccionarArmaTemporal("Misil"));
+        btnRotar.setOnClickListener(v -> {
+            enHorizontal = !enHorizontal;
+            btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)");
+        });
+
+        // 🔥 NUEVAS ARMAS AL HACER CLIC
+        findViewById(R.id.btn_ametralladora).setOnClickListener(v -> seleccionarArmaTemporal("Cañón"));
+        findViewById(R.id.btn_misil).setOnClickListener(v -> seleccionarArmaTemporal("Mina"));
         findViewById(R.id.btn_torpedo).setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
 
         findViewById(R.id.btn_cancelar_arma).setOnClickListener(v -> cancelarSeleccionArma());
@@ -95,22 +117,13 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     }
 
     private void mostrarDialogoLeyenda() {
-        // Crear el diálogo
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.setContentView(R.layout.dialog_leyenda_mapa);
-
-        // Hacer que el fondo sea transparente para que se vean las esquinas redondeadas de tu pergamino
         if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-            // Opcional: hacer que el diálogo sea un poco más ancho
             dialog.getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
         }
-
-        // Configurar el botón de cerrar
-        Button btnCerrar = dialog.findViewById(R.id.btn_cerrar_leyenda);
-        btnCerrar.setOnClickListener(v -> dialog.dismiss());
-
-        // Mostrarlo en pantalla
+        dialog.findViewById(R.id.btn_cerrar_leyenda).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
 
@@ -131,40 +144,28 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         if (tamanoSeleccionado == 0) return;
 
         int pAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, enHorizontal);
+
         if (gestorLogica.validarColocacion(pAjustada, tamanoSeleccionado, enHorizontal) == 0) {
             gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, enHorizontal);
             dibujarBarcoEnVista(pAjustada, tamanoSeleccionado, enHorizontal);
-            tamanoSeleccionado = 0; uiHelper.resaltarBarco(0);
+            tamanoSeleccionado = 0;
+            uiHelper.resaltarBarco(0);
             uiHelper.ocultarBarcosColocados(gestorLogica.estaBarcoColocado(5), gestorLogica.estaBarcoColocado(3), gestorLogica.estaBarcoColocado(1));
             adaptador.notifyDataSetChanged();
-
-            // 🔥 NUEVO: EJECUTAR VIBRACIÓN AL COLOCAR EL BARCO
-            ejecutarVibracion(50); // Vibra 50 milisegundos
-
+            ejecutarVibracion(50);
         } else {
             Toast.makeText(this, "Colocación inválida", Toast.LENGTH_SHORT).show();
-            ejecutarVibracion(150); // Vibración más larga si hay un error
+            ejecutarVibracion(150);
         }
     }
 
-    // Añade este método en cualquier parte de ConfigurarFlotaActivity
     private void ejecutarVibracion(int milisegundos) {
-        // 1. Leemos los ajustes
         SharedPreferences prefs = getSharedPreferences("AjustesApp", MODE_PRIVATE);
-        boolean vibracionActivada = prefs.getBoolean("vibracion_activada", true);
-
-        // 2. Si está activada, hacemos vibrar el móvil
-        if (vibracionActivada) {
+        if (prefs.getBoolean("vibracion_activada", true)) {
             Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-
-            Log.d("BOMBAVA_VIBRACION", "¡Bzz Bzz! El móvil está vibrando por " + milisegundos + " ms");
             if (v != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    v.vibrate(VibrationEffect.createOneShot(milisegundos, VibrationEffect.DEFAULT_AMPLITUDE));
-                } else {
-                    // Para móviles más antiguos
-                    v.vibrate(milisegundos);
-                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) v.vibrate(VibrationEffect.createOneShot(milisegundos, VibrationEffect.DEFAULT_AMPLITUDE));
+                else v.vibrate(milisegundos);
             }
         }
     }
@@ -190,21 +191,63 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     private void abrirPanelArmas(int id) {
         idBarcoSeleccionadoParaArma = id;
         for (int i = 0; i < 225; i++) celdasTablero.get(i).seleccionadaParaArma = (gestorLogica.getIdBarcoEn(i) == id);
-        uiHelper.actualizarBotonesArmas(gestorLogica.getTamanoBarco(id), gestorLogica.tieneArmaEquipada(id, "Ametralladora"), gestorLogica.tieneArmaEquipada(id, "Misil"), gestorLogica.tieneArmaEquipada(id, "Torpedo"));
+
+        int tamano = gestorLogica.getTamanoBarco(id);
+        Set<String> equipadas = gestorLogica.getArmasEquipadas(id);
+        int huecosLibres = tamano - equipadas.size();
+
+        ((TextView) findViewById(R.id.tv_title)).setText("ARMAS: " + equipadas.size() + "/" + tamano + " EQUIPADAS");
+
+        // 🔥 MAPEO DE BOTONES A LAS NUEVAS ARMAS
+        configurarBotonArma(findViewById(R.id.btn_ametralladora), "Cañón", equipadas, huecosLibres);
+        configurarBotonArma(findViewById(R.id.btn_misil), "Mina", equipadas, huecosLibres);
+        configurarBotonArma(findViewById(R.id.btn_torpedo), "Torpedo", equipadas, huecosLibres);
+
+        armaTemporal = "";
+        btnGuardarArma.setText("SELECCIONA");
+        btnGuardarArma.setEnabled(false);
+
         layoutControlesArmas.setVisibility(View.VISIBLE);
+        layoutControlesColocacion.setVisibility(View.GONE);
         adaptador.notifyDataSetChanged();
+    }
+
+    private void configurarBotonArma(Button btn, String armaBase, Set<String> equipadas, int huecosLibres) {
+        String textoCorto = armaBase.substring(0, Math.min(6, armaBase.length())).toUpperCase();
+        if (equipadas.contains(armaBase)) {
+            btn.setVisibility(View.VISIBLE);
+            btn.setText("✅ " + textoCorto);
+            btn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#388E3C")));
+        } else {
+            btn.setText(textoCorto);
+            btn.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#8D6E63")));
+            btn.setVisibility(huecosLibres <= 0 ? View.INVISIBLE : View.VISIBLE);
+        }
     }
 
     private void seleccionarArmaTemporal(String tipo) {
         armaTemporal = tipo;
         uiHelper.resaltarArma(tipo);
-        btnGuardarArma.setText(gestorLogica.tieneArmaEquipada(idBarcoSeleccionadoParaArma, tipo) ? "Desequipar" : "Equipar");
+        btnGuardarArma.setEnabled(true);
+        if (gestorLogica.tieneArmaEquipada(idBarcoSeleccionadoParaArma, tipo)) {
+            btnGuardarArma.setText("DESEQUIPAR");
+            btnGuardarArma.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#D32F2F")));
+        } else {
+            btnGuardarArma.setText("EQUIPAR");
+            btnGuardarArma.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#388E3C")));
+        }
     }
 
     private void guardarArmaBarco() {
         if (armaTemporal.isEmpty()) return;
-        if (gestorLogica.tieneArmaEquipada(idBarcoSeleccionadoParaArma, armaTemporal)) gestorLogica.desequiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
-        else gestorLogica.equiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
+        if (gestorLogica.tieneArmaEquipada(idBarcoSeleccionadoParaArma, armaTemporal)) {
+            gestorLogica.desequiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
+            Toast.makeText(this, "Arma retirada", Toast.LENGTH_SHORT).show();
+        } else {
+            gestorLogica.equiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
+            Toast.makeText(this, "Arma equipada", Toast.LENGTH_SHORT).show();
+        }
+        ejecutarVibracion(50);
         abrirPanelArmas(idBarcoSeleccionadoParaArma);
     }
 
@@ -220,7 +263,9 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                 faseActual = 2;
                 layoutControlesColocacion.setVisibility(View.GONE);
                 ((TextView)findViewById(R.id.tv_title)).setText("Modifica tus Armas");
-            } else Toast.makeText(this, "Faltan barcos por colocar", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Faltan barcos por colocar", Toast.LENGTH_SHORT).show();
+            }
         } else {
             enviarFlotaAlServidor();
         }
@@ -228,30 +273,69 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
     private void descargarInventarioDelCuartelGeneral() {
         String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
+
         ApiClient.getApiService().obtenerInventarioBarcos("Bearer " + token).enqueue(new Callback<List<UserShip>>() {
             @Override
             public void onResponse(Call<List<UserShip>> call, Response<List<UserShip>> response) {
                 if (response.isSuccessful() && response.body() != null) {
-                    inventarioBarcos = response.body(); // Guardamos el inventario completo
+                    inventarioBarcos = response.body();
 
                     for (UserShip b : inventarioBarcos) {
-                        int t = b.getShipTemplate().getTamanoCasillas();
+                        int t = 0;
+                        if (b.getShipTemplate() != null) t = b.getShipTemplate().getTamanoCasillas();
+
                         if (t == 5) realIdBarco5 = b.getId();
                         else if (t == 3) realIdBarco3 = b.getId();
                         else if (t == 1) realIdBarco1 = b.getId();
+
+                        List<String> armasDetectadas = new ArrayList<>();
+
+                        // LEEMOS EL CAJÓN "WeaponTemplates"
+                        if (b.getWeaponTemplates() != null) {
+                            for (UserShip.WeaponItem item : b.getWeaponTemplates()) {
+                                if (item.slug != null) {
+                                    armasDetectadas.add(item.slug);
+                                }
+                            }
+                        }
+
+                        if (b.getWeaponSlug() != null) armasDetectadas.add(b.getWeaponSlug());
+                        if (b.getWeaponSlugs() != null) armasDetectadas.addAll(b.getWeaponSlugs());
+                        if (b.getWeaponsList() != null) {
+                            for (UserShip.WeaponItem item : b.getWeaponsList()) if (item.slug != null) armasDetectadas.add(item.slug);
+                        }
+                        if (b.getShipWeapons() != null) {
+                            for (UserShip.WeaponItem item : b.getShipWeapons()) if (item.slug != null) armasDetectadas.add(item.slug);
+                        }
+                        if (b.getEquipped() != null) {
+                            for (UserShip.WeaponItem item : b.getEquipped()) if (item.slug != null) armasDetectadas.add(item.slug);
+                        }
+
+                        Log.d("FLOTA_DEBUG", "Barco " + b.getId() + " | Armas finales leídas: " + armasDetectadas.toString());
+                        if (!armasDetectadas.isEmpty()) {
+                            if (!armasOriginalesBackend.containsKey(b.getId())) armasOriginalesBackend.put(b.getId(), new HashSet<>());
+                            for (String slugArma : armasDetectadas) armasOriginalesBackend.get(b.getId()).add(slugArma);
+                        }
+                    }
+
+                    if (realIdBarco5.isEmpty() && inventarioBarcos.size() >= 3) {
+                        realIdBarco5 = inventarioBarcos.get(0).getId();
+                        realIdBarco3 = inventarioBarcos.get(1).getId();
+                        realIdBarco1 = inventarioBarcos.get(2).getId();
                     }
                     cargarFlotaExistente();
+                } else {
+                    Log.e("FLOTA_DEBUG", "El servidor rechazó el inventario. Código HTTP: " + response.code());
                 }
             }
             @Override public void onFailure(Call<List<UserShip>> call, Throwable t) {
-                Log.e("FLOTA_DEBUG", "Fallo red al inventario: " + t.getMessage());
+                Log.e("FLOTA_DEBUG", "Error de red al inventario: " + t.getMessage());
             }
         });
     }
 
     private void cargarFlotaExistente() {
         String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
-
         ApiClient.getApiService().obtenerMazo("Bearer " + token).enqueue(new Callback<List<FleetConfigRequest>>() {
             @Override
             public void onResponse(Call<List<FleetConfigRequest>> call, Response<List<FleetConfigRequest>> response) {
@@ -261,41 +345,17 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                     FleetConfigRequest mazoCargar = null;
 
                     for (FleetConfigRequest mazo : listaMazos) {
-                        if (mazo.isActive()) { mazoCargar = mazo; break; } // Usando isActive como en la v final
+                        if (mazo.isActive()) { mazoCargar = mazo; break; }
                     }
                     if (mazoCargar == null) mazoCargar = listaMazos.get(listaMazos.size() - 1);
 
                     if (mazoCargar.getShipPositions() != null) {
                         for (ShipPosition p : mazoCargar.getShipPositions()) {
-                            // Cargar la posición del barco
                             gestorLogica.cargarBarcoDesdeServidor(p.getUserShipId(), p.getPosition().getX(), p.getPosition().getY(), p.getOrientation(), realIdBarco5, realIdBarco3, realIdBarco1);
-
-                            int idInternoRecienCreado = gestorLogica.getIdBarcoActual() - 1;
-
-                            for (UserShip barcoInventario : inventarioBarcos) {
-                                if (barcoInventario.getId().equals(p.getUserShipId())) {
-
-                                    // ¡Ahora sí reconocerá getWeaponSlug()!
-                                    String slugArma = barcoInventario.getWeaponSlug();
-
-                                    // 🔥 AÑADE ESTA LÍNEA AQUÍ:
-                                    Log.d("FLOTA_WEAPON", "Barco ID: " + barcoInventario.getId() + " | Arma leída: " + slugArma);
-
-                                    if (slugArma != null && !slugArma.isEmpty()) {
-                                        if (slugArma.toLowerCase().contains("ametralladora")) {
-                                            gestorLogica.equiparArma(idInternoRecienCreado, "Ametralladora");
-                                        } else if (slugArma.toLowerCase().contains("misil")) {
-                                            gestorLogica.equiparArma(idInternoRecienCreado, "Misil");
-                                        } else if (slugArma.toLowerCase().contains("torpedo")) {
-                                            gestorLogica.equiparArma(idInternoRecienCreado, "Torpedo");
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
                         }
                     }
                     actualizarTodaLaVistaTablero();
+                    sincronizarArmasConUI();
                 }
             }
             @Override public void onFailure(Call<List<FleetConfigRequest>> call, Throwable t) {}
@@ -305,55 +365,31 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     private void enviarFlotaAlServidor() {
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         String token = prefs.getString("token", "");
-
-        // 🔥 TRUCO CLAVE: Como no podemos actualizar un mazo, creamos uno NUEVO cada vez que el usuario guarda.
-        // Usamos el tiempo actual en milisegundos para garantizar que el nombre nunca se repita y el backend no dé error.
         final String nombreMazoUnico = "Flota Activa " + System.currentTimeMillis();
-
         List<ShipPosition> posiciones = gestorLogica.obtenerPosicionesParaBackend(realIdBarco5, realIdBarco3, realIdBarco1);
 
-        // Corrección de orientación para el backend
-        for(ShipPosition sp : posiciones) {
-            if(sp.getOrientation().equals("S")) sp.setOrientation("N");
-        }
+        if(posiciones.isEmpty()) { Toast.makeText(this, "Error: No se detectaron barcos para guardar.", Toast.LENGTH_SHORT).show(); return; }
 
-        FleetConfigRequest request = new FleetConfigRequest(nombreMazoUnico, posiciones);
-
-        // PASO 1: CREAR EL NUEVO MAZO
-        ApiClient.getApiService().crearMazoFlota("Bearer " + token, request).enqueue(new Callback<Void>() {
+        ApiClient.getApiService().crearMazoFlota("Bearer " + token, new FleetConfigRequest(nombreMazoUnico, posiciones)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
-                if (!response.isSuccessful()) {
-                    Toast.makeText(ConfigurarFlotaActivity.this, "Error guardando la configuración", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+                if (!response.isSuccessful()) return;
+                Toast.makeText(ConfigurarFlotaActivity.this, "Procesando tácticas...", Toast.LENGTH_SHORT).show();
 
-                // PASO 2: BUSCAR EL ID DEL MAZO QUE ACABAMOS DE CREAR
-                ApiClient.getApiService().obtenerMazo("Bearer " + token).enqueue(new Callback<List<FleetConfigRequest>>() {
-                    @Override
-                    public void onResponse(Call<List<FleetConfigRequest>> call, Response<List<FleetConfigRequest>> res) {
-                        if (res.isSuccessful() && res.body() != null && !res.body().isEmpty()) {
-                            String idMazoNuevo = null;
-
-                            // Buscamos el mazo por el nombre único que le acabamos de poner
-                            for (FleetConfigRequest mazo : res.body()) {
-                                if (nombreMazoUnico.equals(mazo.getName())) {
-                                    idMazoNuevo = mazo.getId();
-                                    break;
-                                }
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    ApiClient.getApiService().obtenerMazo("Bearer " + token).enqueue(new Callback<List<FleetConfigRequest>>() {
+                        @Override
+                        public void onResponse(Call<List<FleetConfigRequest>> call, Response<List<FleetConfigRequest>> res) {
+                            if (res.isSuccessful() && res.body() != null && !res.body().isEmpty()) {
+                                String idMazoNuevo = null;
+                                for (FleetConfigRequest mazo : res.body()) { if (nombreMazoUnico.equals(mazo.getName())) { idMazoNuevo = mazo.getId(); break; } }
+                                if (idMazoNuevo == null) idMazoNuevo = res.body().get(res.body().size() - 1).getId();
+                                activarMazoConUUID(token, idMazoNuevo);
                             }
-
-                            // Por si falla el nombre, cogemos el último insertado
-                            if (idMazoNuevo == null) {
-                                idMazoNuevo = res.body().get(res.body().size() - 1).getId();
-                            }
-
-                            // PASO 3: ACTIVAR EL NUEVO MAZO
-                            activarMazoConUUID(token, idMazoNuevo);
                         }
-                    }
-                    @Override public void onFailure(Call<List<FleetConfigRequest>> call, Throwable t) {}
-                });
+                        @Override public void onFailure(Call<List<FleetConfigRequest>> call, Throwable t) {}
+                    });
+                }, 1000);
             }
             @Override public void onFailure(Call<Void> call, Throwable t) {}
         });
@@ -364,12 +400,9 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
-                    // Si se activa bien, mandamos las armas
                     enviarArmasAlServidor(token);
                     Toast.makeText(ConfigurarFlotaActivity.this, "¡Configuración actualizada!", Toast.LENGTH_SHORT).show();
                     finish();
-                } else {
-                    Toast.makeText(ConfigurarFlotaActivity.this, "Error al activar el mazo", Toast.LENGTH_SHORT).show();
                 }
             }
             @Override public void onFailure(Call<Void> call, Throwable t) {}
@@ -381,21 +414,48 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             int t = gestorLogica.getTamanoBarco(i);
             String rid = (t == 5) ? realIdBarco5 : (t == 3 ? realIdBarco3 : realIdBarco1);
 
-            // Evaluamos qué arma tiene
-            String slug = gestorLogica.tieneArmaEquipada(i, "Ametralladora") ? "ametralladora" :
-                    (gestorLogica.tieneArmaEquipada(i, "Misil") ? "misil" :
-                            (gestorLogica.tieneArmaEquipada(i, "Torpedo") ? "torpedo" : ""));
+            // 1. Obtenemos las armas de la pantalla (en Español)
+            Set<String> armasUI = gestorLogica.getArmasEquipadas(i);
 
-            // 🔥 CAMBIO CRÍTICO PARA DESEQUIPAR:
-            // Si slug está vacío, enviamos null (o "") para decirle al backend "quita el arma".
-            String valorAEnviar = slug.isEmpty() ? null : slug;
+            // 2. 🔥 TRADUCTOR: Las convertimos al idioma del servidor (Slugs)
+            Set<String> slugsNuevos = new HashSet<>();
+            for (String uiName : armasUI) {
+                if (uiName.equals("Cañón")) slugsNuevos.add("cannon-base");
+                else if (uiName.equals("Torpedo")) slugsNuevos.add("torpedo-v1");
+                else if (uiName.equals("Mina")) slugsNuevos.add("mine-v1");
+            }
 
-            ApiClient.getApiService().equiparArma(rid, "Bearer " + token, new EquipWeaponRequest(valorAEnviar)).enqueue(new Callback<UserShip>() {
-                @Override public void onResponse(Call<UserShip> call, Response<UserShip> response) {
-                    Log.d("FLOTA_DEBUG", "Arma actualizada para barco " + rid + " -> " + valorAEnviar);
+            Set<String> slugsViejos = new HashSet<>(armasOriginalesBackend.getOrDefault(rid, new HashSet<>()));
+
+            // 3. EQUIPAR NUEVAS
+            for (String slugNuevo : slugsNuevos) {
+                if (!slugsViejos.contains(slugNuevo)) {
+                    ApiClient.getApiService().equiparArma(rid, "Bearer " + token, new EquipWeaponRequest(slugNuevo)).enqueue(new Callback<UserShip>() {
+                        @Override public void onResponse(Call<UserShip> call, Response<UserShip> response) {
+                            if (response.isSuccessful()) Log.d("FLOTA_DEBUG", "✅ Arma guardada en el servidor: " + slugNuevo);
+                            else Log.e("FLOTA_DEBUG", "❌ Error al guardar arma: " + slugNuevo + " - Código: " + response.code());
+                        }
+                        @Override public void onFailure(Call<UserShip> call, Throwable t) {
+                            Log.e("FLOTA_DEBUG", "❌ Fallo de red guardando arma: " + t.getMessage());
+                        }
+                    });
                 }
-                @Override public void onFailure(Call<UserShip> call, Throwable t) {}
-            });
+            }
+
+            // 4. DESEQUIPAR LAS QUITADAS
+            for (String slugViejo : slugsViejos) {
+                if (!slugsNuevos.contains(slugViejo)) {
+                    ApiClient.getApiService().desequiparArma(rid, slugViejo, "Bearer " + token).enqueue(new Callback<Void>() {
+                        @Override public void onResponse(Call<Void> call, Response<Void> response) {
+                            if (response.isSuccessful()) Log.d("FLOTA_DEBUG", "🗑️ Arma retirada del servidor: " + slugViejo);
+                            else Log.e("FLOTA_DEBUG", "❌ Error al retirar arma: " + slugViejo + " - Código: " + response.code());
+                        }
+                        @Override public void onFailure(Call<Void> call, Throwable t) {
+                            Log.e("FLOTA_DEBUG", "❌ Fallo de red retirando arma: " + t.getMessage());
+                        }
+                    });
+                }
+            }
         }
     }
 
@@ -422,5 +482,41 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         ((TextView)findViewById(R.id.tv_title)).setText("Configura tu Flota");
         layoutControlesColocacion.setVisibility(View.VISIBLE);
         adaptador.notifyDataSetChanged();
+    }
+
+    private void descargarArmasDisponibles() {
+        String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
+        ApiClient.getApiService().obtenerArmasDisponibles("Bearer " + token).enqueue(new Callback<List<Weapon>>() {
+            @Override
+            public void onResponse(Call<List<Weapon>> call, Response<List<Weapon>> response) {}
+            @Override public void onFailure(Call<List<Weapon>> call, Throwable t) {}
+        });
+    }
+
+    private void sincronizarArmasConUI() {
+        for (int i = 1; i < gestorLogica.getIdBarcoActual(); i++) {
+            int t = gestorLogica.getTamanoBarco(i);
+            String rid = (t == 5) ? realIdBarco5 : (t == 3 ? realIdBarco3 : realIdBarco1);
+
+            Set<String> armasDelBackend = armasOriginalesBackend.getOrDefault(rid, new HashSet<>());
+
+            for (String slug : armasDelBackend) {
+                String nombreUI = "";
+
+                // TRADUCTOR: Del idioma del servidor al de la pantalla
+                if (slug.equalsIgnoreCase("cannon-base") || slug.equalsIgnoreCase("Cañón") || slug.equalsIgnoreCase("Canon")) {
+                    nombreUI = "Cañón";
+                } else if (slug.equalsIgnoreCase("mine-v1") || slug.equalsIgnoreCase("Mina")) {
+                    nombreUI = "Mina";
+                } else if (slug.equalsIgnoreCase("torpedo-v1") || slug.equalsIgnoreCase("Torpedo")) {
+                    nombreUI = "Torpedo";
+                }
+
+                // Si lo reconoce, lo inyecta en la lógica visual para pintar de verde
+                if (!nombreUI.isEmpty()) {
+                    gestorLogica.equiparArma(i, nombreUI);
+                }
+            }
+        }
     }
 }

@@ -30,6 +30,7 @@ public class GestorConfiguracionFlota {
         if (fila < 10) return 1; // Solo zona aliada
         for (int i = 0; i < tamano; i++) {
             int check = enHorizontal ? (posAjustada + i) : (posAjustada + (i * 15));
+            if (check >= 225) return 2; // Protección anti-desbordamiento
             if (tablero[check] != 0) return 2;
         }
         return 0;
@@ -38,7 +39,7 @@ public class GestorConfiguracionFlota {
     public void colocarBarco(int posAjustada, int tamano, boolean enHorizontal) {
         for (int i = 0; i < tamano; i++) {
             int p = enHorizontal ? (posAjustada + i) : (posAjustada + (i * 15));
-            tablero[p] = idBarcoActual;
+            if(p < 225) tablero[p] = idBarcoActual;
         }
         idBarcoActual++;
     }
@@ -50,7 +51,7 @@ public class GestorConfiguracionFlota {
         armasPorBarco.remove(idBarco);
     }
 
-    public int getIdBarcoEn(int pos) { return tablero[pos]; }
+    public int getIdBarcoEn(int pos) { return pos >= 0 && pos < 225 ? tablero[pos] : 0; }
 
     public int getTamanoBarco(int idBarco) {
         int count = 0;
@@ -74,6 +75,10 @@ public class GestorConfiguracionFlota {
         if (armasPorBarco.containsKey(idBarco)) armasPorBarco.get(idBarco).remove(arma);
     }
 
+    public Set<String> getArmasEquipadas(int idBarco) {
+        return armasPorBarco.getOrDefault(idBarco, new HashSet<>());
+    }
+
     public boolean tieneArmaEquipada(int idBarco, String arma) {
         return armasPorBarco.containsKey(idBarco) && armasPorBarco.get(idBarco).contains(arma);
     }
@@ -87,12 +92,21 @@ public class GestorConfiguracionFlota {
             }
             if (inicio != -1) {
                 int tamano = getTamanoBarco(idInterno);
-                String realId = (tamano == 5) ? id5 : (tamano == 3 ? id3 : id1);
 
-                if (realId == null || realId.isEmpty()) continue;
+                // Mapeo robusto: Si falla el tamaño exacto, asume por descarte
+                String realId = (tamano >= 4) ? id5 : (tamano >= 2 ? id3 : id1);
 
-                boolean esH = (inicio + 1 < 225 && tablero[inicio + 1] == idInterno);
-                String orientacion = esH ? "E" : "S";
+                if (realId == null || realId.isEmpty()) {
+                    Log.e("FLOTA_DEBUG", "ID de barco nulo detectado al guardar. Ignorando barco.");
+                    continue;
+                }
+
+                // Si es tamaño 1, la orientación no importa, asignamos "N" por defecto
+                String orientacion = "N";
+                if (tamano > 1) {
+                    boolean esH = (inicio + 1 < 225 && tablero[inicio + 1] == idInterno);
+                    orientacion = esH ? "E" : "N";
+                }
 
                 int x = inicio % 15;
                 int yCorregida = (inicio / 15) - 10; // ESENCIAL: De 10-14 a 0-4
@@ -109,7 +123,7 @@ public class GestorConfiguracionFlota {
         int tamano = (realId.equals(id5)) ? 5 : (realId.equals(id3) ? 3 : (realId.equals(id1) ? 1 : 0));
 
         if (tamano > 0) {
-            boolean horizontal = orientacion.equals("E") || orientacion.equals("H");
+            boolean horizontal = orientacion.toUpperCase().equals("E") || orientacion.toUpperCase().equals("H");
             for (int i = 0; i < tamano; i++) {
                 int p = horizontal ? (posInicio + i) : (posInicio + (i * 15));
                 if (p < 225) tablero[p] = idBarcoActual;

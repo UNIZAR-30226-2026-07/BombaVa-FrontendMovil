@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_tablero_madera"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="CÓDIGO DE PARTIDA"
+        android:textColor="@color/wood_dark"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#22000000"
+        android:padding="16dp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:id="@+id/tv_codigo_generado"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="X7B-9PQ"
+            android:textColor="#3E2723"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.2"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_copiar_codigo"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:text="COPIAR CÓDIGO"
+        android:textSize="16sp"
+        android:backgroundTint="#2E7D32"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <Button
+        android:id="@+id/btn_cerrar_popup"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:text="CERRAR"
+        android:textSize="16sp"
+        android:backgroundTint="#D02204"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"/>
+
+</LinearLayout>
