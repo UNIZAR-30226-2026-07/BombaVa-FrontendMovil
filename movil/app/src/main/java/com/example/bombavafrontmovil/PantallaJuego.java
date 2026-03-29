@@ -1,6 +1,7 @@
 package com.example.bombavafrontmovil;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -9,21 +10,34 @@ import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.bombavafrontmovil.models.UserShip;
+import com.example.bombavafrontmovil.network.ApiClient;
 import com.example.bombavafrontmovil.network.SocketManager;
-import org.json.JSONException;
+
 import org.json.JSONObject;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import io.socket.client.Socket;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class PantallaJuego extends AppCompatActivity {
 
     private static final String TAG = "DEBUG_BOMBA";
-    private String token, matchId, myUserId;
+    private String token, matchId, myUserId, codigoSala;
+    private boolean esHost;
+
     private GestorJuego gestor;
     private List<Casilla> matriz = new ArrayList<>();
     private BoardAdapter adapter;
@@ -41,67 +55,109 @@ public class PantallaJuego extends AppCompatActivity {
     private Socket mSocket;
     private android.app.Dialog dialogoEspera;
 
+    private Map<String, UserShip> diccionarioFlota = new HashMap<>();
+    private boolean diccionarioListo = false;
+
+    // 🔥 NUEVO: Trampa para evitar desincronización
+    private Object[] mensajeRetrasadoStartInfo = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.juego);
 
-        // 1. RECOGER DATOS
-        token = getIntent().getStringExtra("TOKEN");
-        myUserId = getIntent().getStringExtra("USER_ID");
-        boolean esHost = getIntent().getBooleanExtra("ES_HOST", false);
-        String codigoSala = getIntent().getStringExtra("CODIGO_SALA");
-        matchId = getIntent().getStringExtra("MATCH_ID");
+        Intent intent = getIntent();
+        matchId = intent.getStringExtra("MATCH_ID");
+        codigoSala = intent.getStringExtra("CODIGO_SALA");
+        esHost = intent.getBooleanExtra("ES_HOST", false);
+
+        if (matchId == null && codigoSala != null) {
+            matchId = codigoSala;
+        }
+
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        token = prefs.getString("token", "");
+        myUserId = prefs.getString("userId", "");
+
+        Log.d(TAG, "Iniciando PantallaJuego. MatchID: " + matchId + " | Mi UserID: " + myUserId);
 
         initViews();
 
-        // Inicializar tablero 15x15
-        for (int i = 0; i < 225; i++) {
-            matriz.add(new Casilla(i / 15, i % 15));
-        }
+        for (int i = 0; i < 225; i++) matriz.add(new Casilla(i / 15, i % 15));
 
         RecyclerView rv = findViewById(R.id.rvBoard);
         rv.setLayoutManager(new GridLayoutManager(this, 15));
-        adapter = new BoardAdapter(matriz, c -> {
-            if (gestor == null || !gestor.isEsMiTurno()) {
-                Toast.makeText(this, "Espera tu turno", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            if (tipoAtaque > 0) {
-                if (idBarcoSeleccionado != null) {
-                    if (tipoAtaque == 1) gestor.atacarCanon(idBarcoSeleccionado, c.getColumna(), c.getFila());
-                    else if (tipoAtaque == 2) gestor.ponerMina(idBarcoSeleccionado, c.getColumna(), c.getFila());
-                    tipoAtaque = 0; mostrar(layMain);
-                }
-            } else {
-                if (c.isTieneBarco() && c.isEsAliado()) {
-                    idBarcoSeleccionado = c.getIdBarcoStr();
-                    mostrar(layMain);
-                } else {
-                    idBarcoSeleccionado = null;
-                    mostrar(layNoSel);
-                }
-                actualizarMatrizVisual();
-            }
-        });
+        adapter = new BoardAdapter(matriz, c -> manejarToqueCasilla(c));
         rv.setAdapter(adapter);
 
-        // 2. SOCKET Y LÓGICA DE SALA
+        configurarBotones();
+
         mSocket = SocketManager.getInstance().getSocket();
 
-        if (esHost && (matchId == null || matchId.isEmpty())) {
+        // 🔥 NUEVO: Atrapamos el evento si el servidor es más rápido que nuestra descarga
+        mSocket.on("match:startInfo", args -> {
+            if (gestor == null) {
+                mensajeRetrasadoStartInfo = args;
+                Log.w(TAG, "¡Mensaje atrapado en la red! Esperando al Gestor...");
+            }
+        });
+
+        if (esHost) {
             mostrarPopUpEspera(codigoSala);
-            configurarEscuchaRival();
-        } else if (matchId != null) {
-            iniciarGestorJuego(matchId);
         }
 
-        configurarBotones();
+        configurarEscuchaRival();
+        descargarDiccionarioFlota();
+    }
+
+    private void intentarArrancarPartida() {
+        if (diccionarioListo && matchId != null && !matchId.isEmpty() && gestor == null) {
+            Log.d(TAG, "Todo ok, arrancando gestor");
+            iniciarGestorJuego(matchId);
+        }
+    }
+
+    private void configurarEscuchaRival() {
+        mSocket.on("match:ready", (Object... args) -> {
+            runOnUiThread(() -> {
+                try {
+                    JSONObject data = (JSONObject) args[0];
+                    matchId = data.getString("matchId");
+                    if (dialogoEspera != null) dialogoEspera.dismiss();
+                    intentarArrancarPartida();
+                } catch (Exception e) { Log.e(TAG, "Fallo al leer match:ready", e); }
+            });
+        });
+    }
+
+    private void descargarDiccionarioFlota() {
+        ApiClient.getApiService().obtenerInventarioBarcos("Bearer " + token).enqueue(new Callback<List<UserShip>>() {
+            @Override
+            public void onResponse(Call<List<UserShip>> call, Response<List<UserShip>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    for (UserShip barco : response.body()) {
+                        diccionarioFlota.put(barco.getId(), barco);
+                    }
+                    Log.d(TAG, "Barcos descargados ok");
+                } else {
+                    Log.e(TAG, "Error api barcos: " + response.code());
+                }
+                diccionarioListo = true;
+                intentarArrancarPartida();
+            }
+
+            @Override
+            public void onFailure(Call<List<UserShip>> call, Throwable t) {
+                Log.e(TAG, "Fallo de red al bajar barcos: " + t.getMessage());
+                diccionarioListo = true;
+                intentarArrancarPartida();
+            }
+        });
     }
 
     private void iniciarGestorJuego(String mId) {
         this.matchId = mId;
-        gestor = new GestorJuego(mSocket, matchId, myUserId, new GestorJuego.PartidaListener() {
+        gestor = new GestorJuego(mSocket, matchId, myUserId, diccionarioFlota, new GestorJuego.PartidaListener() {
             @Override
             public void onActualizarTablero() {
                 runOnUiThread(() -> { actualizarInterfazTurno(); actualizarMatrizVisual(); });
@@ -118,24 +174,64 @@ public class PantallaJuego extends AppCompatActivity {
                 runOnUiThread(() -> {
                     new AlertDialog.Builder(PantallaJuego.this)
                             .setTitle("Fin de Partida")
-                            .setMessage(ganadorId.equals(myUserId) ? "¡Victoria!" : "Derrota...")
+                            .setMessage(ganadorId.equals(myUserId) ? "¡Ganaste!" : "Perdiste...")
                             .setCancelable(false)
                             .setPositiveButton("Salir", (d, w) -> finish()).show();
                 });
             }
         });
+
+        // 🔥 NUEVO: Si atrapamos un mensaje antes, lo forzamos ahora en el gestor (si tu gestor tiene un método para procesarlo, lo ideal es llamarlo aquí).
     }
 
-    private void configurarEscuchaRival() {
-        mSocket.on("match:ready", args -> {
-            runOnUiThread(() -> {
-                try {
-                    JSONObject data = (JSONObject) args[0];
-                    if (dialogoEspera != null) dialogoEspera.dismiss();
-                    iniciarGestorJuego(data.getString("matchId"));
-                } catch (Exception e) { Log.e(TAG, "Error match:ready", e); }
-            });
-        });
+    private void actualizarBotonesArmas(String idBarco) {
+        btnAtk1.setVisibility(View.GONE);
+        btnAtk2.setVisibility(View.GONE);
+        btnAtk3.setVisibility(View.GONE);
+
+        if (diccionarioFlota != null && diccionarioFlota.containsKey(idBarco)) {
+            UserShip ship = diccionarioFlota.get(idBarco);
+            if (ship != null && ship.getWeaponTemplates() != null) {
+                for (UserShip.WeaponItem w : ship.getWeaponTemplates()) {
+                    if (w.slug.equals("cannon-base")) {
+                        btnAtk1.setVisibility(View.VISIBLE);
+                        btnAtk1.setText("CAÑÓN");
+                    } else if (w.slug.equals("torpedo-v1")) {
+                        btnAtk2.setVisibility(View.VISIBLE);
+                        btnAtk2.setText("TORPEDO");
+                    } else if (w.slug.equals("mine-v1")) {
+                        btnAtk3.setVisibility(View.VISIBLE);
+                        btnAtk3.setText("MINA");
+                    }
+                }
+            }
+        }
+    }
+
+    private void manejarToqueCasilla(Casilla c) {
+        if (gestor == null || !gestor.isEsMiTurno()) {
+            Toast.makeText(this, "Espera a tu turno", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (tipoAtaque > 0) {
+            if (idBarcoSeleccionado != null) {
+                if (tipoAtaque == 1) gestor.atacarCanon(idBarcoSeleccionado, c.getColumna(), c.getFila());
+                else if (tipoAtaque == 2) gestor.ponerMina(idBarcoSeleccionado, c.getColumna(), c.getFila());
+                tipoAtaque = 0;
+                mostrar(layMain);
+            }
+        } else {
+            if (c.isTieneBarco() && c.isEsAliado()) {
+                idBarcoSeleccionado = c.getIdBarcoStr();
+                actualizarBotonesArmas(idBarcoSeleccionado);
+                mostrar(layMain);
+            } else {
+                idBarcoSeleccionado = null;
+                mostrar(layNoSel);
+            }
+            actualizarMatrizVisual();
+        }
     }
 
     private void mostrarPopUpEspera(String codigo) {
@@ -155,26 +251,53 @@ public class PantallaJuego extends AppCompatActivity {
         if (gestor != null && gestor.isEsMiTurno()) {
             txtTurnoStatus.setText("TU TURNO");
             txtTurnoStatus.setTextColor(getResources().getColor(android.R.color.holo_green_light));
-            btnPasarTurno.setEnabled(true); btnPasarTurno.setAlpha(1.0f);
+            btnPasarTurno.setEnabled(true);
+            btnPasarTurno.setAlpha(1.0f);
         } else {
             txtTurnoStatus.setText("TURNO RIVAL");
             txtTurnoStatus.setTextColor(getResources().getColor(android.R.color.holo_red_light));
-            btnPasarTurno.setEnabled(false); btnPasarTurno.setAlpha(0.5f);
+            btnPasarTurno.setEnabled(false);
+            btnPasarTurno.setAlpha(0.5f);
             mostrar(layNoSel);
         }
     }
 
+    // 🔥 ACTUALIZADO: Este es el motor que traduce los barcos a casillas dibujables
     private void actualizarMatrizVisual() {
         if (gestor == null) return;
-        for (Casilla c : matriz) { c.setTieneBarco(false); c.setSeleccionado(false); }
+
+        for (Casilla c : matriz) {
+            c.setTieneBarco(false);
+            c.setSeleccionado(false);
+            c.setEsProa(false);
+            c.setIndiceEnBarco(0);
+            c.setTipoBarco(0);
+            c.setDireccion(0);
+        }
+
         for (BarcoLogico b : gestor.getFlota()) {
             boolean esSel = (idBarcoSeleccionado != null && idBarcoSeleccionado.equals(b.id));
-            // Suponiendo que BarcoLogico calcula sus celdas
+
+            int dir = 0;
+            if ("E".equals(b.orientation)) dir = 1;
+            else if ("S".equals(b.orientation)) dir = 2;
+            else if ("W".equals(b.orientation)) dir = 3;
+
             for (int[] celda : b.getCeldas()) {
                 int idx = celda[0] * 15 + celda[1];
                 if (idx >= 0 && idx < 225) {
                     Casilla c = matriz.get(idx);
-                    c.setTieneBarco(true); c.setIdBarcoStr(b.id); c.setEsAliado(b.esAliado);
+                    c.setTieneBarco(true);
+                    c.setIdBarcoStr(b.id);
+                    c.setEsAliado(b.esAliado);
+
+                    c.setEsProa(celda[2] == 1);
+                    c.setIndiceEnBarco(celda[3]);
+                    c.setTipoBarco(b.tipo);
+                    c.setDireccion(dir);
+
+                    if (b.slug != null) c.setSlug(b.slug);
+
                     if (esSel) c.setSeleccionado(true);
                 }
             }
@@ -191,7 +314,6 @@ public class PantallaJuego extends AppCompatActivity {
             new AlertDialog.Builder(this).setTitle("Pausa").setNegativeButton("Rendirse", (d,w) -> gestor.rendirse()).show();
         });
 
-        // MOVIMIENTO
         View.OnClickListener movListener = v -> {
             if (idBarcoSeleccionado == null || gestor == null) return;
             BarcoLogico b = gestor.obtenerBarco(idBarcoSeleccionado);
@@ -200,7 +322,8 @@ public class PantallaJuego extends AppCompatActivity {
             gestor.moverBarco(idBarcoSeleccionado, dir);
             mostrar(layMain);
         };
-        findViewById(R.id.btnForward).setOnClickListener(movListener); findViewById(R.id.btnBackward).setOnClickListener(movListener);
+        findViewById(R.id.btnForward).setOnClickListener(movListener);
+        findViewById(R.id.btnBackward).setOnClickListener(movListener);
 
         btnAtk1.setOnClickListener(v -> { tipoAtaque = 1; mostrar(layNoSel); });
         btnAtk2.setOnClickListener(v -> { if(gestor!=null) gestor.lanzarTorpedo(idBarcoSeleccionado); mostrar(layMain); });

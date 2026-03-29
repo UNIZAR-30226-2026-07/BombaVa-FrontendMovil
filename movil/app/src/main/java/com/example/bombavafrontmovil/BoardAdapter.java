@@ -70,9 +70,6 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             // C) TINTES E ILUMINACIÓN
             if (c.isSeleccionado()) {
                 // --- SOLUCIÓN VISUAL ---
-                // Usamos Color.argb(alfa, rojo, verde, azul).
-                // 100 de alfa significa que es semi-transparente.
-                // SRC_ATOP pinta el color SOLO donde hay barco, respetando la transparencia.
                 vh.waterView.setColorFilter(Color.argb(100, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
             }
             else if (c.getVidaCelda() <= 0) {
@@ -88,7 +85,6 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         } else {
             // AGUA
             if (c.isSeleccionado()) {
-                // Si es agua seleccionada, teñimos el fondo suavemente
                 vh.waterView.getBackground().setColorFilter(Color.parseColor("#8081D4FA"), PorterDuff.Mode.SRC_ATOP);
             }
         }

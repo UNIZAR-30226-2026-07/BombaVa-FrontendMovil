@@ -12,11 +12,19 @@ public class BarcoLogico {
     public int[] vidaCeldas;
     public int[] danoArmas;
 
+    public String slug;
+
     public BarcoLogico() {}
 
-    public BarcoLogico(String id, int tipo, int x, int y, String orientation, boolean esAliado) {
-        this.id = id; this.tipo = tipo; this.x = x; this.y = y;
-        this.orientation = orientation; this.esAliado = esAliado;
+    public BarcoLogico(String id, int tipo, int x, int y, String orientation, boolean esAliado, String slug) {
+        this.id = id;
+        this.tipo = tipo;
+        this.x = x;
+        this.y = y;
+        this.orientation = orientation;
+        this.esAliado = esAliado;
+        this.slug = slug;
+
         this.vidaCeldas = new int[tipo];
         this.danoArmas = new int[tipo];
         for(int i = 0; i < tipo; i++) {

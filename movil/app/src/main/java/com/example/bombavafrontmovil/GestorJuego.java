@@ -6,7 +6,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import com.example.bombavafrontmovil.models.UserShip;
 
 public class GestorJuego {
     private static final String TAG = "DEBUG_BOMBA";
@@ -16,16 +20,19 @@ public class GestorJuego {
     private PartidaListener listener;
     private boolean esMiTurno = false;
 
+    private Map<String, UserShip> diccionarioFlota;
+
     public interface PartidaListener {
         void onActualizarTablero();
         void onRecursosActualizados(int fuel, int ammo);
         void onPartidaTerminada(String ganadorId, String razon);
     }
 
-    public GestorJuego(Socket socket, String matchId, String userId, PartidaListener listener) {
+    public GestorJuego(Socket socket, String matchId, String userId, Map<String, UserShip> diccionarioFlota, PartidaListener listener) {
         this.socket = socket;
         this.matchId = matchId;
         this.myUserId = userId;
+        this.diccionarioFlota = diccionarioFlota;
         this.listener = listener;
         configurarListeners();
         unirseAPartida();
@@ -33,72 +40,116 @@ public class GestorJuego {
 
     private void unirseAPartida() {
         try {
-            // Según Operation ID game:join
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
-            Log.d(TAG, "Emitiendo game:join: " + payload.toString());
+            payload.put("userId", myUserId); // Fundamental para que no llegue "null"
+
+            Log.d(TAG, "Uniendo a partida... MatchID: " + matchId + " | UserID: " + myUserId);
             socket.emit("game:join", payload);
+
         } catch (JSONException e) {
-            Log.e(TAG, "Error al crear payload game:join", e);
+            Log.e(TAG, "Error al crear el payload para game:join", e);
         }
     }
 
     private void configurarListeners() {
-        // game:joined - Confirmación de unión
-        socket.on("game:joined", args -> {
-            Log.d(TAG, "Servidor confirma unión (game:joined)");
+        socket.on("game:joined", (Object... args) -> {
+            Log.d(TAG, "Dentro de la sala ok");
         });
 
-        // match:startInfo - EL MÁS IMPORTANTE (Carga inicial)
-        socket.on("match:startInfo", args -> {
-            Log.d(TAG, "Recibido match:startInfo");
+
+        // Carga inicial de posiciones y LOGS
+        socket.on("match:startInfo", (Object... args) -> {
             try {
                 JSONObject data = (JSONObject) args[0];
 
-                // Recursos iniciales
+                Log.w(TAG, "=================================================");
+                Log.w(TAG, "⚓ MATCH START INFO RECIBIDO: " + myUserId);
+                Log.w(TAG, data.toString(4));
+                Log.w(TAG, "=================================================");
+
+                // Leer el turno inicial para quitar el "CONECTANDO..."
+                JSONObject matchInfo = data.optJSONObject("matchInfo");
+                if (matchInfo != null) {
+                    String currentTurnPlayer = matchInfo.optString("currentTurnPlayer", "");
+                    esMiTurno = currentTurnPlayer.equals(myUserId);
+                    Log.d(TAG, "Arranque de partida. ¿Es mi turno? " + esMiTurno);
+                }
+
+                // Extraemos recursos base
                 int ammo = data.optInt("ammo", 0);
                 int fuel = data.optInt("fuel", 0);
                 if (listener != null) listener.onRecursosActualizados(fuel, ammo);
 
-                // Flota (playerFleet)
+                // Sacamos la flota
                 JSONArray fleetArray = data.getJSONArray("playerFleet");
                 flota.clear();
+
+                Map<String, UserShip> diccionarioPartida = new HashMap<>();
+
                 for (int i = 0; i < fleetArray.length(); i++) {
                     JSONObject s = fleetArray.getJSONObject(i);
-                    // Creamos el barco lógico (size 1 por defecto ya que no viene en startInfo)
+                    String idPartida = s.getString("id");
+                    int hp = s.optInt("currentHp", 0);
+
+                    int tamanoReal = 1;
+                    String slugReal = null; // 🔥 PREPARAMOS EL SLUG
+
+                    if (diccionarioFlota != null) {
+                        for (UserShip uShip : diccionarioFlota.values()) {
+                            // Usamos el HP para emparejar el barco lógico con tu plantilla
+                            if (uShip.getShipTemplate() != null && uShip.getShipTemplate().getBaseMaxHp() == hp) {
+                                tamanoReal = uShip.getShipTemplate().getTamanoCasillas();
+                                slugReal = uShip.getShipTemplate().getSlug(); // 🔥 CORRECCIÓN 2: Extraemos el slug real
+                                diccionarioPartida.put(idPartida, uShip);
+                                break;
+                            }
+                        }
+                    }
+
+                    // Ahora pasamos el slugReal en lugar de null
                     flota.add(new BarcoLogico(
-                            s.getString("id"),
-                            1,
+                            idPartida,
+                            tamanoReal,
                             s.getInt("x"),
                             s.getInt("y"),
                             s.getString("orientation"),
-                            true // Es mi flota
+                            true,
+                            slugReal
                     ));
                 }
+
+                diccionarioFlota.clear();
+                diccionarioFlota.putAll(diccionarioPartida);
+
                 if (listener != null) listener.onActualizarTablero();
+
             } catch (Exception e) {
-                Log.e(TAG, "Error procesando match:startInfo", e);
+                Log.e(TAG, "Fallo al procesar barcos (match:startInfo)", e);
             }
         });
 
-        // match:turn_changed - Cambio de turno y regeneración
-        socket.on("match:turn_changed", args -> {
+        // cuando pasamos turno
+        socket.on("match:turn_changed", (Object... args) -> {
             try {
                 JSONObject data = (JSONObject) args[0];
-                esMiTurno = data.getString("nextPlayerId").equals(myUserId);
+                String nextPlayerId = data.getString("nextPlayerId");
+
+                esMiTurno = nextPlayerId.equals(myUserId);
+                Log.d(TAG, "¿Me toca? " + esMiTurno);
 
                 if (data.has("resources")) {
                     JSONObject res = data.getJSONObject("resources");
                     if (listener != null) listener.onRecursosActualizados(res.getInt("fuel"), res.getInt("ammo"));
                 }
+
                 if (listener != null) listener.onActualizarTablero();
             } catch (Exception e) {
-                Log.e(TAG, "Error en turn_changed", e);
+                Log.e(TAG, "Fallo en turno", e);
             }
         });
 
-        // ship:moved - Actualiza posición y combustible tras mover
-        socket.on("ship:moved", args -> {
+        socket.on("ship:moved", (Object... args) -> {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String sId = data.getString("shipId");
@@ -116,37 +167,33 @@ public class GestorJuego {
                     listener.onActualizarTablero();
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Error en ship:moved", e);
+                e.printStackTrace();
             }
         });
 
-        // ship:attacked - Notifica impacto y gasta munición
-        socket.on("ship:attacked", args -> {
+        socket.on("ship:attacked", (Object... args) -> {
             try {
                 JSONObject data = (JSONObject) args[0];
                 int ammoCurrent = data.getInt("ammoCurrent");
                 if (listener != null) listener.onRecursosActualizados(-1, ammoCurrent);
-                // Aquí podrías añadir lógica para marcar celdas impactadas
             } catch (Exception e) {
-                Log.e(TAG, "Error en ship:attacked", e);
+                e.printStackTrace();
             }
         });
 
-        // match:finished - Fin de partida
-        socket.on("match:finished", args -> {
+        socket.on("match:finished", (Object... args) -> {
             try {
                 JSONObject data = (JSONObject) args[0];
                 if (listener != null) listener.onPartidaTerminada(data.getString("winnerId"), data.getString("reason"));
             } catch (Exception e) {
-                Log.e(TAG, "Error en match:finished", e);
+                e.printStackTrace();
             }
         });
 
-        // game:error - Errores de lógica (ej: no es tu turno)
-        socket.on("game:error", args -> {
+        socket.on("game:error", (Object... args) -> {
             try {
                 JSONObject data = (JSONObject) args[0];
-                Log.e(TAG, "Error de juego: " + data.getString("message"));
+                Log.e(TAG, "Error del server: " + data.getString("message"));
             } catch (Exception e) { e.printStackTrace(); }
         });
     }

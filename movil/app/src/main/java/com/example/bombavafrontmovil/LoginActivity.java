@@ -214,10 +214,38 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void guardarTokenYProceder(AuthResponse auth) {
+        String token = auth.getToken();
+        String miUserId = "";
+
+        // Intentamos sacarlo del objeto User (por si algún día el servidor sí lo envía)
+        if (auth.getUser() != null && auth.getUser().getId() != null) {
+            miUserId = auth.getUser().getId();
+        }
+        // Extraemos el ID decodificando el propio Token JWT (Infalible)
+        else if (token != null && token.split("\\.").length == 3) {
+            try {
+                // El token tiene 3 partes. La segunda [1] es el payload que tiene nuestros datos.
+                String payload = new String(android.util.Base64.decode(token.split("\\.")[1], android.util.Base64.URL_SAFE));
+                org.json.JSONObject json = new org.json.JSONObject(payload);
+
+                // Buscamos las palabras más comunes que usan los servidores para el ID
+                if (json.has("id")) miUserId = json.getString("id");
+                else if (json.has("userId")) miUserId = json.getString("userId");
+                else if (json.has("sub")) miUserId = json.getString("sub");
+
+                android.util.Log.d("DEBUG_BOMBA", "ID extraído del token: " + miUserId);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        // Lo guardamos todo a salvo en las preferencias
         getSharedPreferences("BOMBA_VA", MODE_PRIVATE)
                 .edit()
-                .putString("token", auth.getToken())
+                .putString("token", token)
+                .putString("userId", miUserId)
                 .apply();
+
         irAPerfil();
     }
 

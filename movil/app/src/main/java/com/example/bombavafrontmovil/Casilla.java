@@ -18,6 +18,7 @@ public class Casilla {
 
     // Vida
     private int vidaCelda = 3;
+    private String slug; // El identificador visual del barco
     private int vidaActual, vidaMax;
 
     public Casilla(int fila, int columna) {
@@ -76,4 +77,12 @@ public class Casilla {
     public int getVidaActual() { return vidaActual; }
     public void setVidaActual(int vidaActual) { this.vidaActual = vidaActual; }
     public int getVidaMax() { return vidaMax; }
+
+    public String getSlug() {
+        return slug;
+    }
+
+    public void setSlug(String slug) {
+        this.slug = slug;
+    }
 }
