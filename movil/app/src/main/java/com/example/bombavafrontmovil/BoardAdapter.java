@@ -6,8 +6,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.List;
 
 public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> {
@@ -15,7 +17,9 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     private final List<Casilla> tableroDatos;
     private final OnCasillaClickListener listener;
 
-    public interface OnCasillaClickListener { void onCasillaClick(Casilla casilla); }
+    public interface OnCasillaClickListener {
+        void onCasillaClick(Casilla casilla);
+    }
 
     public BoardAdapter(List<Casilla> dataSet, OnCasillaClickListener listener) {
         this.tableroDatos = dataSet;
@@ -24,9 +28,10 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public final ImageView waterView;
+
         public ViewHolder(View view) {
             super(view);
-            waterView = (ImageView) view.findViewById(R.id.view_water);
+            waterView = view.findViewById(R.id.view_water);
         }
     }
 
@@ -49,43 +54,38 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder vh, int pos) {
         Casilla c = tableroDatos.get(pos);
 
-        // 1. LIMPIEZA
         vh.waterView.setRotation(0);
         vh.waterView.clearColorFilter();
         vh.waterView.setImageDrawable(null);
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
-        vh.waterView.getBackground().clearColorFilter();
+        if (vh.waterView.getBackground() != null) {
+            vh.waterView.getBackground().clearColorFilter();
+        }
 
-        // 2. ¿HAY BARCO?
         if (c.isTieneBarco()) {
+            if (c.isEsProa()) {
+                vh.waterView.setImageResource(R.drawable.barco_proa);
+            } else if (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1) {
+                vh.waterView.setImageResource(R.drawable.barco_popa);
+            } else {
+                vh.waterView.setImageResource(R.drawable.barco_medio);
+            }
 
-            // A) IMAGEN
-            if (c.isEsProa()) vh.waterView.setImageResource(R.drawable.barco_proa);
-            else if (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1) vh.waterView.setImageResource(R.drawable.barco_popa);
-            else vh.waterView.setImageResource(R.drawable.barco_medio);
-
-            // B) ROTACIÓN
             vh.waterView.setRotation(c.getDireccion() * 90);
 
-            // C) TINTES E ILUMINACIÓN
-            if (c.isSeleccionado()) {
-                // --- SOLUCIÓN VISUAL ---
-                vh.waterView.setColorFilter(Color.argb(100, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
+            if (c.isEsAliado()) {
+                vh.waterView.setColorFilter(Color.argb(140, 60, 120, 255), PorterDuff.Mode.SRC_ATOP);
+            } else {
+                vh.waterView.setColorFilter(Color.argb(140, 40, 40, 40), PorterDuff.Mode.SRC_ATOP);
             }
-            else if (c.getVidaCelda() <= 0) {
-                vh.waterView.setColorFilter(Color.DKGRAY, PorterDuff.Mode.MULTIPLY);
-            }
-            else if (c.getVidaCelda() == 1) {
-                vh.waterView.setColorFilter(Color.parseColor("#E64A19"), PorterDuff.Mode.SRC_ATOP);
-            }
-            else if (!c.isEsAliado()) {
-                vh.waterView.setColorFilter(Color.parseColor("#FFCDD2"), PorterDuff.Mode.MULTIPLY);
-            }
+        }
 
-        } else {
-            // AGUA
-            if (c.isSeleccionado()) {
-                vh.waterView.getBackground().setColorFilter(Color.parseColor("#8081D4FA"), PorterDuff.Mode.SRC_ATOP);
+        if (c.isSeleccionado()) {
+            if (vh.waterView.getBackground() != null) {
+                vh.waterView.getBackground().setColorFilter(
+                        Color.argb(180, 255, 235, 59),
+                        PorterDuff.Mode.SRC_ATOP
+                );
             }
         }
 
@@ -93,5 +93,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     }
 
     @Override
-    public int getItemCount() { return tableroDatos.size(); }
+    public int getItemCount() {
+        return tableroDatos.size();
+    }
 }

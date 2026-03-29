@@ -6,11 +6,14 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bombavafrontmovil.network.SocketManager;
+
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import io.socket.client.Socket;
 
 public class LobbyActivity extends AppCompatActivity {
@@ -29,47 +32,74 @@ public class LobbyActivity extends AppCompatActivity {
         btnGoToGame = findViewById(R.id.btnGoToGame);
 
         tvGameCode.setText("Generando...");
-        btnGoToGame.setEnabled(false); // Deshabilitado hasta que el servidor nos dé un código
+        btnGoToGame.setEnabled(false);
+        btnGoToGame.setText("Esperando rival...");
 
-        // Conectar el Socket
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         String token = prefs.getString("token", "");
+
         SocketManager.getInstance().conectar(token);
         mSocket = SocketManager.getInstance().getSocket();
 
-        // Escuchar la creación de la sala
-        mSocket.on("lobby:created", args -> {
-            runOnUiThread(() -> {
-                try {
-                    JSONObject data = (JSONObject) args[0];
-                    codigoGenerado = data.getString("codigo");
-                    tvGameCode.setText(codigoGenerado);
-                    btnGoToGame.setEnabled(true); // Ya podemos ir al tablero
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
-            });
-        });
-
-        // Pedir al servidor que cree la sala
+        configurarListenersSocket();
         mSocket.emit("lobby:create");
 
-        // Botón para ir al tablero
-        btnGoToGame.setOnClickListener(v -> {
-            Intent intent = new Intent(LobbyActivity.this, PantallaJuego.class);
-            intent.putExtra("CODIGO_SALA", codigoGenerado);
-            intent.putExtra("ES_HOST", true); // Indicamos que somos los creadores
-            startActivity(intent);
-            finish(); // Cerramos el lobby
+        btnGoToGame.setOnClickListener(v ->
+                Toast.makeText(this, "Espera a que se una un rival", Toast.LENGTH_SHORT).show()
+        );
+    }
+
+    private void configurarListenersSocket() {
+        mSocket.on("lobby:created", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                codigoGenerado = data.getString("codigo");
+                tvGameCode.setText(codigoGenerado);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }));
+
+        mSocket.on("match:startInfo", args -> {
+            try {
+                GameStartCache.pendingStartInfo = (JSONObject) args[0];
+            } catch (Exception ignored) {}
         });
+
+        mSocket.on("match:ready", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String matchId = data.getString("matchId");
+
+                Intent intent = new Intent(LobbyActivity.this, PantallaJuego.class);
+                intent.putExtra("MATCH_ID", matchId);
+                intent.putExtra("CODIGO_SALA", codigoGenerado);
+                intent.putExtra("ES_HOST", true);
+                startActivity(intent);
+                finish();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }));
+
+        mSocket.on("lobby:error", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                Toast.makeText(this, data.optString("message", "Error de lobby"), Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(this, "Error de lobby", Toast.LENGTH_SHORT).show();
+            }
+        }));
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Quitamos la escucha al salir
         if (mSocket != null) {
             mSocket.off("lobby:created");
+            mSocket.off("match:startInfo");
+            mSocket.off("match:ready");
+            mSocket.off("lobby:error");
         }
     }
 }
