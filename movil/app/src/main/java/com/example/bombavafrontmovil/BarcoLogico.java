@@ -5,8 +5,8 @@ import java.util.List;
 
 public class BarcoLogico {
     public String id;
-    public int tipo;          // tamaño en casillas
-    public int x, y;          // ANCLA del barco (popa / celda inicial)
+    public int tipo; // tamaño en casillas
+    public int x, y; // coordenada central lógica
     public String orientation; // "N", "S", "E", "W"
     public boolean esAliado;
     public int[] vidaCeldas;
@@ -46,35 +46,30 @@ public class BarcoLogico {
     }
 
     /**
-     * x,y se interpreta como el extremo de popa / celda inicial.
-     * La proa es la última celda del recorrido.
-     *
-     * Devuelve: { fila(y), columna(x), esProa(1/0), indiceEnBarco }
+     * Devuelve {filaLogica, columna, esProa(1/0), indiceEnBarco}
+     * x,y = centro del barco.
      */
     public static List<int[]> getCeldasPara(int x, int y, String orientation, int tipo) {
         List<int[]> celdas = new ArrayList<>();
 
-        int dx = 0;
-        int dy = 0;
+        int df = 0;
+        int dc = 0;
 
-        if ("N".equals(orientation)) {
-            dy = -1;
-        } else if ("S".equals(orientation)) {
-            dy = 1;
-        } else if ("E".equals(orientation)) {
-            dx = 1;
-        } else if ("W".equals(orientation)) {
-            dx = -1;
-        }
+        if ("N".equals(orientation)) df = -1;
+        else if ("S".equals(orientation)) df = 1;
+        else if ("E".equals(orientation)) dc = 1;
+        else if ("W".equals(orientation)) dc = -1;
 
         int tam = Math.max(tipo, 1);
+        int offset = tam / 2;
 
-        for (int i = 0; i < tam; i++) {
-            int cx = x + dx * i;
-            int cy = y + dy * i;
-            boolean esProa = (i == tam - 1) && tam > 1;
+        for (int i = -offset; i <= offset; i++) {
+            int fila = y + (df * i);
+            int col = x + (dc * i);
+            boolean esProa = (i == offset && tam > 1);
+            int indice = i + offset;
 
-            celdas.add(new int[]{cy, cx, esProa ? 1 : 0, i});
+            celdas.add(new int[]{fila, col, esProa ? 1 : 0, indice});
         }
 
         return celdas;

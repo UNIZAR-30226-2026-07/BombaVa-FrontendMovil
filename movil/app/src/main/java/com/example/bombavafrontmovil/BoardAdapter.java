@@ -54,7 +54,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder vh, int pos) {
         Casilla c = tableroDatos.get(pos);
 
-        vh.waterView.setRotation(0);
+        vh.waterView.setRotation(0f);
         vh.waterView.clearColorFilter();
         vh.waterView.setImageDrawable(null);
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
@@ -71,15 +71,27 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         }
 
         if (c.isTieneBarco()) {
+            boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
+            boolean esExtremo = c.isEsProa() || esPiezaInicial;
+            boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
+
+            // Mantener SIEMPRE el sprite correcto: proa es proa, popa es popa
             if (c.isEsProa()) {
                 vh.waterView.setImageResource(R.drawable.barco_proa);
-            } else if (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1) {
+            } else if (esPiezaInicial) {
                 vh.waterView.setImageResource(R.drawable.barco_popa);
             } else {
                 vh.waterView.setImageResource(R.drawable.barco_medio);
             }
 
-            vh.waterView.setRotation(c.getDireccion() * 90);
+            float rot = (c.getDireccion() * 90f);
+
+            // Solo en vertical, los extremos necesitan media vuelta extra
+            if (esExtremo && esVertical) {
+                rot += 180f;
+            }
+
+            vh.waterView.setRotation(rot);
 
             if (c.isSeleccionado()) {
                 vh.waterView.setColorFilter(
