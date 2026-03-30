@@ -58,8 +58,16 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         vh.waterView.clearColorFilter();
         vh.waterView.setImageDrawable(null);
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
+
         if (vh.waterView.getBackground() != null) {
             vh.waterView.getBackground().clearColorFilter();
+        }
+
+        if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
+            vh.waterView.getBackground().setColorFilter(
+                    Color.argb(70, 255, 255, 180),
+                    PorterDuff.Mode.SRC_ATOP
+            );
         }
 
         if (c.isTieneBarco()) {
@@ -73,19 +81,18 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
             vh.waterView.setRotation(c.getDireccion() * 90);
 
-            if (c.isEsAliado()) {
-                vh.waterView.setColorFilter(Color.argb(140, 60, 120, 255), PorterDuff.Mode.SRC_ATOP);
-            } else {
-                vh.waterView.setColorFilter(Color.argb(140, 40, 40, 40), PorterDuff.Mode.SRC_ATOP);
-            }
-        }
-
-        if (c.isSeleccionado()) {
-            if (vh.waterView.getBackground() != null) {
-                vh.waterView.getBackground().setColorFilter(
-                        Color.argb(180, 255, 235, 59),
+            if (c.isSeleccionado()) {
+                vh.waterView.setColorFilter(
+                        Color.argb(110, 255, 235, 59),
                         PorterDuff.Mode.SRC_ATOP
                 );
+            } else if (!c.isEsAliado()) {
+                vh.waterView.setColorFilter(
+                        Color.argb(70, 255, 80, 80),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            } else {
+                vh.waterView.clearColorFilter();
             }
         }
 

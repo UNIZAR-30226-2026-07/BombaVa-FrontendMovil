@@ -5,20 +5,18 @@ import java.util.Objects;
 public class Casilla {
     private int fila, columna;
     private boolean seleccionado = false;
+    private boolean enRangoAtaque = false;
 
-    // Estado del barco
     private boolean tieneBarco = false;
     private int idBarco = -1;
     private String idBarcoStr = null;
     private int tipoBarco = 0;
     private boolean esAliado = true;
 
-    // Rotación y visualización
     private int direccion = 0; // 0=Norte, 1=Este, 2=Sur, 3=Oeste
     private boolean esProa = false;
     private int indiceEnBarco = 0;
 
-    // Vida
     private int vidaCelda = 3;
     private String slug;
     private int vidaActual, vidaMax;
@@ -33,6 +31,9 @@ public class Casilla {
 
     public boolean isSeleccionado() { return seleccionado; }
     public void setSeleccionado(boolean seleccionado) { this.seleccionado = seleccionado; }
+
+    public boolean isEnRangoAtaque() { return enRangoAtaque; }
+    public void setEnRangoAtaque(boolean enRangoAtaque) { this.enRangoAtaque = enRangoAtaque; }
 
     public boolean isTieneBarco() { return tieneBarco; }
     public void setTieneBarco(boolean tieneBarco) { this.tieneBarco = tieneBarco; }
@@ -74,12 +75,14 @@ public class Casilla {
     public int getVidaActual() { return vidaActual; }
     public void setVidaActual(int vidaActual) { this.vidaActual = vidaActual; }
     public int getVidaMax() { return vidaMax; }
+    public void setVidaMax(int vidaMax) { this.vidaMax = vidaMax; }
 
     public String getSlug() { return slug; }
     public void setSlug(String slug) { this.slug = slug; }
 
     public void resetVisual() {
         seleccionado = false;
+        enRangoAtaque = false;
         tieneBarco = false;
         idBarco = -1;
         idBarcoStr = null;
@@ -97,6 +100,7 @@ public class Casilla {
     public Casilla clonar() {
         Casilla c = new Casilla(fila, columna);
         c.seleccionado = seleccionado;
+        c.enRangoAtaque = enRangoAtaque;
         c.tieneBarco = tieneBarco;
         c.idBarco = idBarco;
         c.idBarcoStr = idBarcoStr;
@@ -118,6 +122,7 @@ public class Casilla {
         return fila == otra.fila
                 && columna == otra.columna
                 && seleccionado == otra.seleccionado
+                && enRangoAtaque == otra.enRangoAtaque
                 && tieneBarco == otra.tieneBarco
                 && idBarco == otra.idBarco
                 && Objects.equals(idBarcoStr, otra.idBarcoStr)

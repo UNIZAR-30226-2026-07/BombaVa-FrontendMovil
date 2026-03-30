@@ -23,9 +23,10 @@ import com.example.bombavafrontmovil.network.SocketManager;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 import io.socket.client.Socket;
 import retrofit2.Call;
@@ -48,19 +49,20 @@ public class PantallaJuego extends AppCompatActivity {
     private String idBarcoSeleccionado = null;
 
     private View layNoSel, layMain, layMove, layAtk, panelInfoBarco;
-    private TextView txtInfoTitulo, txtInfoCeldas, txtTurnoStatus;
+    private TextView txtInfoTitulo, txtInfoGlobal, txtInfoCeldas, txtTurnoStatus;
     private Button btnPasarTurno;
     private ImageButton btnPause;
     private Button btnAtk1, btnAtk2, btnAtk3;
     private ProgressBar barFuel, barAmmo;
     private TextView txtFuel, txtAmmo;
 
-    private int tipoAtaque = 0; // 0 nada, 1 cañón, 2 mina
+    private int tipoAtaque = 0;
+    private int rangoAtaqueActual = 0;
+    private final LinkedHashSet<Integer> posicionesRangoActual = new LinkedHashSet<>();
 
     private Socket mSocket;
     private android.app.Dialog dialogoEspera;
 
-    // OJO: este diccionario acabará reindexado por id de partida en GestorJuego
     private final Map<String, UserShip> diccionarioFlota = new HashMap<>();
     private boolean diccionarioListo = false;
     private Object[] mensajeRetrasadoStartInfo = null;
@@ -143,7 +145,8 @@ public class PantallaJuego extends AppCompatActivity {
 
         panelInfoBarco = findViewById(R.id.panelInfoBarco);
         txtInfoTitulo = findViewById(R.id.txtInfoTitulo);
-        txtInfoCeldas = findViewById(R.id.txtInfoGlobal);
+        txtInfoGlobal = findViewById(R.id.txtInfoGlobal);
+        txtInfoCeldas = findViewById(R.id.txtInfoCeldas);
 
         txtTurnoStatus = findViewById(R.id.txtTurnoStatus);
         btnPasarTurno = findViewById(R.id.btnPasarTurno);
@@ -158,11 +161,17 @@ public class PantallaJuego extends AppCompatActivity {
         btnAtk2 = findViewById(R.id.btnAtk2);
         btnAtk3 = findViewById(R.id.btnAtk3);
 
+        if (txtInfoCeldas != null) {
+            txtInfoCeldas.setText("");
+            txtInfoCeldas.setVisibility(View.GONE);
+        }
+
         mostrar(layNoSel);
     }
 
     private void configurarBotones() {
         findViewById(R.id.btnMainMove).setOnClickListener(v -> mostrar(layMove));
+
         findViewById(R.id.btnMainAttack).setOnClickListener(v -> {
             if (idBarcoSeleccionado == null) {
                 Toast.makeText(this, "Selecciona antes un barco aliado", Toast.LENGTH_SHORT).show();
@@ -173,14 +182,11 @@ public class PantallaJuego extends AppCompatActivity {
         });
 
         btnPasarTurno.setOnClickListener(v -> {
-            if (gestor != null) {
-                gestor.terminarTurno();
-            }
+            if (gestor != null) gestor.terminarTurno();
         });
 
         btnPause.setOnClickListener(v -> {
             if (gestor == null) return;
-
             new AlertDialog.Builder(this)
                     .setTitle("Pausa")
                     .setNegativeButton("Rendirse", (d, w) -> gestor.rendirse())
@@ -189,7 +195,6 @@ public class PantallaJuego extends AppCompatActivity {
 
         View.OnClickListener movListener = v -> {
             if (idBarcoSeleccionado == null || gestor == null) return;
-
             if (!gestor.isEsMiTurno()) {
                 Toast.makeText(this, "No es tu turno", Toast.LENGTH_SHORT).show();
                 return;
@@ -198,16 +203,15 @@ public class PantallaJuego extends AppCompatActivity {
             BarcoLogico b = gestor.obtenerBarcoPorId(idBarcoSeleccionado);
             if (b == null) return;
 
-            String dir = "N";
+            cancelarModoAtaque();
+
+            String dir;
             int id = v.getId();
 
             if (id == R.id.btnForward) {
-                dir = b.orientation;
-            } else if (id == R.id.btnBackward) {
-                if ("N".equals(b.orientation)) dir = "S";
-                else if ("S".equals(b.orientation)) dir = "N";
-                else if ("E".equals(b.orientation)) dir = "W";
-                else if ("W".equals(b.orientation)) dir = "E";
+                dir = direccionAdelanteVisual(b.orientation);
+            } else {
+                dir = direccionAtrasVisual(b.orientation);
             }
 
             gestor.moverBarco(idBarcoSeleccionado, dir);
@@ -219,24 +223,24 @@ public class PantallaJuego extends AppCompatActivity {
 
         findViewById(R.id.btnRotateL).setOnClickListener(v -> {
             if (idBarcoSeleccionado == null || gestor == null) return;
-
             if (!gestor.isEsMiTurno()) {
                 Toast.makeText(this, "No es tu turno", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+            cancelarModoAtaque();
             gestor.rotarBarco(idBarcoSeleccionado, -90);
             mostrar(layMain);
         });
 
         findViewById(R.id.btnRotateR).setOnClickListener(v -> {
             if (idBarcoSeleccionado == null || gestor == null) return;
-
             if (!gestor.isEsMiTurno()) {
                 Toast.makeText(this, "No es tu turno", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+            cancelarModoAtaque();
             gestor.rotarBarco(idBarcoSeleccionado, 90);
             mostrar(layMain);
         });
@@ -246,8 +250,16 @@ public class PantallaJuego extends AppCompatActivity {
                 Toast.makeText(this, "Selecciona antes un barco aliado", Toast.LENGTH_SHORT).show();
                 return;
             }
+            if (gestor == null || !gestor.isEsMiTurno()) {
+                Toast.makeText(this, "No es tu turno", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             tipoAtaque = 1;
-            mostrar(layNoSel);
+            rangoAtaqueActual = 4;
+            panelInfoBarco.setVisibility(View.GONE);
+            actualizarRangoAtaqueVisual();
+            Toast.makeText(this, "Selecciona la casilla objetivo para disparar", Toast.LENGTH_SHORT).show();
         });
 
         btnAtk2.setOnClickListener(v -> {
@@ -256,6 +268,7 @@ public class PantallaJuego extends AppCompatActivity {
                     Toast.makeText(this, "No es tu turno", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                cancelarModoAtaque();
                 gestor.lanzarTorpedo(idBarcoSeleccionado);
             }
             mostrar(layMain);
@@ -266,13 +279,27 @@ public class PantallaJuego extends AppCompatActivity {
                 Toast.makeText(this, "Selecciona antes un barco aliado", Toast.LENGTH_SHORT).show();
                 return;
             }
+            if (gestor == null || !gestor.isEsMiTurno()) {
+                Toast.makeText(this, "No es tu turno", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             tipoAtaque = 2;
-            mostrar(layNoSel);
+            rangoAtaqueActual = 1;
+            panelInfoBarco.setVisibility(View.GONE);
+            actualizarRangoAtaqueVisual();
+            Toast.makeText(this, "Selecciona la casilla donde quieres colocar la mina", Toast.LENGTH_SHORT).show();
         });
 
         View btnCloseInfo = findViewById(R.id.btnCloseInfo);
         if (btnCloseInfo != null) {
-            btnCloseInfo.setOnClickListener(v -> panelInfoBarco.setVisibility(View.GONE));
+            btnCloseInfo.setOnClickListener(v -> {
+                panelInfoBarco.setVisibility(View.GONE);
+                if (txtInfoCeldas != null) {
+                    txtInfoCeldas.setText("");
+                    txtInfoCeldas.setVisibility(View.GONE);
+                }
+            });
         }
 
         View btnInfo = findViewById(R.id.btnInfo);
@@ -328,10 +355,10 @@ public class PantallaJuego extends AppCompatActivity {
                 diccionarioFlota,
                 new GestorJuego.PartidaListener() {
                     @Override
-                    public void onActualizarTablero() {
+                    public void onSnapshotCompleto() {
                         runOnUiThread(() -> {
                             actualizarInterfazTurno();
-                            actualizarMatrizVisual();
+                            actualizarMatrizVisualCompleta();
                         });
                     }
 
@@ -353,11 +380,7 @@ public class PantallaJuego extends AppCompatActivity {
                     public void onPartidaTerminada(String ganadorId, String razon) {
                         runOnUiThread(() -> new AlertDialog.Builder(PantallaJuego.this)
                                 .setTitle("Fin de Partida")
-                                .setMessage(
-                                        ganadorId != null && ganadorId.equals(myUserId)
-                                                ? "¡Ganaste!"
-                                                : "Perdiste..."
-                                )
+                                .setMessage(ganadorId != null && ganadorId.equals(myUserId) ? "¡Ganaste!" : "Perdiste...")
                                 .setCancelable(false)
                                 .setPositiveButton("Salir", (d, w) -> finish())
                                 .show());
@@ -368,6 +391,16 @@ public class PantallaJuego extends AppCompatActivity {
                         runOnUiThread(() ->
                                 Toast.makeText(PantallaJuego.this, mensaje, Toast.LENGTH_SHORT).show()
                         );
+                    }
+
+                    @Override
+                    public void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo) {
+                        runOnUiThread(() -> actualizarCeldasBarcoMovido(shipId, oldX, oldY, newX, newY, orientation, tipo));
+                    }
+
+                    @Override
+                    public void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo) {
+                        runOnUiThread(() -> actualizarCeldasBarcoRotado(shipId, x, y, oldOrientation, newOrientation, tipo));
                     }
                 }
         );
@@ -406,11 +439,10 @@ public class PantallaJuego extends AppCompatActivity {
 
         BarcoLogico barco = gestor.obtenerBarcoEn(c.getFila(), c.getColumna());
 
-        // Solo se pueden seleccionar barcos aliados
         if (barco != null && barco.esAliado) {
             String anterior = idBarcoSeleccionado;
             idBarcoSeleccionado = barco.id;
-            tipoAtaque = 0;
+            cancelarModoAtaque();
             actualizarBotonesArmas(barco.id);
             panelInfoBarco.setVisibility(View.GONE);
             mostrar(layMain);
@@ -418,37 +450,46 @@ public class PantallaJuego extends AppCompatActivity {
             return;
         }
 
-        // Si pulsa agua y está en modo ataque
-        if (barco == null) {
-            if (tipoAtaque == 1 && idBarcoSeleccionado != null && gestor.isEsMiTurno()) {
-                gestor.dispararCannon(idBarcoSeleccionado, c.getFila(), c.getColumna());
-                tipoAtaque = 0;
-                mostrar(layMain);
+        if (tipoAtaque == 1 && idBarcoSeleccionado != null && gestor.isEsMiTurno()) {
+            if (!c.isEnRangoAtaque()) {
+                Toast.makeText(this, "Esa casilla está fuera de rango", Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            if (tipoAtaque == 2 && idBarcoSeleccionado != null && gestor.isEsMiTurno()) {
-                gestor.colocarMina(idBarcoSeleccionado, c.getFila(), c.getColumna());
-                tipoAtaque = 0;
-                mostrar(layMain);
-                return;
-            }
-
-            String anterior = idBarcoSeleccionado;
-            idBarcoSeleccionado = null;
-            panelInfoBarco.setVisibility(View.GONE);
-            mostrar(layNoSel);
-            actualizarSeleccionBarco(anterior, null);
+            gestor.dispararCannon(idBarcoSeleccionado, c.getFila(), c.getColumna());
+            cancelarModoAtaque();
+            mostrar(layMain);
             return;
         }
 
-        // Si es enemigo, no se selecciona ni se muestra info
+        if (tipoAtaque == 2 && idBarcoSeleccionado != null && gestor.isEsMiTurno()) {
+            if (!c.isEnRangoAtaque()) {
+                Toast.makeText(this, "Esa casilla está fuera de rango", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            gestor.colocarMina(idBarcoSeleccionado, c.getFila(), c.getColumna());
+            cancelarModoAtaque();
+            mostrar(layMain);
+            return;
+        }
+
+        String anterior = idBarcoSeleccionado;
+        idBarcoSeleccionado = null;
+        cancelarModoAtaque();
+        panelInfoBarco.setVisibility(View.GONE);
+        mostrar(layNoSel);
+        actualizarSeleccionBarco(anterior, null);
+    }
+
+    private void cancelarModoAtaque() {
+        tipoAtaque = 0;
+        rangoAtaqueActual = 0;
+        limpiarRangoAtaqueVisual();
     }
 
     private void actualizarSeleccionBarco(String idAnterior, String idNuevo) {
         if (gestor == null) return;
 
-        List<Integer> posiciones = new ArrayList<>();
+        LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
 
         for (BarcoLogico b : gestor.getFlota()) {
             boolean afecta =
@@ -457,21 +498,149 @@ public class PantallaJuego extends AppCompatActivity {
 
             if (!afecta) continue;
 
-            for (int[] celdaBarco : b.getCeldas()) {
-                int filaLogica = celdaBarco[0];
-                int col = celdaBarco[1];
-                int filaVisual = b.esAliado ? (14 - filaLogica) : filaLogica;
+            posiciones.addAll(posicionesVisualesDeBarco(b));
+        }
 
-                if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
+        for (Integer pos : posiciones) {
+            Casilla casilla = matriz.get(pos);
+            String shipId = casilla.getIdBarcoStr();
+            casilla.setSeleccionado(shipId != null && shipId.equals(idNuevo) && casilla.isEsAliado());
+        }
 
-                int pos = filaVisual * 15 + col;
-                Casilla casilla = matriz.get(pos);
-                casilla.setSeleccionado(idNuevo != null && idNuevo.equals(b.id) && b.esAliado);
-                posiciones.add(pos);
+        repintarPosiciones(posiciones);
+    }
+
+    private void actualizarRangoAtaqueVisual() {
+        LinkedHashSet<Integer> anteriores = new LinkedHashSet<>(posicionesRangoActual);
+        posicionesRangoActual.clear();
+
+        if (gestor == null || idBarcoSeleccionado == null || rangoAtaqueActual <= 0) {
+            repintarPosiciones(anteriores);
+            return;
+        }
+
+        BarcoLogico barco = gestor.obtenerBarcoPorId(idBarcoSeleccionado);
+        if (barco == null) {
+            repintarPosiciones(anteriores);
+            return;
+        }
+
+        int origenX = barco.x;
+        int origenY = barco.y;
+
+        for (Casilla c : matriz) {
+            int x = c.getColumna();
+            int yLogica = 14 - c.getFila();
+
+            int dx = Math.abs(x - origenX);
+            int dy = Math.abs(yLogica - origenY);
+
+            boolean enRango = Math.max(dx, dy) <= rangoAtaqueActual;
+            if (enRango) {
+                posicionesRangoActual.add(c.getFila() * 15 + c.getColumna());
             }
         }
 
-        for (int pos : posiciones) {
+        LinkedHashSet<Integer> aRepintar = new LinkedHashSet<>(anteriores);
+        aRepintar.addAll(posicionesRangoActual);
+        repintarPosiciones(aRepintar);
+    }
+
+    private void limpiarRangoAtaqueVisual() {
+        if (posicionesRangoActual.isEmpty()) return;
+        LinkedHashSet<Integer> anteriores = new LinkedHashSet<>(posicionesRangoActual);
+        posicionesRangoActual.clear();
+        repintarPosiciones(anteriores);
+    }
+
+    private void actualizarCeldasBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo) {
+        LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
+        posiciones.addAll(posicionesVisualesPara(oldX, oldY, orientation, tipo));
+        posiciones.addAll(posicionesVisualesPara(newX, newY, orientation, tipo));
+        posiciones.addAll(posicionesRangoActual);
+
+        repintarPosiciones(posiciones);
+
+        if (shipId.equals(idBarcoSeleccionado) && tipoAtaque != 0) {
+            actualizarRangoAtaqueVisual();
+        }
+    }
+
+    private void actualizarCeldasBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo) {
+        LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
+        posiciones.addAll(posicionesVisualesPara(x, y, oldOrientation, tipo));
+        posiciones.addAll(posicionesVisualesPara(x, y, newOrientation, tipo));
+        posiciones.addAll(posicionesRangoActual);
+
+        repintarPosiciones(posiciones);
+
+        if (shipId.equals(idBarcoSeleccionado) && tipoAtaque != 0) {
+            actualizarRangoAtaqueVisual();
+        }
+    }
+
+    private LinkedHashSet<Integer> posicionesVisualesDeBarco(BarcoLogico barco) {
+        return posicionesVisualesPara(barco.x, barco.y, barco.orientation, barco.tipo);
+    }
+
+    private LinkedHashSet<Integer> posicionesVisualesPara(int x, int y, String orientation, int tipo) {
+        LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
+        List<int[]> celdas = BarcoLogico.getCeldasPara(x, y, orientation, tipo);
+
+        for (int[] celda : celdas) {
+            int filaVisual = 14 - celda[0];
+            int col = celda[1];
+            if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
+            posiciones.add(filaVisual * 15 + col);
+        }
+
+        return posiciones;
+    }
+
+    private void repintarPosiciones(LinkedHashSet<Integer> posiciones) {
+        if (posiciones.isEmpty()) return;
+
+        for (Integer pos : posiciones) {
+            Casilla c = matriz.get(pos);
+            c.resetVisual();
+        }
+
+        if (gestor != null) {
+            for (BarcoLogico b : gestor.getFlota()) {
+                boolean esSel = (idBarcoSeleccionado != null && idBarcoSeleccionado.equals(b.id) && b.esAliado);
+                int dir = orientacionADireccionVisual(b.orientation);
+
+                for (int[] celdaBarco : b.getCeldas()) {
+                    int filaVisual = 14 - celdaBarco[0];
+                    int col = celdaBarco[1];
+
+                    if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
+
+                    int pos = filaVisual * 15 + col;
+                    if (!posiciones.contains(pos)) continue;
+
+                    Casilla cas = matriz.get(pos);
+                    cas.setTieneBarco(true);
+                    cas.setIdBarcoStr(b.id);
+                    cas.setEsAliado(b.esAliado);
+                    cas.setTipoBarco(b.tipo);
+                    cas.setDireccion(dir);
+                    cas.setEsProa(esProaVisual(celdaBarco[2] == 1, b.orientation, b.tipo));
+                    cas.setIndiceEnBarco(indiceVisual(celdaBarco[3], b.tipo, b.orientation));
+                    cas.setSlug(b.slug);
+                    cas.setVidaActual(b.hpActual);
+                    cas.setVidaMax(b.hpMax);
+                    cas.setSeleccionado(esSel);
+                }
+            }
+        }
+
+        for (Integer pos : posiciones) {
+            Casilla c = matriz.get(pos);
+            c.setEnRangoAtaque(posicionesRangoActual.contains(pos));
+        }
+
+        for (Integer pos : posiciones) {
             adapter.notifyItemChanged(pos);
         }
     }
@@ -500,7 +669,50 @@ public class PantallaJuego extends AppCompatActivity {
         }
     }
 
-    private void actualizarMatrizVisual() {
+    private String direccionAdelanteVisual(String orientationLogica) {
+        if ("N".equals(orientationLogica)) return "S";
+        if ("S".equals(orientationLogica)) return "N";
+        if ("E".equals(orientationLogica)) return "E";
+        if ("W".equals(orientationLogica)) return "W";
+        return orientationLogica;
+    }
+
+    private String direccionAtrasVisual(String orientationLogica) {
+        if ("N".equals(orientationLogica)) return "N";
+        if ("S".equals(orientationLogica)) return "S";
+        if ("E".equals(orientationLogica)) return "W";
+        if ("W".equals(orientationLogica)) return "E";
+        return orientationLogica;
+    }
+
+    private int orientacionADireccionVisual(String orientation) {
+        if ("N".equals(orientation)) return 0;
+        if ("E".equals(orientation)) return 1;
+        if ("S".equals(orientation)) return 2;
+        if ("W".equals(orientation)) return 3;
+        return 0;
+    }
+
+    private boolean necesitaInvertirExtremosVisuales(String orientation) {
+        return "N".equals(orientation) || "S".equals(orientation);
+    }
+
+    private int indiceVisual(int indiceLogico, int tipo, String orientation) {
+        if (necesitaInvertirExtremosVisuales(orientation)) {
+            return (tipo - 1) - indiceLogico;
+        }
+        return indiceLogico;
+    }
+
+    private boolean esProaVisual(boolean esProaLogica, String orientation, int tipo) {
+        if (tipo <= 1) return esProaLogica;
+        if (necesitaInvertirExtremosVisuales(orientation)) {
+            return !esProaLogica;
+        }
+        return esProaLogica;
+    }
+
+    private void actualizarMatrizVisualCompleta() {
         if (gestor == null) return;
 
         List<Casilla> snapshotAnterior = new ArrayList<>(matriz.size());
@@ -514,19 +726,15 @@ public class PantallaJuego extends AppCompatActivity {
 
         for (BarcoLogico b : gestor.getFlota()) {
             boolean esSel = (idBarcoSeleccionado != null && idBarcoSeleccionado.equals(b.id) && b.esAliado);
-
-            int dir = 0;
-            if ("E".equals(b.orientation)) dir = 1;
-            else if ("S".equals(b.orientation)) dir = 2;
-            else if ("W".equals(b.orientation)) dir = 3;
+            int dir = orientacionADireccionVisual(b.orientation);
 
             for (int[] celdaBarco : b.getCeldas()) {
                 int filaLogica = celdaBarco[0];
                 int col = celdaBarco[1];
-                boolean esProa = celdaBarco[2] == 1;
-                int indice = celdaBarco[3];
+                boolean esProa = esProaVisual(celdaBarco[2] == 1, b.orientation, b.tipo);
+                int indice = indiceVisual(celdaBarco[3], b.tipo, b.orientation);
 
-                int filaVisual = b.esAliado ? (14 - filaLogica) : filaLogica;
+                int filaVisual = 14 - filaLogica;
 
                 if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
 
@@ -539,7 +747,15 @@ public class PantallaJuego extends AppCompatActivity {
                 cas.setEsProa(esProa);
                 cas.setIndiceEnBarco(indice);
                 cas.setSlug(b.slug);
+                cas.setVidaActual(b.hpActual);
+                cas.setVidaMax(b.hpMax);
                 cas.setSeleccionado(esSel);
+            }
+        }
+
+        for (Integer pos : posicionesRangoActual) {
+            if (pos >= 0 && pos < matriz.size()) {
+                matriz.get(pos).setEnRangoAtaque(true);
             }
         }
 
@@ -555,13 +771,29 @@ public class PantallaJuego extends AppCompatActivity {
             txtInfoTitulo.setText("Barco aliado");
         }
 
-        if (txtInfoCeldas != null) {
-            txtInfoCeldas.setText(
-                    "ID: " + barco.id +
-                            "\nTipo: " + barco.tipo +
-                            "\nPosición: (" + barco.x + ", " + barco.y + ")" +
-                            "\nOrientación: " + barco.orientation
+        String nombreTipo = "Barco";
+        if (barco.tipo == 1) nombreTipo = "Corbeta";
+        else if (barco.tipo == 3) nombreTipo = "Fragata";
+        else if (barco.tipo == 5) nombreTipo = "Acorazado";
+
+        int vision = 0;
+        if (barco.tipo == 1) vision = 4;
+        else if (barco.tipo == 3) vision = 3;
+        else if (barco.tipo == 5) vision = 2;
+
+        if (txtInfoGlobal != null) {
+            txtInfoGlobal.setText(
+                    "Tipo: " + nombreTipo +
+                            "\nVida: " + barco.hpActual + " / " + barco.hpMax +
+                            "\nOrientación: " + barco.orientation +
+                            "\nTamaño: " + barco.tipo + " casilla(s)" +
+                            "\nVisión: " + vision
             );
+        }
+
+        if (txtInfoCeldas != null) {
+            txtInfoCeldas.setText("");
+            txtInfoCeldas.setVisibility(View.GONE);
         }
 
         if (panelInfoBarco != null) {

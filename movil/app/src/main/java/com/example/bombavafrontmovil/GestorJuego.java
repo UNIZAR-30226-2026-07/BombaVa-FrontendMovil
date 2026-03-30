@@ -9,6 +9,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -22,25 +24,32 @@ public class GestorJuego {
     private final String matchId;
     private final String myUserId;
     private final PartidaListener listener;
+    private final Map<String, UserShip> diccionarioFlota;
+    private final Map<String, UserShip> inventarioOriginal;
+
     private boolean esMiTurno = false;
 
-    private final Map<String, UserShip> diccionarioFlota;
-
     public interface PartidaListener {
-        void onActualizarTablero();
+        void onSnapshotCompleto(); // solo para startInfo / vision_update
         void onRecursosActualizados(int fuel, int ammo);
         void onPartidaTerminada(String ganadorId, String razon);
         void onErrorJuego(String mensaje);
+        void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo);
+        void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo);
     }
 
-    public GestorJuego(Socket socket, String matchId, String userId,
+    public GestorJuego(Socket socket,
+                       String matchId,
+                       String userId,
                        Map<String, UserShip> diccionarioFlota,
                        PartidaListener listener) {
         this.socket = socket;
         this.matchId = matchId;
         this.myUserId = userId;
         this.diccionarioFlota = diccionarioFlota;
+        this.inventarioOriginal = new HashMap<>(diccionarioFlota);
         this.listener = listener;
+
         configurarListeners();
         unirseAPartida();
     }
@@ -48,7 +57,6 @@ public class GestorJuego {
     private void unirseAPartida() {
         try {
             Log.d(TAG, "Uniendo a partida... MatchID: " + matchId + " | UserID: " + myUserId);
-            // IMPORTANTE: el backend real espera el matchId directo, no un objeto JSON
             socket.emit("game:join", matchId);
         } catch (Exception e) {
             Log.e(TAG, "Error al emitir game:join", e);
@@ -64,9 +72,7 @@ public class GestorJuego {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String nextPlayerId = data.getString("nextPlayerId");
-
                 esMiTurno = nextPlayerId.equals(myUserId);
-                Log.d(TAG, "¿Me toca? " + esMiTurno);
 
                 if (data.has("resources")) {
                     JSONObject res = data.getJSONObject("resources");
@@ -77,8 +83,6 @@ public class GestorJuego {
                         );
                     }
                 }
-
-                if (listener != null) listener.onActualizarTablero();
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:turn_changed", e);
             }
@@ -93,15 +97,23 @@ public class GestorJuego {
 
                 for (BarcoLogico b : flota) {
                     if (b.id.equals(sId)) {
-                        b.x = pos.getInt("x");
-                        b.y = pos.getInt("y");
-                        break;
-                    }
-                }
+                        int oldX = b.x;
+                        int oldY = b.y;
+                        String orientation = b.orientation;
+                        int tipo = b.tipo;
 
-                if (listener != null) {
-                    listener.onRecursosActualizados(fuelRes, -1);
-                    listener.onActualizarTablero();
+                        int newX = pos.getInt("x");
+                        int newY = pos.getInt("y");
+
+                        b.x = newX;
+                        b.y = newY;
+
+                        if (listener != null) {
+                            listener.onRecursosActualizados(fuelRes, -1);
+                            listener.onBarcoMovido(sId, oldX, oldY, newX, newY, orientation, tipo);
+                        }
+                        return;
+                    }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:moved", e);
@@ -117,14 +129,19 @@ public class GestorJuego {
 
                 for (BarcoLogico b : flota) {
                     if (b.id.equals(sId)) {
-                        b.orientation = orientation;
-                        break;
-                    }
-                }
+                        String oldOrientation = b.orientation;
+                        int x = b.x;
+                        int y = b.y;
+                        int tipo = b.tipo;
 
-                if (listener != null) {
-                    listener.onRecursosActualizados(fuelRes, -1);
-                    listener.onActualizarTablero();
+                        b.orientation = orientation;
+
+                        if (listener != null) {
+                            listener.onRecursosActualizados(fuelRes, -1);
+                            listener.onBarcoRotado(sId, x, y, oldOrientation, orientation, tipo);
+                        }
+                        return;
+                    }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:rotated", e);
@@ -138,7 +155,6 @@ public class GestorJuego {
 
                 if (listener != null) {
                     listener.onRecursosActualizados(-1, ammoCurrent);
-                    listener.onActualizarTablero();
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:attacked", e);
@@ -148,14 +164,14 @@ public class GestorJuego {
         socket.on("match:vision_update", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
-
                 List<BarcoLogico> nuevaFlota = new ArrayList<>();
 
                 if (data.has("myFleet")) {
                     JSONArray myFleet = data.getJSONArray("myFleet");
                     for (int i = 0; i < myFleet.length(); i++) {
                         JSONObject s = myFleet.getJSONObject(i);
-                        nuevaFlota.add(construirBarcoDesdeJson(s, true));
+                        UserShip vinculado = diccionarioFlota.get(s.getString("id"));
+                        nuevaFlota.add(construirBarcoDesdeJson(s, true, vinculado));
                     }
                 }
 
@@ -163,14 +179,14 @@ public class GestorJuego {
                     JSONArray enemyFleet = data.getJSONArray("visibleEnemyFleet");
                     for (int i = 0; i < enemyFleet.length(); i++) {
                         JSONObject s = enemyFleet.getJSONObject(i);
-                        nuevaFlota.add(construirBarcoDesdeJson(s, false));
+                        nuevaFlota.add(construirBarcoDesdeJson(s, false, null));
                     }
                 }
 
                 flota.clear();
                 flota.addAll(nuevaFlota);
 
-                if (listener != null) listener.onActualizarTablero();
+                if (listener != null) listener.onSnapshotCompleto();
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:vision_update", e);
             }
@@ -220,11 +236,22 @@ public class GestorJuego {
 
             flota.clear();
 
+            Map<String, UserShip> diccionarioPartida = new HashMap<>();
+            HashSet<String> userShipsYaUsados = new HashSet<>();
+
             if (data.has("playerFleet")) {
                 JSONArray fleetArray = data.getJSONArray("playerFleet");
                 for (int i = 0; i < fleetArray.length(); i++) {
                     JSONObject s = fleetArray.getJSONObject(i);
-                    flota.add(construirBarcoDesdeJson(s, true));
+
+                    UserShip matchShip = resolverUserShipParaBarcoPartida(s, userShipsYaUsados);
+                    BarcoLogico barco = construirBarcoDesdeJson(s, true, matchShip);
+
+                    flota.add(barco);
+
+                    if (matchShip != null) {
+                        diccionarioPartida.put(barco.id, matchShip);
+                    }
                 }
             }
 
@@ -232,35 +259,71 @@ public class GestorJuego {
                 JSONArray enemyArray = data.getJSONArray("enemyFleet");
                 for (int i = 0; i < enemyArray.length(); i++) {
                     JSONObject s = enemyArray.getJSONObject(i);
-                    flota.add(construirBarcoDesdeJson(s, false));
+                    flota.add(construirBarcoDesdeJson(s, false, null));
                 }
             }
 
-            if (listener != null) listener.onActualizarTablero();
+            diccionarioFlota.clear();
+            diccionarioFlota.putAll(diccionarioPartida);
+
+            if (listener != null) listener.onSnapshotCompleto();
         } catch (Exception e) {
             Log.e(TAG, "Error procesando match:startInfo", e);
         }
     }
 
-    private BarcoLogico construirBarcoDesdeJson(JSONObject s, boolean esAliado) throws JSONException {
-        String idPartida = s.getString("id");
+    private UserShip resolverUserShipParaBarcoPartida(JSONObject s,
+                                                      HashSet<String> userShipsYaUsados) throws JSONException {
+        if (inventarioOriginal == null || inventarioOriginal.isEmpty()) return null;
+
         int hp = s.optInt("currentHp", 1);
 
-        int tamanoReal = 1;
-        String slugReal = null;
+        for (Map.Entry<String, UserShip> entry : inventarioOriginal.entrySet()) {
+            String userShipId = entry.getKey();
+            UserShip uShip = entry.getValue();
 
-        if (diccionarioFlota != null) {
-            for (UserShip uShip : diccionarioFlota.values()) {
-                if (uShip.getShipTemplate() != null &&
-                        uShip.getShipTemplate().getBaseMaxHp() == hp) {
-                    tamanoReal = uShip.getShipTemplate().getTamanoCasillas();
-                    slugReal = uShip.getShipTemplate().getSlug();
-                    break;
-                }
+            if (userShipsYaUsados.contains(userShipId)) continue;
+            if (uShip == null || uShip.getShipTemplate() == null) continue;
+
+            if (uShip.getShipTemplate().getBaseMaxHp() == hp) {
+                userShipsYaUsados.add(userShipId);
+                return uShip;
             }
         }
 
-        return new BarcoLogico(
+        for (Map.Entry<String, UserShip> entry : inventarioOriginal.entrySet()) {
+            String userShipId = entry.getKey();
+            UserShip uShip = entry.getValue();
+
+            if (userShipsYaUsados.contains(userShipId)) continue;
+            if (uShip == null) continue;
+
+            userShipsYaUsados.add(userShipId);
+            return uShip;
+        }
+
+        return null;
+    }
+
+    private BarcoLogico construirBarcoDesdeJson(JSONObject s,
+                                                boolean esAliado,
+                                                UserShip uShipVinculado) throws JSONException {
+        String idPartida = s.getString("id");
+        int tamanoReal = 1;
+        String slugReal = null;
+
+        if (uShipVinculado != null && uShipVinculado.getShipTemplate() != null) {
+            tamanoReal = calcularTamanoDesdeTemplate(uShipVinculado);
+            slugReal = uShipVinculado.getShipTemplate().getSlug();
+        } else {
+            UserShip inferido = inferirTemplatePorHp(s.optInt("currentHp", 1));
+            if (inferido != null && inferido.getShipTemplate() != null) {
+                tamanoReal = calcularTamanoDesdeTemplate(inferido);
+                slugReal = inferido.getShipTemplate().getSlug();
+            }
+        }
+
+        BarcoLogico barco = new BarcoLogico(
                 idPartida,
                 tamanoReal,
                 s.getInt("x"),
@@ -269,6 +332,39 @@ public class GestorJuego {
                 esAliado,
                 slugReal
         );
+
+        barco.hpActual = s.optInt("currentHp", tamanoReal);
+
+        if (uShipVinculado != null && uShipVinculado.getShipTemplate() != null) {
+            barco.hpMax = uShipVinculado.getShipTemplate().getBaseMaxHp();
+        } else {
+            UserShip inferido = inferirTemplatePorHp(s.optInt("currentHp", 1));
+            barco.hpMax = (inferido != null && inferido.getShipTemplate() != null)
+                    ? inferido.getShipTemplate().getBaseMaxHp()
+                    : barco.hpActual;
+        }
+
+        return barco;
+    }
+
+    private UserShip inferirTemplatePorHp(int hp) {
+        if (inventarioOriginal == null || inventarioOriginal.isEmpty()) return null;
+
+        for (UserShip uShip : inventarioOriginal.values()) {
+            if (uShip != null &&
+                    uShip.getShipTemplate() != null &&
+                    uShip.getShipTemplate().getBaseMaxHp() == hp) {
+                return uShip;
+            }
+        }
+        return null;
+    }
+
+    private int calcularTamanoDesdeTemplate(UserShip userShip) {
+        if (userShip == null || userShip.getShipTemplate() == null) return 1;
+        int width = userShip.getShipTemplate().getWidth();
+        int height = userShip.getShipTemplate().getHeight();
+        return Math.max(width, height);
     }
 
     public boolean isEsMiTurno() {
@@ -279,10 +375,16 @@ public class GestorJuego {
         return flota;
     }
 
-    public BarcoLogico obtenerBarcoEn(int fila, int columna) {
+    public BarcoLogico obtenerBarcoEn(int filaVisual, int columna) {
         for (BarcoLogico b : flota) {
             for (int[] c : b.getCeldas()) {
-                if (c[0] == fila && c[1] == columna) return b;
+                int filaLogica = c[0];
+                int col = c[1];
+                int filaConvertida = 14 - filaLogica;
+
+                if (filaConvertida == filaVisual && col == columna) {
+                    return b;
+                }
             }
         }
         return null;
@@ -319,7 +421,7 @@ public class GestorJuego {
         }
     }
 
-    public void dispararCannon(String shipId, int fila, int columna) {
+    public void dispararCannon(String shipId, int filaVisual, int columna) {
         try {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
@@ -327,7 +429,7 @@ public class GestorJuego {
 
             JSONObject target = new JSONObject();
             target.put("x", columna);
-            target.put("y", fila);
+            target.put("y", 14 - filaVisual);
             payload.put("target", target);
 
             socket.emit("ship:attack:cannon", payload);
@@ -347,7 +449,7 @@ public class GestorJuego {
         }
     }
 
-    public void colocarMina(String shipId, int fila, int columna) {
+    public void colocarMina(String shipId, int filaVisual, int columna) {
         try {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
@@ -355,7 +457,7 @@ public class GestorJuego {
 
             JSONObject target = new JSONObject();
             target.put("x", columna);
-            target.put("y", fila);
+            target.put("y", 14 - filaVisual);
             payload.put("target", target);
 
             socket.emit("ship:attack:mine", payload);
