@@ -87,6 +87,7 @@ public class GestorConfiguracionFlota {
 
     public List<ShipPosition> obtenerPosicionesParaBackend(String id5, String id3, String id1) {
         List<ShipPosition> posiciones = new ArrayList<>();
+
         for (int idInterno = 1; idInterno < idBarcoActual; idInterno++) {
             List<Integer> celdasBarco = new ArrayList<>();
             for (int i = 0; i < 225; i++) {
@@ -112,21 +113,33 @@ public class GestorConfiguracionFlota {
 
             int xCentro = posCentro % 15;
             int yCentroApp = posCentro / 15;
-            // 🔥 CORRECCIÓN 15x5: Convertimos al idioma del backend
-            int yCentroBackend = yCentroApp - 10;
 
-            posiciones.add(new ShipPosition(realId, new Position(xCentro, yCentroBackend), orientacion));
+            // La zona aliada visual está en filas 10..14.
+            // Para que en partida se vea igual tras el espejado del tablero,
+            // la Y relativa al backend debe ir invertida dentro de ese bloque.
+            int yCentroBackend = 14 - yCentroApp;
+
+            posiciones.add(new ShipPosition(
+                    realId,
+                    new Position(xCentro, yCentroBackend),
+                    orientacion
+            ));
         }
+
         return posiciones;
     }
 
-    public void cargarBarcoDesdeServidor(String realId, int xCentro, int yServidor, String orientacion, String id5, String id3, String id1) {
+    public void cargarBarcoDesdeServidor(String realId, int xCentro, int yServidor, String orientacion,
+                                         String id5, String id3, String id1) {
         int tamano = (realId.equals(id5)) ? 5 : (realId.equals(id3) ? 3 : (realId.equals(id1) ? 1 : 0));
         if (tamano <= 0) return;
 
-        // 🔥 CORRECCIÓN 15x5: Volvemos a traernos la Y a la zona visual aliada
-        int yCentroApp = yServidor + 10;
-        boolean horizontal = orientacion != null && (orientacion.equalsIgnoreCase("E") || orientacion.equalsIgnoreCase("H"));
+        // Inversa exacta de obtenerPosicionesParaBackend()
+        int yCentroApp = 14 - yServidor;
+
+        boolean horizontal = orientacion != null &&
+                (orientacion.equalsIgnoreCase("E") || orientacion.equalsIgnoreCase("H"));
+
         int offset = tamano / 2;
 
         for (int i = -offset; i <= offset; i++) {
@@ -138,6 +151,7 @@ public class GestorConfiguracionFlota {
                 tablero[p] = idBarcoActual;
             }
         }
+
         idBarcoActual++;
     }
 

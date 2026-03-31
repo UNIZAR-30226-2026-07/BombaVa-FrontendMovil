@@ -26,7 +26,6 @@ public class GestorJuego {
     final GestorJuegoMapper mapper;
     final GestorJuegoSocketBinder socketBinder;
 
-    // Se decide automáticamente mirando myFleet vs enemyFleet
     private boolean invertirPerspectiva = true;
 
     public interface PartidaListener {
@@ -71,7 +70,6 @@ public class GestorJuego {
             double mediaMy = mediaY(myFleet);
             double mediaEnemy = mediaY(enemyFleet);
 
-            // Si mis barcos vienen "más arriba" en lógico, hay que espejar
             invertirPerspectiva = mediaMy < mediaEnemy;
 
             android.util.Log.d(

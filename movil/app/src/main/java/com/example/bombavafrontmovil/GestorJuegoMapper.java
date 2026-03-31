@@ -44,10 +44,20 @@ public class GestorJuegoMapper {
             Map<String, UserShip> diccionarioPartida = new HashMap<>();
             HashSet<String> userShipsYaUsados = new HashSet<>();
 
-            if (data.has("playerFleet")) {
-                JSONArray fleetArray = data.getJSONArray("playerFleet");
-                for (int i = 0; i < fleetArray.length(); i++) {
-                    JSONObject s = fleetArray.getJSONObject(i);
+            JSONArray playerFleet = data.optJSONArray("playerFleet");
+
+            JSONArray enemyFleet = data.optJSONArray("enemyFleet");
+            if (enemyFleet == null) {
+                enemyFleet = data.optJSONArray("visibleEnemyFleet");
+            }
+
+            if (playerFleet != null && enemyFleet != null) {
+                game.recalcularPerspectiva(playerFleet, enemyFleet);
+            }
+
+            if (playerFleet != null) {
+                for (int i = 0; i < playerFleet.length(); i++) {
+                    JSONObject s = playerFleet.getJSONObject(i);
 
                     UserShip matchShip = resolverUserShipParaBarcoPartida(s, userShipsYaUsados);
                     BarcoLogico barco = construirBarcoDesdeJson(s, true, matchShip);
@@ -86,10 +96,9 @@ public class GestorJuegoMapper {
                 }
             }
 
-            if (data.has("enemyFleet")) {
-                JSONArray enemyArray = data.getJSONArray("enemyFleet");
-                for (int i = 0; i < enemyArray.length(); i++) {
-                    JSONObject s = enemyArray.getJSONObject(i);
+            if (enemyFleet != null) {
+                for (int i = 0; i < enemyFleet.length(); i++) {
+                    JSONObject s = enemyFleet.getJSONObject(i);
                     game.flota.add(construirBarcoDesdeJson(s, false, null));
                 }
             }
@@ -105,42 +114,12 @@ public class GestorJuegoMapper {
         }
     }
 
-    /**
-     * Empareja el barco de partida con el UserShip del inventario.
-     *
-     * Orden de prioridad:
-     * 1) Por tamaño del template (1, 3, 5...)
-     * 2) Por hp máximo del template si no encuentra tamaño
-     * 3) Primer barco libre como último fallback
-     *
-     * NO usamos currentHp como criterio principal porque puede variar durante la partida.
-     */
     private UserShip resolverUserShipParaBarcoPartida(JSONObject s,
                                                       HashSet<String> userShipsYaUsados) throws JSONException {
         if (game.inventarioOriginal == null || game.inventarioOriginal.isEmpty()) return null;
 
         int hpActualPartida = s.optInt("currentHp", 1);
 
-        // 1) Inferir tamaño probable desde la vida actual/base conocida del juego
-        Integer tamanoProbable = inferirTamanoDesdeHp(hpActualPartida);
-
-        if (tamanoProbable != null) {
-            for (Map.Entry<String, UserShip> entry : game.inventarioOriginal.entrySet()) {
-                String userShipId = entry.getKey();
-                UserShip uShip = entry.getValue();
-
-                if (userShipsYaUsados.contains(userShipId)) continue;
-                if (uShip == null || uShip.getShipTemplate() == null) continue;
-
-                int tam = calcularTamanoDesdeTemplate(uShip);
-                if (tam == tamanoProbable) {
-                    userShipsYaUsados.add(userShipId);
-                    return uShip;
-                }
-            }
-        }
-
-        // 2) Fallback por baseMaxHp del template
         for (Map.Entry<String, UserShip> entry : game.inventarioOriginal.entrySet()) {
             String userShipId = entry.getKey();
             UserShip uShip = entry.getValue();
@@ -154,7 +133,6 @@ public class GestorJuegoMapper {
             }
         }
 
-        // 3) Último fallback: el primero libre
         for (Map.Entry<String, UserShip> entry : game.inventarioOriginal.entrySet()) {
             String userShipId = entry.getKey();
             UserShip uShip = entry.getValue();
@@ -173,17 +151,27 @@ public class GestorJuegoMapper {
                                                boolean esAliado,
                                                UserShip uShipVinculado) throws JSONException {
         String idPartida = s.getString("id");
+
+        BarcoLogico previo = game.obtenerBarcoPorId(idPartida);
+
         int tamanoReal = 1;
         String slugReal = null;
+        int hpMaxReal = s.optInt("currentHp", 1);
 
-        if (uShipVinculado != null && uShipVinculado.getShipTemplate() != null) {
+        if (previo != null) {
+            tamanoReal = previo.tipo;
+            slugReal = previo.slug;
+            hpMaxReal = previo.hpMax;
+        } else if (uShipVinculado != null && uShipVinculado.getShipTemplate() != null) {
             tamanoReal = calcularTamanoDesdeTemplate(uShipVinculado);
             slugReal = uShipVinculado.getShipTemplate().getSlug();
+            hpMaxReal = uShipVinculado.getShipTemplate().getBaseMaxHp();
         } else {
-            UserShip inferido = inferirTemplatePorHp(s.optInt("currentHp", 1));
+            UserShip inferido = inferirTemplatePorHpMaxExacta(s.optInt("currentHp", 1));
             if (inferido != null && inferido.getShipTemplate() != null) {
                 tamanoReal = calcularTamanoDesdeTemplate(inferido);
                 slugReal = inferido.getShipTemplate().getSlug();
+                hpMaxReal = inferido.getShipTemplate().getBaseMaxHp();
             }
         }
 
@@ -198,23 +186,14 @@ public class GestorJuegoMapper {
         );
 
         barco.hpActual = s.optInt("currentHp", tamanoReal);
-
-        if (uShipVinculado != null && uShipVinculado.getShipTemplate() != null) {
-            barco.hpMax = uShipVinculado.getShipTemplate().getBaseMaxHp();
-        } else {
-            UserShip inferido = inferirTemplatePorHp(s.optInt("currentHp", 1));
-            barco.hpMax = (inferido != null && inferido.getShipTemplate() != null)
-                    ? inferido.getShipTemplate().getBaseMaxHp()
-                    : barco.hpActual;
-        }
+        barco.hpMax = hpMaxReal;
 
         return barco;
     }
 
-    private UserShip inferirTemplatePorHp(int hp) {
+    private UserShip inferirTemplatePorHpMaxExacta(int hp) {
         if (game.inventarioOriginal == null || game.inventarioOriginal.isEmpty()) return null;
 
-        // Primero intentar por hp exacto
         for (UserShip uShip : game.inventarioOriginal.values()) {
             if (uShip != null &&
                     uShip.getShipTemplate() != null &&
@@ -223,32 +202,7 @@ public class GestorJuegoMapper {
             }
         }
 
-        // Si no, intentar por tamaño probable
-        Integer tamanoProbable = inferirTamanoDesdeHp(hp);
-        if (tamanoProbable != null) {
-            for (UserShip uShip : game.inventarioOriginal.values()) {
-                if (uShip != null && uShip.getShipTemplate() != null) {
-                    int tam = calcularTamanoDesdeTemplate(uShip);
-                    if (tam == tamanoProbable) {
-                        return uShip;
-                    }
-                }
-            }
-        }
-
         return null;
-    }
-
-    private Integer inferirTamanoDesdeHp(int hp) {
-        // Ajustado a tus templates actuales:
-        // lancha: hp 20, tamaño 1
-        // fragata: hp 30, tamaño 3
-        // acorazado: hp 50, tamaño 5
-        //
-        // Si el barco está dañado, usamos rangos simples.
-        if (hp <= 20) return 1;
-        if (hp <= 30) return 3;
-        return 5;
     }
 
     private int calcularTamanoDesdeTemplate(UserShip userShip) {
