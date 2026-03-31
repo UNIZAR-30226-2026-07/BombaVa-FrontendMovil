@@ -11,6 +11,7 @@ import android.text.Spanned;
 import android.text.TextPaint;
 import android.text.method.LinkMovementMethod;
 import android.text.style.ClickableSpan;
+import android.util.Patterns;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -23,6 +24,8 @@ import com.example.bombavafrontmovil.models.LoginRequest;
 import com.example.bombavafrontmovil.models.RegisterRequest;
 import com.example.bombavafrontmovil.network.ApiService;
 import com.example.bombavafrontmovil.network.RetrofitClient;
+
+import org.json.JSONObject;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -41,7 +44,6 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Comprobamos si ya hay sesión al arrancar
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         String tokenGuardado = prefs.getString("token", null);
 
@@ -59,23 +61,19 @@ public class LoginActivity extends AppCompatActivity {
         tvToggle = findViewById(R.id.tv_toggle_auth);
         tvTitle = findViewById(R.id.tv_auth_title);
 
-        // Activamos que el TextView pueda recibir clics en partes específicas
         tvToggle.setMovementMethod(LinkMovementMethod.getInstance());
-        tvToggle.setHighlightColor(Color.TRANSPARENT); // Quita el fondo gris feo al hacer clic
+        tvToggle.setHighlightColor(Color.TRANSPARENT);
 
-        // Configuramos la interfaz inicial (Login)
         actualizarInterfaz();
 
-        btnAction.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                procesarAutenticacion();
-            }
-        });
+        btnAction.setOnClickListener(v -> procesarAutenticacion());
     }
 
     private void alternarModo() {
         modoLogin = !modoLogin;
+        etUser.setError(null);
+        etPassword.setError(null);
+        etEmail.setError(null);
         actualizarInterfaz();
     }
 
@@ -93,7 +91,6 @@ public class LoginActivity extends AppCompatActivity {
         }
     }
 
-
     private void configurarTextoClickable(String textoBase, String textoLink) {
         String textoCompleto = textoBase + textoLink;
         SpannableString spannable = new SpannableString(textoCompleto);
@@ -107,25 +104,45 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void updateDrawState(@NonNull TextPaint ds) {
                 super.updateDrawState(ds);
-                // Aquí cambiamos el color del texto clicable
                 ds.setColor(Color.parseColor("#00BCD4"));
-                ds.setUnderlineText(true); // Lo subrayamos
+                ds.setUnderlineText(true);
             }
         };
 
         spannable.setSpan(clickableSpan, textoBase.length(), textoCompleto.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
         tvToggle.setText(spannable);
     }
 
     private void procesarAutenticacion() {
         String user = etUser.getText().toString().trim();
         String pass = etPassword.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
 
-        if (user.isEmpty() || pass.isEmpty()) {
-            mostrarDialogoError("Faltan datos", "Por favor, rellena todos los campos requeridos.");
-            return;
+        boolean formularioValido = true;
+
+        // 🔥 Validaciones Visuales
+        if (user.isEmpty()) {
+            etUser.setError("Usuario requerido");
+            formularioValido = false;
         }
+        if (pass.isEmpty()) {
+            etPassword.setError("Contraseña requerida");
+            formularioValido = false;
+        } else if (!modoLogin && pass.length() < 6) {
+            etPassword.setError("Mínimo 6 caracteres");
+            formularioValido = false;
+        }
+        if (!modoLogin) {
+            if (email.isEmpty()) {
+                etEmail.setError("Correo requerido");
+                formularioValido = false;
+            } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                etEmail.setError("Correo inválido");
+                formularioValido = false;
+            }
+        }
+
+        if (!formularioValido) return;
 
         btnAction.setEnabled(false);
         btnAction.setText("ESTABLECIENDO CONEXIÓN...");
@@ -138,44 +155,47 @@ public class LoginActivity extends AppCompatActivity {
                 public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
                     restaurarBoton();
                     if (response.isSuccessful() && response.body() != null) {
-                        mostrarDialogoExito("¡Conexión Exitosa!", "Bienvenido de nuevo a la flota.", response.body());
+                        mostrarDialogoEstilizado("¡Conexión Exitosa!", "Bienvenido de nuevo a la flota.", true, () -> guardarTokenYProceder(response.body()));
                     } else {
-                        mostrarDialogoError("Acceso Denegado", "Usuario o contraseña incorrectos.");
+                        String msg = extraerError(response);
+                        mostrarDialogoEstilizado("Acceso Denegado", msg.isEmpty() ? "Usuario o contraseña incorrectos." : msg, false, null);
                     }
                 }
-
                 @Override
                 public void onFailure(Call<AuthResponse> call, Throwable t) {
                     restaurarBoton();
-                    mostrarDialogoError("Error de Conexión", "No pudimos contactar con el Cuartel General.");
+                    mostrarDialogoEstilizado("Error de Conexión", "No pudimos contactar con el Cuartel General.", false, null);
                 }
             });
         } else {
-            String email = etEmail.getText().toString().trim();
-            if (email.isEmpty()) {
-                restaurarBoton();
-                mostrarDialogoError("Faltan datos", "El correo es obligatorio para alistarse.");
-                return;
-            }
-
             api.register(new RegisterRequest(user, email, pass)).enqueue(new Callback<AuthResponse>() {
                 @Override
                 public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
                     restaurarBoton();
                     if (response.isSuccessful() && response.body() != null) {
-                        mostrarDialogoExito("¡Alistado con éxito!", "Tu cuenta ha sido creada. Prepárate para zarpar.", response.body());
+                        mostrarDialogoEstilizado("¡Alistado con éxito!", "Tu cuenta ha sido creada. Prepárate para zarpar.", true, () -> guardarTokenYProceder(response.body()));
                     } else {
-                        mostrarDialogoError("Error de Registro", "Ese usuario o correo electrónico ya están en uso.");
+                        String msg = extraerError(response);
+                        mostrarDialogoEstilizado("Error de Registro", msg.isEmpty() ? "Usuario o correo ya en uso." : msg, false, null);
                     }
                 }
-
                 @Override
                 public void onFailure(Call<AuthResponse> call, Throwable t) {
                     restaurarBoton();
-                    mostrarDialogoError("Error de Conexión", "No pudimos contactar con el servidor.");
+                    mostrarDialogoEstilizado("Error de Conexión", "No pudimos contactar con el servidor.", false, null);
                 }
             });
         }
+    }
+
+    private String extraerError(Response<AuthResponse> response) {
+        try {
+            if (response.errorBody() != null) {
+                JSONObject jsonError = new JSONObject(response.errorBody().string());
+                if (jsonError.has("message")) return jsonError.getString("message");
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return "";
     }
 
     private void restaurarBoton() {
@@ -183,63 +203,68 @@ public class LoginActivity extends AppCompatActivity {
         btnAction.setText(modoLogin ? "ENTRAR A LA FLOTA" : "CREAR CUENTA");
     }
 
-    private void mostrarDialogoError(String titulo, String mensaje) {
-        new AlertDialog.Builder(this)
-                .setTitle(titulo)
-                .setMessage(mensaje)
-                .setPositiveButton("Entendido", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .setCancelable(false)
-                .show();
-    }
+    // Pop-Up Personalizado para el Login/Registro
+    private void mostrarDialogoEstilizado(String titulo, String mensaje, boolean exito, Runnable accionOk) {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.setContentView(R.layout.dialog_personalizado);
 
-    private void mostrarDialogoExito(String titulo, String mensaje, AuthResponse authData) {
-        new AlertDialog.Builder(this)
-                .setTitle(titulo)
-                .setMessage(mensaje)
-                .setPositiveButton("Avanzar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        guardarTokenYProceder(authData);
-                    }
-                })
-                .setIcon(R.drawable.ic_check_green)
-                .setCancelable(false)
-                .show();
+        // Hacemos el marco exterior transparente para que solo se vea tu Pergamino
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+
+        dialog.setCancelable(false);
+
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnAccion = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        tvTitulo.setText(titulo);
+        tvMensaje.setText(mensaje);
+        btnAccion.setText(exito ? "AVANZAR" : "ENTENDIDO");
+
+        // Lógica estética adaptada al Pergamino
+        if (exito) {
+            ivIcono.setImageResource(R.drawable.ic_check_green);
+            // Marrón oscuro original para éxitos
+            tvTitulo.setTextColor(android.graphics.Color.parseColor("#4CAF50"));
+            ivIcono.setColorFilter(android.graphics.Color.parseColor("#4CAF50"));
+        } else {
+            ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
+            // Rojo oscuro (tipo lacre o sangre seca) para errores, encaja perfecto con madera/pergamino
+            tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
+            ivIcono.setColorFilter(android.graphics.Color.parseColor("#B71C1C"));
+        }
+
+        btnAccion.setOnClickListener(v -> {
+            dialog.dismiss();
+            if (accionOk != null) accionOk.run();
+        });
+
+        dialog.show();
     }
 
     private void guardarTokenYProceder(AuthResponse auth) {
         String token = auth.getToken();
         String miUserId = "";
 
-        // Intentamos sacarlo del objeto User (por si algún día el servidor sí lo envía)
         if (auth.getUser() != null && auth.getUser().getId() != null) {
             miUserId = auth.getUser().getId();
-        }
-        // Extraemos el ID decodificando el propio Token JWT (Infalible)
-        else if (token != null && token.split("\\.").length == 3) {
+        } else if (token != null && token.split("\\.").length == 3) {
             try {
-                // El token tiene 3 partes. La segunda [1] es el payload que tiene nuestros datos.
                 String payload = new String(android.util.Base64.decode(token.split("\\.")[1], android.util.Base64.URL_SAFE));
                 org.json.JSONObject json = new org.json.JSONObject(payload);
-
-                // Buscamos las palabras más comunes que usan los servidores para el ID
                 if (json.has("id")) miUserId = json.getString("id");
                 else if (json.has("userId")) miUserId = json.getString("userId");
                 else if (json.has("sub")) miUserId = json.getString("sub");
-
-                android.util.Log.d("DEBUG_BOMBA", "ID extraído del token: " + miUserId);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
         }
 
-        // Lo guardamos todo a salvo en las preferencias
         getSharedPreferences("BOMBA_VA", MODE_PRIVATE)
                 .edit()
                 .putString("token", token)
