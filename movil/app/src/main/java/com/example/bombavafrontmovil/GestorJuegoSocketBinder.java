@@ -1,8 +1,10 @@
 package com.example.bombavafrontmovil;
 
 import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,15 +29,22 @@ public class GestorJuegoSocketBinder {
                 String nextPlayerId = data.getString("nextPlayerId");
                 game.esMiTurno = nextPlayerId.equals(game.myUserId);
 
-                if (data.has("resources")) {
+                if (data.has("resources") && game.esMiTurno) {
                     JSONObject res = data.getJSONObject("resources");
                     if (game.listener != null) {
-                        game.listener.onRecursosActualizados(res.optInt("fuel", -1), res.optInt("ammo", -1));
+                        game.listener.onRecursosActualizados(
+                                res.optInt("fuel", -1),
+                                res.optInt("ammo", -1)
+                        );
                     }
                 }
 
-                if (game.listener != null) game.listener.onSnapshotCompleto();
-            } catch (Exception e) { Log.e(TAG, "Fallo en match:turn_changed", e); }
+                if (game.listener != null) {
+                    game.listener.onSnapshotCompleto();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en match:turn_changed", e);
+            }
         });
 
         game.socket.on("ship:moved", args -> {
@@ -45,6 +54,9 @@ public class GestorJuegoSocketBinder {
                 String sId = data.getString("shipId");
                 JSONObject pos = data.getJSONObject("position");
                 int fuelRes = data.optInt("fuelReserve", -1);
+
+                String userId = data.optString("userId", "");
+                boolean esMiAccion = userId.equals(game.myUserId);
 
                 for (BarcoLogico b : game.flota) {
                     if (b.id.equals(sId)) {
@@ -60,13 +72,17 @@ public class GestorJuegoSocketBinder {
                         b.y = newY;
 
                         if (game.listener != null) {
-                            game.listener.onRecursosActualizados(fuelRes, -1);
+                            if (esMiAccion) {
+                                game.listener.onRecursosActualizados(fuelRes, -1);
+                            }
                             game.listener.onBarcoMovido(sId, oldX, oldY, newX, newY, orientation, tipo);
                         }
                         return;
                     }
                 }
-            } catch (Exception e) { Log.e(TAG, "Fallo en ship:moved", e); }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en ship:moved", e);
+            }
         });
 
         game.socket.on("ship:rotated", args -> {
@@ -77,22 +93,30 @@ public class GestorJuegoSocketBinder {
                 String orientation = data.getString("orientation");
                 int fuelRes = data.optInt("fuelReserve", -1);
 
+                String userId = data.optString("userId", "");
+                boolean esMiAccion = userId.equals(game.myUserId);
+
                 for (BarcoLogico b : game.flota) {
                     if (b.id.equals(sId)) {
                         String oldOrientation = b.orientation;
                         int x = b.x;
                         int y = b.y;
                         int tipo = b.tipo;
+
                         b.orientation = orientation;
 
                         if (game.listener != null) {
-                            game.listener.onRecursosActualizados(fuelRes, -1);
+                            if (esMiAccion) {
+                                game.listener.onRecursosActualizados(fuelRes, -1);
+                            }
                             game.listener.onBarcoRotado(sId, x, y, oldOrientation, orientation, tipo);
                         }
                         return;
                     }
                 }
-            } catch (Exception e) { Log.e(TAG, "Fallo en ship:rotated", e); }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en ship:rotated", e);
+            }
         });
 
         game.socket.on("ship:attacked", args -> {
@@ -100,37 +124,90 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 int ammoCurrent = data.optInt("ammoCurrent", -1);
+
+                String attackerId = data.optString("attackerId", "");
+                boolean esMiAtaque = attackerId.equals(game.myUserId);
+
                 if (game.listener != null) {
-                    game.listener.onRecursosActualizados(-1, ammoCurrent);
+                    if (esMiAtaque) {
+                        game.listener.onRecursosActualizados(-1, ammoCurrent);
+                    }
                     game.listener.onSnapshotCompleto();
                 }
-            } catch (Exception e) { Log.e(TAG, "Fallo en ship:attacked", e); }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en ship:attacked", e);
+            }
         });
 
-        // En caso de que se use para actualizaciones extrañas
         game.socket.on("match:vision_update", args -> {
             Log.d(TAG, "¡SERVER RESPONDE! match:vision_update -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
                 List<BarcoLogico> nuevaFlota = new ArrayList<>();
+
+                JSONArray myFleet = null;
+                JSONArray enemyFleet = null;
+
                 if (data.has("myFleet")) {
-                    JSONArray myFleet = data.getJSONArray("myFleet");
+                    myFleet = data.getJSONArray("myFleet");
                     for (int i = 0; i < myFleet.length(); i++) {
                         JSONObject s = myFleet.getJSONObject(i);
-                        nuevaFlota.add(game.mapper.construirBarcoDesdeJson(s, true, game.diccionarioFlota.get(s.getString("id"))));
+                        nuevaFlota.add(
+                                game.mapper.construirBarcoDesdeJson(
+                                        s,
+                                        true,
+                                        game.diccionarioFlota.get(s.getString("id"))
+                                )
+                        );
                     }
                 }
+
                 if (data.has("visibleEnemyFleet")) {
-                    JSONArray enemyFleet = data.getJSONArray("visibleEnemyFleet");
+                    enemyFleet = data.getJSONArray("visibleEnemyFleet");
                     for (int i = 0; i < enemyFleet.length(); i++) {
                         JSONObject s = enemyFleet.getJSONObject(i);
                         nuevaFlota.add(game.mapper.construirBarcoDesdeJson(s, false, null));
                     }
                 }
+
+                game.recalcularPerspectiva(myFleet, enemyFleet);
+
+                List<BarcoLogico> flotaAnterior = new ArrayList<>(game.flota);
+
+                boolean hayCambios = false;
+
+                if (flotaAnterior.size() != nuevaFlota.size()) {
+                    hayCambios = true;
+                } else {
+                    java.util.Map<String, BarcoLogico> mapaAnterior = new java.util.HashMap<>();
+                    for (BarcoLogico b : flotaAnterior) mapaAnterior.put(b.id, b);
+
+                    for (BarcoLogico nuevo : nuevaFlota) {
+                        BarcoLogico anterior = mapaAnterior.get(nuevo.id);
+
+                        if (anterior == null ||
+                                anterior.x != nuevo.x ||
+                                anterior.y != nuevo.y ||
+                                !java.util.Objects.equals(anterior.orientation, nuevo.orientation) ||
+                                anterior.hpActual != nuevo.hpActual ||
+                                anterior.hpMax != nuevo.hpMax ||
+                                anterior.tipo != nuevo.tipo ||
+                                anterior.esAliado != nuevo.esAliado) {
+                            hayCambios = true;
+                            break;
+                        }
+                    }
+                }
+
                 game.flota.clear();
                 game.flota.addAll(nuevaFlota);
-                if (game.listener != null) game.listener.onSnapshotCompleto();
-            } catch (Exception e) { Log.e(TAG, "Fallo en match:vision_update", e); }
+
+                if (hayCambios && game.listener != null) {
+                    game.listener.onVisionUpdateParcial(flotaAnterior, nuevaFlota);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en match:vision_update", e);
+            }
         });
 
         game.socket.on("match:finished", args -> {
@@ -138,9 +215,14 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 if (game.listener != null) {
-                    game.listener.onPartidaTerminada(data.optString("winnerId", ""), data.optString("reason", ""));
+                    game.listener.onPartidaTerminada(
+                            data.optString("winnerId", ""),
+                            data.optString("reason", "")
+                    );
                 }
-            } catch (Exception e) { Log.e(TAG, "Fallo en match:finished", e); }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en match:finished", e);
+            }
         });
 
         game.socket.on("game:error", args -> {
@@ -148,8 +230,12 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String msg = data.optString("message", "Error de juego");
-                if (game.listener != null) game.listener.onErrorJuego(msg);
-            } catch (Exception e) { Log.e(TAG, "Fallo en game:error", e); }
+                if (game.listener != null) {
+                    game.listener.onErrorJuego(msg);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo en game:error", e);
+            }
         });
     }
 

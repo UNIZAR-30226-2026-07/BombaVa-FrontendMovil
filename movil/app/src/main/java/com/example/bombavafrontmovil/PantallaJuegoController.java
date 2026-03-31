@@ -246,20 +246,36 @@ public class PantallaJuegoController {
         LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
         posiciones.addAll(board.posicionesPara(oldX, oldY, orientation, tipo, gestor));
         posiciones.addAll(board.posicionesPara(newX, newY, orientation, tipo, gestor));
-        posiciones.addAll(posicionesRangoActual);
+
+        boolean eraElSeleccionado = shipId.equals(idBarcoSeleccionado);
+
+        if (eraElSeleccionado && tipoAtaque != 0) {
+            posiciones.addAll(posicionesRangoActual);
+        }
 
         board.repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
-        if (shipId.equals(idBarcoSeleccionado) && tipoAtaque != 0) actualizarRangoAtaqueVisual();
+
+        if (eraElSeleccionado && tipoAtaque != 0) {
+            actualizarRangoAtaqueVisual();
+        }
     }
 
     public void actualizarCeldasBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo) {
         LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
         posiciones.addAll(board.posicionesPara(x, y, oldOrientation, tipo, gestor));
         posiciones.addAll(board.posicionesPara(x, y, newOrientation, tipo, gestor));
-        posiciones.addAll(posicionesRangoActual);
+
+        boolean eraElSeleccionado = shipId.equals(idBarcoSeleccionado);
+
+        if (eraElSeleccionado && tipoAtaque != 0) {
+            posiciones.addAll(posicionesRangoActual);
+        }
 
         board.repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
-        if (shipId.equals(idBarcoSeleccionado) && tipoAtaque != 0) actualizarRangoAtaqueVisual();
+
+        if (eraElSeleccionado && tipoAtaque != 0) {
+            actualizarRangoAtaqueVisual();
+        }
     }
 
     private void actualizarSeleccionBarco(String idAnterior, String idNuevo) {

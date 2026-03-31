@@ -36,6 +36,7 @@ public class GestorJuego {
         void onErrorJuego(String mensaje);
         void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo);
         void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo);
+        void onVisionUpdateParcial(List<BarcoLogico> flotaAnterior, List<BarcoLogico> flotaNueva);
     }
 
     public GestorJuego(Socket socket,

@@ -77,9 +77,9 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
             // Mantener SIEMPRE el sprite correcto: proa es proa, popa es popa
             if (c.isEsProa()) {
-                vh.waterView.setImageResource(R.drawable.barco_proa);
-            } else if (esPiezaInicial) {
                 vh.waterView.setImageResource(R.drawable.barco_popa);
+            } else if (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1) {
+                vh.waterView.setImageResource(R.drawable.barco_proa);
             } else {
                 vh.waterView.setImageResource(R.drawable.barco_medio);
             }

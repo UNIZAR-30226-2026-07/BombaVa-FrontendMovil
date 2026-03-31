@@ -27,6 +27,8 @@ public class PantallaJuegoBoard {
         rv.setLayoutManager(new GridLayoutManager(activity, 15));
         adapter = new BoardAdapter(matriz, listener::onClick);
         rv.setAdapter(adapter);
+        rv.setItemAnimator(null);
+        rv.setHasFixedSize(true);
     }
 
     public List<Casilla> getMatriz() {
@@ -96,7 +98,9 @@ public class PantallaJuegoBoard {
         if (posiciones.isEmpty()) return;
 
         for (Integer pos : posiciones) {
-            matriz.get(pos).resetVisual();
+            if (pos >= 0 && pos < matriz.size()) {
+                matriz.get(pos).resetVisual();
+            }
         }
 
         if (gestor != null) {
@@ -135,11 +139,78 @@ public class PantallaJuegoBoard {
         }
 
         for (Integer pos : posiciones) {
-            matriz.get(pos).setEnRangoAtaque(posicionesRangoActual.contains(pos));
+            if (pos >= 0 && pos < matriz.size()) {
+                matriz.get(pos).setEnRangoAtaque(posicionesRangoActual.contains(pos));
+            }
         }
 
         for (Integer pos : posiciones) {
-            adapter.notifyItemChanged(pos);
+            if (pos >= 0 && pos < matriz.size()) {
+                adapter.notifyItemChanged(pos);
+            }
+        }
+    }
+
+    public void repaintDiffFlotas(List<BarcoLogico> flotaAnterior,
+                                  List<BarcoLogico> flotaNueva,
+                                  GestorJuego gestor,
+                                  String idBarcoSeleccionado,
+                                  LinkedHashSet<Integer> posicionesRangoActual) {
+        LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
+
+        java.util.Map<String, BarcoLogico> mapaAnterior = new java.util.HashMap<>();
+        java.util.Map<String, BarcoLogico> mapaNueva = new java.util.HashMap<>();
+
+        if (flotaAnterior != null) {
+            for (BarcoLogico b : flotaAnterior) {
+                mapaAnterior.put(b.id, b);
+            }
+        }
+
+        if (flotaNueva != null) {
+            for (BarcoLogico b : flotaNueva) {
+                mapaNueva.put(b.id, b);
+            }
+        }
+
+        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
+        ids.addAll(mapaAnterior.keySet());
+        ids.addAll(mapaNueva.keySet());
+
+        for (String id : ids) {
+            BarcoLogico anterior = mapaAnterior.get(id);
+            BarcoLogico nuevo = mapaNueva.get(id);
+
+            boolean haCambiado = false;
+
+            if (anterior == null || nuevo == null) {
+                haCambiado = true;
+            } else {
+                haCambiado =
+                        anterior.x != nuevo.x ||
+                                anterior.y != nuevo.y ||
+                                !java.util.Objects.equals(anterior.orientation, nuevo.orientation) ||
+                                anterior.hpActual != nuevo.hpActual ||
+                                anterior.hpMax != nuevo.hpMax ||
+                                anterior.tipo != nuevo.tipo ||
+                                anterior.esAliado != nuevo.esAliado;
+            }
+
+            if (!haCambiado) continue;
+
+            if (anterior != null) {
+                posiciones.addAll(posicionesPara(anterior.x, anterior.y, anterior.orientation, anterior.tipo, gestor));
+            }
+
+            if (nuevo != null) {
+                posiciones.addAll(posicionesPara(nuevo.x, nuevo.y, nuevo.orientation, nuevo.tipo, gestor));
+            }
+        }
+
+        posiciones.addAll(posicionesRangoActual);
+
+        if (!posiciones.isEmpty()) {
+            repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
         }
     }
 
