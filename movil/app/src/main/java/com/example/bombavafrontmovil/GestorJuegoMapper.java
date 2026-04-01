@@ -175,6 +175,8 @@ public class GestorJuegoMapper {
             }
         }
 
+        // MUY IMPORTANTE:
+        // aquí NO se traduce nada. Se guarda exactamente lo que manda el backend.
         BarcoLogico barco = new BarcoLogico(
                 idPartida,
                 tamanoReal,

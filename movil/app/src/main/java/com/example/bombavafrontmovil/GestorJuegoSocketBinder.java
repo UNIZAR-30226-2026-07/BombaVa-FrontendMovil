@@ -145,11 +145,15 @@ public class GestorJuegoSocketBinder {
                 JSONObject data = (JSONObject) args[0];
                 List<BarcoLogico> nuevaFlota = new ArrayList<>();
 
-                JSONArray myFleet = null;
-                JSONArray enemyFleet = null;
+                JSONArray myFleet = data.optJSONArray("myFleet");
+                JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
-                if (data.has("myFleet")) {
-                    myFleet = data.getJSONArray("myFleet");
+                // Recalcular SOLO perspectiva visual
+                if (myFleet != null && enemyFleet != null) {
+                    game.recalcularPerspectiva(myFleet, enemyFleet);
+                }
+
+                if (myFleet != null) {
                     for (int i = 0; i < myFleet.length(); i++) {
                         JSONObject s = myFleet.getJSONObject(i);
                         nuevaFlota.add(
@@ -162,15 +166,18 @@ public class GestorJuegoSocketBinder {
                     }
                 }
 
-                if (data.has("visibleEnemyFleet")) {
-                    enemyFleet = data.getJSONArray("visibleEnemyFleet");
+                if (enemyFleet != null) {
                     for (int i = 0; i < enemyFleet.length(); i++) {
                         JSONObject s = enemyFleet.getJSONObject(i);
-                        nuevaFlota.add(game.mapper.construirBarcoDesdeJson(s, false, null));
+                        nuevaFlota.add(
+                                game.mapper.construirBarcoDesdeJson(
+                                        s,
+                                        false,
+                                        null
+                                )
+                        );
                     }
                 }
-
-                game.recalcularPerspectiva(myFleet, enemyFleet);
 
                 List<BarcoLogico> flotaAnterior = new ArrayList<>(game.flota);
 
@@ -180,7 +187,9 @@ public class GestorJuegoSocketBinder {
                     hayCambios = true;
                 } else {
                     java.util.Map<String, BarcoLogico> mapaAnterior = new java.util.HashMap<>();
-                    for (BarcoLogico b : flotaAnterior) mapaAnterior.put(b.id, b);
+                    for (BarcoLogico b : flotaAnterior) {
+                        mapaAnterior.put(b.id, b);
+                    }
 
                     for (BarcoLogico nuevo : nuevaFlota) {
                         BarcoLogico anterior = mapaAnterior.get(nuevo.id);
