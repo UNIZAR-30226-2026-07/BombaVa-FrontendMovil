@@ -169,12 +169,13 @@ public class PantallaJuegoController {
         cancelarModoAtaque();
 
         String dir;
+        /*
         if (gestor.isInvertirPerspectiva()) {
             dir = adelante ? direccionOpuesta(b.orientation) : b.orientation;
         } else {
             dir = adelante ? b.orientation : direccionOpuesta(b.orientation);
-        }
-
+        } */
+        dir = adelante ? b.orientation : direccionOpuesta(b.orientation);
         gestor.moverBarco(idBarcoSeleccionado, dir);
         ui.mostrar(ui.layMain);
     }
