@@ -175,6 +175,14 @@ public class GestorJuegoMapper {
             }
         }
 
+        try {
+            String orientacionRecibida = s.optString("orientation", "NO_RECIBIDA");
+            android.util.Log.d("DEBUG_ORIENTACION", "🚢 Mapeando barco. JSON recibido: " + s.toString());
+            android.util.Log.d("DEBUG_ORIENTACION", "🧭 Orientación detectada por el Mapper: " + orientacionRecibida);
+        } catch (Exception e) {
+            android.util.Log.e("DEBUG_ORIENTACION", "Error leyendo JSON del barco", e);
+        }
+
         // MUY IMPORTANTE:
         // aquí NO se traduce nada. Se guarda exactamente lo que manda el backend.
         BarcoLogico barco = new BarcoLogico(

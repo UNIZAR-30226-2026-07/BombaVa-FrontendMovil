@@ -75,9 +75,6 @@ public class PantallaJuegoController {
         View btnRotateR = activity.findViewById(R.id.btnRotateR);
         if (btnRotateR != null) btnRotateR.setOnClickListener(v -> rotarSeleccionado(90));
 
-        if (ui.btnAtk1 != null) ui.btnAtk1.setOnClickListener(v -> activarAtaqueCannon());
-        if (ui.btnAtk2 != null) ui.btnAtk2.setOnClickListener(v -> lanzarTorpedo());
-        if (ui.btnAtk3 != null) ui.btnAtk3.setOnClickListener(v -> activarAtaqueMina());
 
         View btnCloseInfo = activity.findViewById(R.id.btnCloseInfo);
         if (btnCloseInfo != null) btnCloseInfo.setOnClickListener(v -> ui.ocultarInfoBarco());
@@ -88,6 +85,65 @@ public class PantallaJuegoController {
                 if (idBarcoSeleccionado == null || gestor == null) return;
                 BarcoLogico barco = gestor.obtenerBarcoPorId(idBarcoSeleccionado);
                 if (barco != null && barco.esAliado) ui.mostrarInfoBarco(barco);
+            });
+        }
+
+        // Botón Cañón
+        if (ui.btnAtk1 != null) {
+            ui.btnAtk1.setOnClickListener(v -> {
+                if (idBarcoSeleccionado == null) {
+                    mostrarToast("Selecciona antes un barco aliado");
+                    return;
+                }
+                if (gestor == null || !gestor.isEsMiTurno()) {
+                    mostrarToast("No es tu turno");
+                    return;
+                }
+
+                tipoAtaque = 1;
+                rangoAtaqueActual = 4; // Rango del cañón
+                ui.ocultarInfoBarco();
+                actualizarRangoAtaqueVisual();
+                mostrarToast("Cañón preparado. Selecciona objetivo.");
+            });
+        }
+
+        // Botón Torpedo
+        if (ui.btnAtk2 != null) {
+            ui.btnAtk2.setOnClickListener(v -> {
+                if (idBarcoSeleccionado == null) {
+                    mostrarToast("Selecciona antes un barco aliado");
+                    return;
+                }
+                if (gestor == null || !gestor.isEsMiTurno()) {
+                    mostrarToast("No es tu turno");
+                    return;
+                }
+
+                tipoAtaque = 2;
+                ui.ocultarInfoBarco();
+                actualizarRangoAtaqueVisual();
+                mostrarToast("Torpedo preparado. Selecciona objetivo en la línea.");
+            });
+        }
+
+        // Botón Mina
+        if (ui.btnAtk3 != null) {
+            ui.btnAtk3.setOnClickListener(v -> {
+                if (idBarcoSeleccionado == null) {
+                    mostrarToast("Selecciona antes un barco aliado");
+                    return;
+                }
+                if (gestor == null || !gestor.isEsMiTurno()) {
+                    mostrarToast("No es tu turno");
+                    return;
+                }
+
+                tipoAtaque = 3;
+                rangoAtaqueActual = 1; // Rango de la mina
+                ui.ocultarInfoBarco();
+                actualizarRangoAtaqueVisual();
+                mostrarToast("Mina preparada. Selecciona dónde colocarla.");
             });
         }
     }
@@ -142,6 +198,17 @@ public class PantallaJuegoController {
                 mostrarToast("Esa casilla está fuera de rango");
                 return;
             }
+            gestor.lanzarTorpedo(idBarcoSeleccionado);
+            cancelarModoAtaque();
+            ui.mostrar(ui.layMain);
+            return;
+        }
+
+        if (tipoAtaque == 3 && idBarcoSeleccionado != null && gestor.isEsMiTurno()) {
+            if (!c.isEnRangoAtaque()) {
+                mostrarToast("Esa casilla está fuera de rango");
+                return;
+            }
             gestor.colocarMina(idBarcoSeleccionado, c.getFila(), c.getColumna());
             cancelarModoAtaque();
             ui.mostrar(ui.layMain);
@@ -188,52 +255,6 @@ public class PantallaJuegoController {
         }
         cancelarModoAtaque();
         gestor.rotarBarco(idBarcoSeleccionado, grados);
-        ui.mostrar(ui.layMain);
-    }
-
-    private void activarAtaqueCannon() {
-        if (idBarcoSeleccionado == null) {
-            mostrarToast("Selecciona antes un barco aliado");
-            return;
-        }
-        if (gestor == null || !gestor.isEsMiTurno()) {
-            mostrarToast("No es tu turno");
-            return;
-        }
-
-        tipoAtaque = 1;
-        rangoAtaqueActual = 4;
-        ui.ocultarInfoBarco();
-        actualizarRangoAtaqueVisual();
-        mostrarToast("Selecciona la casilla objetivo para disparar");
-    }
-
-    private void activarAtaqueMina() {
-        if (idBarcoSeleccionado == null) {
-            mostrarToast("Selecciona antes un barco aliado");
-            return;
-        }
-        if (gestor == null || !gestor.isEsMiTurno()) {
-            mostrarToast("No es tu turno");
-            return;
-        }
-
-        tipoAtaque = 2;
-        rangoAtaqueActual = 1;
-        ui.ocultarInfoBarco();
-        actualizarRangoAtaqueVisual();
-        mostrarToast("Selecciona la casilla donde quieres colocar la mina");
-    }
-
-    private void lanzarTorpedo() {
-        if (gestor == null || idBarcoSeleccionado == null) return;
-        if (!gestor.isEsMiTurno()) {
-            mostrarToast("No es tu turno");
-            return;
-        }
-
-        cancelarModoAtaque();
-        gestor.lanzarTorpedo(idBarcoSeleccionado);
         ui.mostrar(ui.layMain);
     }
 
@@ -302,7 +323,8 @@ public class PantallaJuegoController {
         LinkedHashSet<Integer> anteriores = new LinkedHashSet<>(posicionesRangoActual);
         posicionesRangoActual.clear();
 
-        if (gestor == null || idBarcoSeleccionado == null || rangoAtaqueActual <= 0) {
+        // Validaciones iniciales
+        if (gestor == null || idBarcoSeleccionado == null || tipoAtaque == 0) {
             board.repaintPositions(anteriores, gestor, idBarcoSeleccionado, posicionesRangoActual);
             return;
         }
@@ -313,23 +335,67 @@ public class PantallaJuegoController {
             return;
         }
 
-        List<int[]> origenes = barco.getCeldas();
+        // LÓGICA DE CAÑÓN / MINA (Área / Manhattan)
+        if (tipoAtaque == 1 || tipoAtaque == 3) { // Asumiendo 1=Cañón, 3=Mina
+            List<int[]> origenes = barco.getCeldas();
 
-        for (Casilla c : board.getMatriz()) {
-            int x = c.getColumna();
-            int yLogica = gestor.filaLogicaDesdeVisual(c.getFila());
+            for (Casilla c : board.getMatriz()) {
+                int x = c.getColumna();
+                int yLogica = gestor.filaLogicaDesdeVisual(c.getFila());
 
-            boolean enRango = false;
-            for (int[] origen : origenes) {
-                int dx = Math.abs(x - origen[1]);
-                int dy = Math.abs(yLogica - origen[0]);
+                boolean enRango = false;
+                for (int[] origen : origenes) {
+                    int dx = Math.abs(x - origen[1]);
+                    int dy = Math.abs(yLogica - origen[0]);
 
-                if ((dx + dy) <= rangoAtaqueActual) {
-                    enRango = true;
+                    if ((dx + dy) <= rangoAtaqueActual) {
+                        enRango = true;
+                        break;
+                    }
+                }
+                if (enRango) posicionesRangoActual.add(c.getFila() * 15 + c.getColumna());
+            }
+        }
+
+        else if (tipoAtaque == 2) {
+            List<int[]> celdas = barco.getCeldas();
+            if (celdas == null || celdas.isEmpty()) return;
+
+            // Encontrar la Proa del barco
+            int tipX = celdas.get(0)[1];
+            int tipY = celdas.get(0)[0];
+            String ori = barco.orientation;
+
+            for (int[] cell : celdas) {
+                int y = cell[0];
+                int x = cell[1];
+                if ("N".equals(ori) && y > tipY) tipY = y;
+                else if ("S".equals(ori) && y < tipY) tipY = y;
+                else if ("E".equals(ori) && x > tipX) tipX = x;
+                else if ("W".equals(ori) && x < tipX) tipX = x;
+            }
+
+            int filaVisualPunta = gestor.filaVisualDesdeLogica(tipY);
+            posicionesRangoActual.add(filaVisualPunta * 15 + tipX);
+
+            // Proyectar las 6 casillas hacia adelante desde esa punta
+            int currentX = tipX;
+            int currentY = tipY;
+
+            for (int i = 1; i <= 6; i++) {
+                if ("N".equals(ori)) currentY++;
+                else if ("S".equals(ori)) currentY--;
+                else if ("E".equals(ori)) currentX++;
+                else if ("W".equals(ori)) currentX--;
+
+                // Comprobamos límites del tablero
+                if (currentX < 0 || currentX > 14 || currentY < 0 || currentY > 14) {
                     break;
                 }
+
+                int filaVisual = gestor.filaVisualDesdeLogica(currentY);
+                posicionesRangoActual.add(filaVisual * 15 + currentX);
             }
-            if (enRango) posicionesRangoActual.add(c.getFila() * 15 + c.getColumna());
         }
 
         LinkedHashSet<Integer> aRepintar = new LinkedHashSet<>(anteriores);

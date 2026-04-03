@@ -1,5 +1,7 @@
 package com.example.bombavafrontmovil;
 
+import android.util.Log;
+
 import com.example.bombavafrontmovil.models.UserShip;
 
 import org.json.JSONArray;
@@ -182,8 +184,9 @@ public class GestorJuego {
             target.put("y", filaLogicaDesdeVisual(filaVisual));
             payload.put("target", target);
 
+
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Cañon -> " + payload.toString());
             socket.emit("ship:attack:cannon", payload);
-            android.util.Log.d("DEBUG_ATTACK", "Emit ship:attack:cannon -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -194,8 +197,9 @@ public class GestorJuego {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
             payload.put("shipId", shipId);
+
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque torpedo-> " + payload.toString());
             socket.emit("ship:attack:torpedo", payload);
-            android.util.Log.d("DEBUG_ATTACK", "Emit ship:attack:torpedo -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -212,8 +216,8 @@ public class GestorJuego {
             target.put("y", filaLogicaDesdeVisual(filaVisual));
             payload.put("target", target);
 
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Mina -> " + payload.toString());
             socket.emit("ship:attack:mine", payload);
-            android.util.Log.d("DEBUG_ATTACK", "Emit ship:attack:mine -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }

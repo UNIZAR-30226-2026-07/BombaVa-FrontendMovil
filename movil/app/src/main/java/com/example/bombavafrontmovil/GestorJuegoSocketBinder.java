@@ -20,7 +20,15 @@ public class GestorJuegoSocketBinder {
     public void configurarListeners() {
         game.socket.on("game:joined", args -> Log.d(TAG, "¡SERVER CONFIRMA! game:joined recibido."));
 
-        game.socket.on("match:startInfo", game::procesarStartInfo);
+        game.socket.on("match:startInfo", args -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                android.util.Log.d("DEBUG_ORIENTACION", "📥 [SOCKET] match:startInfo recibido COMPLETO: " + data.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            game.procesarStartInfo(args);
+        });
 
         game.socket.on("match:turn_changed", args -> {
             Log.d(TAG, "¡SERVER RESPONDE! match:turn_changed -> " + args[0]);
@@ -120,7 +128,7 @@ public class GestorJuegoSocketBinder {
         });
 
         game.socket.on("ship:attacked", args -> {
-            Log.d(TAG, "¡SERVER RESPONDE! ship:attacked -> " + args[0]);
+            Log.d("DEBUG_ATTACK", "💥 [POST-ATAQUE] Respuesta del server -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
                 int ammoCurrent = data.optInt("ammoCurrent", -1);
@@ -235,7 +243,7 @@ public class GestorJuegoSocketBinder {
         });
 
         game.socket.on("game:error", args -> {
-            Log.e(TAG, "¡SERVER DEVUELVE ERROR! game:error -> " + args[0]);
+            Log.e("DEBUG_ATTACK", "❌ [ERROR SERVER] -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
                 String msg = data.optString("message", "Error de juego");
@@ -244,6 +252,29 @@ public class GestorJuegoSocketBinder {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en game:error", e);
+            }
+        });
+
+        game.socket.on("projectile:launched", args -> {
+            Log.d("DEBUG_ATTACK", "🌊 [POST-ATAQUE] ¡Torpedo lanzado con éxito! -> " + args[0]);
+            try {
+                JSONObject data = (JSONObject) args[0];
+
+                String attackerId = data.optString("attackerId", "");
+                boolean esMiAtaque = attackerId.equals(game.myUserId);
+
+                if (esMiAtaque) {
+                    int nuevaMunicion = data.optInt("ammoCurrent", -1);
+                    if (nuevaMunicion != -1 && game.listener != null) {
+                        game.listener.onRecursosActualizados(-1, nuevaMunicion);
+                    }
+                }
+
+                // (Opcional) Si quieres añadir una animación, esto lo ven ambos jugadores:
+                // if (game.listener != null) game.listener.onAnimacionTorpedo(...);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo al leer projectile:launched", e);
             }
         });
     }
