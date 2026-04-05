@@ -95,7 +95,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)");
         });
 
-        // 🔥 NUEVAS ARMAS AL HACER CLIC
+        // NUEVAS ARMAS AL HACER CLIC
         findViewById(R.id.btn_ametralladora).setOnClickListener(v -> seleccionarArmaTemporal("Cañón"));
         findViewById(R.id.btn_misil).setOnClickListener(v -> seleccionarArmaTemporal("Mina"));
         findViewById(R.id.btn_torpedo).setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
@@ -334,31 +334,60 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         });
     }
 
+    // Inicia vacío y solo carga si hay mazo activo
     private void cargarFlotaExistente() {
-        String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", "");
+        // Extraemos el ID del usuario para saber de quién es el turno
+        String userId = prefs.getString("userId", "default");
+
+        // Comprobamos si este usuario ya ha guardado una flota alguna vez en este móvil
+        boolean yaConfiguroAntes = prefs.getBoolean("flota_guardada_" + userId, false);
+
+        gestorLogica.resetearTablero(); // Tablero en blanco siempre al inicio
+
+        // Si es su primera vez, ignoramos al servidor y le damos el tablero limpio
+        if (!yaConfiguroAntes) {
+            actualizarTodaLaVistaTablero();
+            sincronizarArmasConUI();
+            Toast.makeText(this, "¡Bienvenido! Es tu primera vez, despliega tu flota.", Toast.LENGTH_LONG).show();
+            return; // Cortamos aquí para que no lea el mazo por defecto del servidor
+        }
+
+        // Si ya configuró antes, hacemos la petición normal al servidor
         ApiClient.getApiService().obtenerMazo("Bearer " + token).enqueue(new Callback<List<FleetConfigRequest>>() {
             @Override
             public void onResponse(Call<List<FleetConfigRequest>> call, Response<List<FleetConfigRequest>> response) {
+                boolean mazoActivoEncontrado = false;
+
                 if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
-                    gestorLogica.resetearTablero();
-                    List<FleetConfigRequest> listaMazos = response.body();
                     FleetConfigRequest mazoCargar = null;
 
-                    for (FleetConfigRequest mazo : listaMazos) {
-                        if (mazo.isActive()) { mazoCargar = mazo; break; }
+                    for (FleetConfigRequest mazo : response.body()) {
+                        if (mazo.isActive()) {
+                            mazoCargar = mazo;
+                            mazoActivoEncontrado = true;
+                            break;
+                        }
                     }
-                    if (mazoCargar == null) mazoCargar = listaMazos.get(listaMazos.size() - 1);
 
-                    if (mazoCargar.getShipPositions() != null) {
+                    if (mazoCargar != null && mazoCargar.getShipPositions() != null) {
                         for (ShipPosition p : mazoCargar.getShipPositions()) {
                             gestorLogica.cargarBarcoDesdeServidor(p.getUserShipId(), p.getPosition().getX(), p.getPosition().getY(), p.getOrientation(), realIdBarco5, realIdBarco3, realIdBarco1);
                         }
                     }
-                    actualizarTodaLaVistaTablero();
-                    sincronizarArmasConUI();
+                }
+
+                actualizarTodaLaVistaTablero();
+                sincronizarArmasConUI();
+
+                if (!mazoActivoEncontrado) {
+                    Toast.makeText(ConfigurarFlotaActivity.this, "Sin flota activa. ¡Despliega tus barcos!", Toast.LENGTH_SHORT).show();
                 }
             }
-            @Override public void onFailure(Call<List<FleetConfigRequest>> call, Throwable t) {}
+            @Override public void onFailure(Call<List<FleetConfigRequest>> call, Throwable t) {
+                actualizarTodaLaVistaTablero();
+            }
         });
     }
 
@@ -401,6 +430,12 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (response.isSuccessful()) {
+
+                    // Guardamos que este usuario ya tiene una flota real configurada por él
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    prefs.edit().putBoolean("flota_guardada_" + userId, true).apply();
+
                     enviarArmasAlServidor(token);
                     Toast.makeText(ConfigurarFlotaActivity.this, "¡Configuración actualizada!", Toast.LENGTH_SHORT).show();
                     finish();
@@ -467,6 +502,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             for (int p = 0; p < 225; p++) { if (gestorLogica.getIdBarcoEn(p) == id) { inicio = p; break; } }
             if (inicio != -1) {
                 int tam = gestorLogica.getTamanoBarco(id);
+                // Tu propia lógica para detectar la orientación:
                 boolean hor = (inicio + 1 < 225 && gestorLogica.getIdBarcoEn(inicio + 1) == id);
                 dibujarBarcoEnVista(inicio, tam, hor);
             }

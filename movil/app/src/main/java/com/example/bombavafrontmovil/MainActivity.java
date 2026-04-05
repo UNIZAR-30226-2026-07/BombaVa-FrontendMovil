@@ -1,7 +1,5 @@
 package com.example.bombavafrontmovil;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -112,25 +110,55 @@ public class MainActivity extends AppCompatActivity {
         return token != null && !token.isEmpty();
     }
 
+    // Nuevo pop-up estilizado con pergamino y madera
     private void mostrarDialogoAlistamiento() {
-        new AlertDialog.Builder(this)
-                .setTitle("¡Acceso Restringido!")
-                .setMessage("Atención: Necesitas estar alistado en la flota para acceder a esta sección de la Sala de Mando.\n\n¿Deseas identificarte o crear una cuenta ahora?")
-                .setPositiveButton("Identificarse", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-                        startActivity(intent);
-                    }
-                })
-                .setNegativeButton("Permanecer en cubierta", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .setCancelable(true)
-                .show();
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_personalizado);
+
+        // Hacemos el marco exterior transparente
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+
+        dialog.setCancelable(true);
+
+        // Enlazamos las vistas
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnIdentificarse = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnCancelar = dialog.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        // Configuración de textos y colores para advertencia
+        tvTitulo.setText("¡ACCESO RESTRINGIDO!");
+        tvMensaje.setText("Atención: Necesitas estar alistado en la flota para acceder a esta sección de la Sala de Mando.\n\n¿Deseas identificarte o crear una cuenta ahora?");
+
+        // Ponemos el icono de alerta y le damos el tono rojo oscuro/borgoña
+        ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#B71C1C"));
+        tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
+
+        // Hacemos visible el botón secundario (Cancelar)
+        btnCancelar.setVisibility(android.view.View.VISIBLE);
+
+        btnCancelar.setText("PERMANECER");
+        btnIdentificarse.setText("IDENTIFICARSE");
+
+        // Acción: Ir al Login
+        btnIdentificarse.setOnClickListener(v -> {
+            dialog.dismiss();
+            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+            startActivity(intent);
+        });
+
+        // Acción: Quedarse en la pantalla actual
+        btnCancelar.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 }
