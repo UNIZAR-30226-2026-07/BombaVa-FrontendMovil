@@ -228,8 +228,23 @@ public class PantallaJuego extends AppCompatActivity {
                                 )
                         );
                     }
-                }
 
+                    @Override
+                    public void onVisionUpdateParcial(List<BarcoLogico> flotaAnterior, List<BarcoLogico> flotaNueva) {
+                        runOnUiThread(() -> {
+                            controller.setGestor(gestor);
+                            controller.setDiccionarioFlota(diccionarioFlota);
+                            ui.actualizarTurno(gestor != null && gestor.isEsMiTurno(), PantallaJuego.this);
+                            board.repaintDiffFlotas(
+                                    flotaAnterior,
+                                    flotaNueva,
+                                    gestor,
+                                    controller.getIdBarcoSeleccionado(),
+                                    controller.getPosicionesRangoActual()
+                            );
+                        });
+                    }
+                }
         );
 
         controller.setGestor(gestor);

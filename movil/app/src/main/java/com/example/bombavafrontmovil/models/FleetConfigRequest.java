@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName;
 import java.util.List;
 
 public class FleetConfigRequest {
+
     @SerializedName("id")
     private String id;
 
@@ -21,8 +22,27 @@ public class FleetConfigRequest {
         this.shipIds = shipIds;
     }
 
-    public String getId() { return id; }
-    public String getName() { return deckName; }
-    public boolean isActive() { return isActive; } // 🔥 Añadimos su getter
-    public List<ShipPosition> getShipPositions() { return shipIds; }
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return deckName;
+    }
+
+    public String getDeckName() {
+        return deckName;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public List<ShipPosition> getShipIds() {
+        return shipIds;
+    }
+
+    public List<ShipPosition> getShipPositions() {
+        return shipIds;
+    }
 }

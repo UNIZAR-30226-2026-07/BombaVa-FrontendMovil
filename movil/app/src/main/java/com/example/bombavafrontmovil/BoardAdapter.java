@@ -72,23 +72,45 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
         if (c.isTieneBarco()) {
             boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
-            boolean esExtremo = c.isEsProa() || esPiezaInicial;
             boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
 
-            // Mantener SIEMPRE el sprite correcto: proa es proa, popa es popa
-            if (c.isEsProa()) {
-                vh.waterView.setImageResource(R.drawable.barco_proa);
-            } else if (esPiezaInicial) {
-                vh.waterView.setImageResource(R.drawable.barco_popa);
+            // En vertical, intercambiamos proa/popa porque tus sprites quedan al revés.
+            if (esVertical) {
+                if (c.isEsProa()) {
+                    vh.waterView.setImageResource(R.drawable.barco_popa);
+                } else if (esPiezaInicial) {
+                    vh.waterView.setImageResource(R.drawable.barco_proa);
+                } else {
+                    vh.waterView.setImageResource(R.drawable.barco_medio);
+                }
             } else {
-                vh.waterView.setImageResource(R.drawable.barco_medio);
+                // En horizontal estaba bien
+                if (c.isEsProa()) {
+                    vh.waterView.setImageResource(R.drawable.barco_proa);
+                } else if (esPiezaInicial) {
+                    vh.waterView.setImageResource(R.drawable.barco_popa);
+                } else {
+                    vh.waterView.setImageResource(R.drawable.barco_medio);
+                }
             }
 
-            float rot = (c.getDireccion() * 90f);
-
-            // Solo en vertical, los extremos necesitan media vuelta extra
-            if (esExtremo && esVertical) {
-                rot += 180f;
+            float rot;
+            switch (c.getDireccion()) {
+                case 0: // S
+                    rot = 180f;
+                    break;
+                case 1: // W
+                    rot = 270f;
+                    break;
+                case 2: // N
+                    rot = 0f;
+                    break;
+                case 3: // E
+                    rot = 90f;
+                    break;
+                default:
+                    rot = 0f;
+                    break;
             }
 
             vh.waterView.setRotation(rot);

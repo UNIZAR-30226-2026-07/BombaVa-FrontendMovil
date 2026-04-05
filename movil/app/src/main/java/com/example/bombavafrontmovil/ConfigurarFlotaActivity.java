@@ -396,6 +396,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         String token = prefs.getString("token", "");
         final String nombreMazoUnico = "Flota Activa " + System.currentTimeMillis();
         List<ShipPosition> posiciones = gestorLogica.obtenerPosicionesParaBackend(realIdBarco5, realIdBarco3, realIdBarco1);
+        android.util.Log.d("DEBUG_ORIENTACION", "🚀 [PRE-ENVÍO] Posiciones generadas: " + new com.google.gson.Gson().toJson(posiciones));
 
         if(posiciones.isEmpty()) { Toast.makeText(this, "Error: No se detectaron barcos para guardar.", Toast.LENGTH_SHORT).show(); return; }
 
@@ -452,7 +453,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             // 1. Obtenemos las armas de la pantalla (en Español)
             Set<String> armasUI = gestorLogica.getArmasEquipadas(i);
 
-            // 2. TRADUCTOR: Las convertimos al idioma del servidor (Slugs)
+            // 2. Las convertimos al idioma del servidor (Slugs)
             Set<String> slugsNuevos = new HashSet<>();
             for (String uiName : armasUI) {
                 if (uiName.equals("Cañón")) slugsNuevos.add("cannon-base");

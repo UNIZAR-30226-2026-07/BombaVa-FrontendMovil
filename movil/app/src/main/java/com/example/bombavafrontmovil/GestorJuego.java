@@ -1,5 +1,7 @@
 package com.example.bombavafrontmovil;
 
+import android.util.Log;
+
 import com.example.bombavafrontmovil.models.UserShip;
 
 import org.json.JSONArray;
@@ -26,7 +28,7 @@ public class GestorJuego {
     final GestorJuegoMapper mapper;
     final GestorJuegoSocketBinder socketBinder;
 
-    // Se decide automáticamente mirando myFleet vs enemyFleet
+    // Solo controla cómo se PINTA el tablero
     private boolean invertirPerspectiva = true;
 
     public interface PartidaListener {
@@ -36,6 +38,7 @@ public class GestorJuego {
         void onErrorJuego(String mensaje);
         void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo);
         void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo);
+        void onVisionUpdateParcial(List<BarcoLogico> flotaAnterior, List<BarcoLogico> flotaNueva);
     }
 
     public GestorJuego(Socket socket,
@@ -70,7 +73,7 @@ public class GestorJuego {
             double mediaMy = mediaY(myFleet);
             double mediaEnemy = mediaY(enemyFleet);
 
-            // Si mis barcos vienen "más arriba" en lógico, hay que espejar
+            // Si mis barcos vienen "más arriba", invertimos para pintarlos abajo.
             invertirPerspectiva = mediaMy < mediaEnemy;
 
             android.util.Log.d(
@@ -181,8 +184,9 @@ public class GestorJuego {
             target.put("y", filaLogicaDesdeVisual(filaVisual));
             payload.put("target", target);
 
+
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Cañon -> " + payload.toString());
             socket.emit("ship:attack:cannon", payload);
-            android.util.Log.d("DEBUG_ATTACK", "Emit ship:attack:cannon -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -193,8 +197,9 @@ public class GestorJuego {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
             payload.put("shipId", shipId);
+
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque torpedo-> " + payload.toString());
             socket.emit("ship:attack:torpedo", payload);
-            android.util.Log.d("DEBUG_ATTACK", "Emit ship:attack:torpedo -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -211,8 +216,8 @@ public class GestorJuego {
             target.put("y", filaLogicaDesdeVisual(filaVisual));
             payload.put("target", target);
 
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Mina -> " + payload.toString());
             socket.emit("ship:attack:mine", payload);
-            android.util.Log.d("DEBUG_ATTACK", "Emit ship:attack:mine -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }

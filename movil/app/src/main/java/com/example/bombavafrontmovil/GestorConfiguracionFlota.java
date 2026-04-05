@@ -117,13 +117,25 @@ public class GestorConfiguracionFlota {
 
     public List<ShipPosition> obtenerPosicionesParaBackend(String realIdBarco5, String realIdBarco3, String realIdBarco1) {
         List<ShipPosition> posiciones = new ArrayList<>();
-        Map<Integer, List<Integer>> celdasBarco = new HashMap<>();
 
-        for (int i = 0; i < tablero.length; i++) {
-            if (tablero[i] != 0) {
-                int id = tablero[i];
-                celdasBarco.putIfAbsent(id, new ArrayList<>());
-                celdasBarco.get(id).add(i);
+        for (int idInterno = 1; idInterno < idBarcoActual; idInterno++) {
+            List<Integer> celdasBarco = new ArrayList<>();
+            for (int i = 0; i < 225; i++) {
+                if (tablero[i] == idInterno) celdasBarco.add(i);
+            }
+            if (celdasBarco.isEmpty()) continue;
+
+            int tamano = celdasBarco.size();
+            String realId = (tamano >= 4) ? id5 : (tamano >= 2 ? id3 : id1);
+            if (realId == null || realId.isEmpty()) continue;
+
+            boolean horizontal = false;
+            String orientacion = "N";
+            if (tamano > 1) {
+                int primera = celdasBarco.get(0);
+                int segunda = celdasBarco.get(1);
+                horizontal = ((segunda - primera) == 1);
+                orientacion = horizontal ? "E" : "N";
             }
         }
 
@@ -140,22 +152,34 @@ public class GestorConfiguracionFlota {
 
             int xCentro = posCentro % 15;
             int yCentroApp = posCentro / 15;
-            // Convertimos la coordenada Y al idioma del backend (quitando el offset de 10)
-            int yCentroBackend = yCentroApp - 10;
 
-            posiciones.add(new ShipPosition(realId, new Position(xCentro, yCentroBackend), orientacion));
+            // La zona aliada visual está en filas 10..14.
+            // Para que en partida se vea igual tras el espejado del tablero,
+            // la Y relativa al backend debe ir invertida dentro de ese bloque.
+            int yCentroBackend = 14 - yCentroApp;
+
+            posiciones.add(new ShipPosition(
+                    realId,
+                    new Position(xCentro, yCentroBackend),
+                    orientacion
+            ));
         }
+
         return posiciones;
     }
 
-    // Carga los barcos desde el servidor respetando la rotación
-    public void cargarBarcoDesdeServidor(String realId, int xCentro, int yServidor, String orientacion, String id5, String id3, String id1) {
+    public void cargarBarcoDesdeServidor(String realId, int xCentro, int yServidor, String orientacion,
+                                         String id5, String id3, String id1) {
         int tamano = (realId.equals(id5)) ? 5 : (realId.equals(id3) ? 3 : (realId.equals(id1) ? 1 : 0));
         if (tamano <= 0) return;
 
-        // Volvemos a traer la Y a la zona visual aliada
-        int yCentroApp = yServidor + 10;
-        boolean horizontal = orientacion != null && (orientacion.equalsIgnoreCase("E") || orientacion.equalsIgnoreCase("H"));
+        // Inversa exacta de obtenerPosicionesParaBackend()
+        int yCentroApp = 14 - yServidor;
+
+        boolean horizontal = orientacion != null &&
+                (orientacion.equalsIgnoreCase("E") || orientacion.equalsIgnoreCase("H"));
+
+        int offset = tamano / 2;
 
         // Guardamos cómo debe dibujarse en la UI
         rotacionPorBarco.put(idBarcoActual, horizontal ? 0f : 90f);
@@ -169,6 +193,7 @@ public class GestorConfiguracionFlota {
                 tablero[fila * 15 + col] = idBarcoActual;
             }
         }
+
         idBarcoActual++;
     }
 }
