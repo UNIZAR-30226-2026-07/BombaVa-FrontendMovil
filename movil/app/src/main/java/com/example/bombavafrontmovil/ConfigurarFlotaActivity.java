@@ -118,12 +118,26 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
     private void mostrarDialogoLeyenda() {
         android.app.Dialog dialog = new android.app.Dialog(this);
-        dialog.setContentView(R.layout.dialog_leyenda_mapa);
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
-            dialog.getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+
+        if (faseActual == 1) {
+            // LEYENDA DEL MAPA (Colocación de barcos)
+            dialog.setContentView(R.layout.dialog_leyenda_mapa);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+                dialog.getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+            dialog.findViewById(R.id.btn_cerrar_leyenda).setOnClickListener(v -> dialog.dismiss());
+
+        } else {
+            // LEYENDA DE ARMAS (Equipamiento)
+            dialog.setContentView(R.layout.dialog_leyenda_armas);
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+                dialog.getWindow().setLayout(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+            dialog.findViewById(R.id.btn_cerrar_leyenda_armas).setOnClickListener(v -> dialog.dismiss());
         }
-        dialog.findViewById(R.id.btn_cerrar_leyenda).setOnClickListener(v -> dialog.dismiss());
+
         dialog.show();
     }
 

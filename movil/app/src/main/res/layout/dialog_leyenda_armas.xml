@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_pergamino"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:gravity="center"
+            android:text="MANUAL DE ARMAS"
+            android:textColor="#5C3A21"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="💥 Cañón Base (Instantáneo)"
+                    android:textColor="#5C3A21"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp"
+                    android:text="Ataque directo con daño inmediato. Tiene un radio de alcance de 4 casillas desde cualquier parte de tu barco."
+                    android:textColor="#3E2723"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🚀 Torpedo (Proyectil Móvil)"
+                    android:textColor="#5C3A21"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="16dp"
+                    android:text="Se dispara exclusivamente desde la proa (punta) del barco. Avanza en línea recta al final de cada turno hasta un máximo de 6 casillas. Dañará al primer barco con el que impacte."
+                    android:textColor="#3E2723"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="💣 Mina Naval (Estática)"
+                    android:textColor="#5C3A21"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="24dp"
+                    android:text="Trampa invisible. Puedes colocarla en cualquier casilla adyacente al barco (radio de 1). Permanece en el agua por 10 turnos y explota instantáneamente si cualquier barco entra en esa coordenada."
+                    android:textColor="#3E2723"
+                    android:textSize="15sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <Button
+            android:id="@+id/btn_cerrar_leyenda_armas"
+            style="@style/BotonMadera"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="ENTENDIDO"
+            android:textAllCaps="true" />
+
+    </LinearLayout>
+</FrameLayout>
