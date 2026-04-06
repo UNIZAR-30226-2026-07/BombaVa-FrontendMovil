@@ -6,8 +6,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import java.util.List;
 
 public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> {
@@ -15,7 +17,9 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     private final List<Casilla> tableroDatos;
     private final OnCasillaClickListener listener;
 
-    public interface OnCasillaClickListener { void onCasillaClick(Casilla casilla); }
+    public interface OnCasillaClickListener {
+        void onCasillaClick(Casilla casilla);
+    }
 
     public BoardAdapter(List<Casilla> dataSet, OnCasillaClickListener listener) {
         this.tableroDatos = dataSet;
@@ -24,9 +28,10 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public final ImageView waterView;
+
         public ViewHolder(View view) {
             super(view);
-            waterView = (ImageView) view.findViewById(R.id.view_water);
+            waterView = view.findViewById(R.id.view_water);
         }
     }
 
@@ -49,47 +54,79 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder vh, int pos) {
         Casilla c = tableroDatos.get(pos);
 
-        // 1. LIMPIEZA
-        vh.waterView.setRotation(0);
+        vh.waterView.setRotation(0f);
         vh.waterView.clearColorFilter();
         vh.waterView.setImageDrawable(null);
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
-        vh.waterView.getBackground().clearColorFilter();
 
-        // 2. ¿HAY BARCO?
+        if (vh.waterView.getBackground() != null) {
+            vh.waterView.getBackground().clearColorFilter();
+        }
+
+        if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
+            vh.waterView.getBackground().setColorFilter(
+                    Color.argb(70, 255, 255, 180),
+                    PorterDuff.Mode.SRC_ATOP
+            );
+        }
+
         if (c.isTieneBarco()) {
+            boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
+            boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
 
-            // A) IMAGEN
-            if (c.isEsProa()) vh.waterView.setImageResource(R.drawable.barco_proa);
-            else if (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1) vh.waterView.setImageResource(R.drawable.barco_popa);
-            else vh.waterView.setImageResource(R.drawable.barco_medio);
+            // En vertical, intercambiamos proa/popa porque tus sprites quedan al revés.
+            if (esVertical) {
+                if (c.isEsProa()) {
+                    vh.waterView.setImageResource(R.drawable.barco_popa);
+                } else if (esPiezaInicial) {
+                    vh.waterView.setImageResource(R.drawable.barco_proa);
+                } else {
+                    vh.waterView.setImageResource(R.drawable.barco_medio);
+                }
+            } else {
+                // En horizontal estaba bien
+                if (c.isEsProa()) {
+                    vh.waterView.setImageResource(R.drawable.barco_proa);
+                } else if (esPiezaInicial) {
+                    vh.waterView.setImageResource(R.drawable.barco_popa);
+                } else {
+                    vh.waterView.setImageResource(R.drawable.barco_medio);
+                }
+            }
 
-            // B) ROTACIÓN
-            vh.waterView.setRotation(c.getDireccion() * 90);
+            float rot;
+            switch (c.getDireccion()) {
+                case 0: // S
+                    rot = 180f;
+                    break;
+                case 1: // W
+                    rot = 270f;
+                    break;
+                case 2: // N
+                    rot = 0f;
+                    break;
+                case 3: // E
+                    rot = 90f;
+                    break;
+                default:
+                    rot = 0f;
+                    break;
+            }
 
-            // C) TINTES E ILUMINACIÓN
+            vh.waterView.setRotation(rot);
+
             if (c.isSeleccionado()) {
-                // --- SOLUCIÓN VISUAL ---
-                // Usamos Color.argb(alfa, rojo, verde, azul).
-                // 100 de alfa significa que es semi-transparente.
-                // SRC_ATOP pinta el color SOLO donde hay barco, respetando la transparencia.
-                vh.waterView.setColorFilter(Color.argb(100, 255, 235, 59), PorterDuff.Mode.SRC_ATOP);
-            }
-            else if (c.getVidaCelda() <= 0) {
-                vh.waterView.setColorFilter(Color.DKGRAY, PorterDuff.Mode.MULTIPLY);
-            }
-            else if (c.getVidaCelda() == 1) {
-                vh.waterView.setColorFilter(Color.parseColor("#E64A19"), PorterDuff.Mode.SRC_ATOP);
-            }
-            else if (!c.isEsAliado()) {
-                vh.waterView.setColorFilter(Color.parseColor("#FFCDD2"), PorterDuff.Mode.MULTIPLY);
-            }
-
-        } else {
-            // AGUA
-            if (c.isSeleccionado()) {
-                // Si es agua seleccionada, teñimos el fondo suavemente
-                vh.waterView.getBackground().setColorFilter(Color.parseColor("#8081D4FA"), PorterDuff.Mode.SRC_ATOP);
+                vh.waterView.setColorFilter(
+                        Color.argb(110, 255, 235, 59),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            } else if (!c.isEsAliado()) {
+                vh.waterView.setColorFilter(
+                        Color.argb(70, 255, 80, 80),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            } else {
+                vh.waterView.clearColorFilter();
             }
         }
 
@@ -97,5 +134,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     }
 
     @Override
-    public int getItemCount() { return tableroDatos.size(); }
+    public int getItemCount() {
+        return tableroDatos.size();
+    }
 }

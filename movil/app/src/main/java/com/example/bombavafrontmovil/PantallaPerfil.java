@@ -135,23 +135,46 @@ public class PantallaPerfil extends AppCompatActivity {
     }
 
     private void mostrarDialogoCerrarSesion() {
-        new AlertDialog.Builder(this)
-                .setTitle("Abandonar la flota")
-                .setMessage("¿Estás seguro de que deseas cerrar sesión, Almirante?")
-                .setPositiveButton("Sí, salir", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        cerrarSesionDirecta();
-                    }
-                })
-                .setNegativeButton("Cancelar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                })
-                .setIcon(android.R.drawable.ic_dialog_alert)
-                .show();
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.setContentView(R.layout.dialog_personalizado);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+
+        dialog.setCancelable(true);
+
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnConfirmar = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnCancelar = dialog.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        // Configuración de textos para el Cierre de Sesión
+        tvTitulo.setText("ABANDONAR FLOTA");
+        tvMensaje.setText("¿Estás seguro de que deseas retirarte a puerto y cerrar sesión, Almirante?");
+        ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#5C3A21"));
+
+        // Hacemos visible el botón de cancelar para este caso
+        btnCancelar.setVisibility(android.view.View.VISIBLE);
+        btnCancelar.setText("QUEDARSE");
+        btnConfirmar.setText("SALIR");
+
+        // Acción: Confirmar salida
+        btnConfirmar.setOnClickListener(v -> {
+            dialog.dismiss();
+            cerrarSesionDirecta();
+        });
+
+        // Acción: Cancelar
+        btnCancelar.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     private void cerrarSesionDirecta() {

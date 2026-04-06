@@ -29,7 +29,7 @@
         android:id="@+id/et_username"
         android:layout_width="match_parent"
         android:layout_height="55dp"
-        android:hint="Correo de Almirante"
+        android:hint="Nombre de usuario"
         android:textColorHint="#000000"
         android:textColor="#3A3737"
         android:background="@drawable/bg_input_naval"
