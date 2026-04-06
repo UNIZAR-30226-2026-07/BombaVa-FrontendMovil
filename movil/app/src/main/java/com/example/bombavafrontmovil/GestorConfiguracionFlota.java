@@ -126,8 +126,7 @@ public class GestorConfiguracionFlota {
             if (celdasBarco.isEmpty()) continue;
 
             int tamano = celdasBarco.size();
-            String realId = (tamano >= 4) ? id5 : (tamano >= 2 ? id3 : id1);
-            if (realId == null || realId.isEmpty()) continue;
+            String realId = (tamano >= 4) ? realIdBarco5 : (tamano >= 2 ? realIdBarco3 : realIdBarco1);            if (realId == null || realId.isEmpty()) continue;
 
             boolean horizontal = false;
             String orientacion = "N";
