@@ -119,34 +119,22 @@ public class GestorConfiguracionFlota {
         List<ShipPosition> posiciones = new ArrayList<>();
 
         for (int idInterno = 1; idInterno < idBarcoActual; idInterno++) {
-            List<Integer> celdasBarco = new ArrayList<>();
+            List<Integer> casillas = new ArrayList<>();
             for (int i = 0; i < 225; i++) {
-                if (tablero[i] == idInterno) celdasBarco.add(i);
+                if (tablero[i] == idInterno) casillas.add(i);
             }
-            if (celdasBarco.isEmpty()) continue;
+            if (casillas.isEmpty()) continue;
 
-            int tamano = celdasBarco.size();
-            String realId = (tamano >= 4) ? realIdBarco5 : (tamano >= 2 ? realIdBarco3 : realIdBarco1);            if (realId == null || realId.isEmpty()) continue;
-
-            boolean horizontal = false;
-            String orientacion = "N";
-            if (tamano > 1) {
-                int primera = celdasBarco.get(0);
-                int segunda = celdasBarco.get(1);
-                horizontal = ((segunda - primera) == 1);
-                orientacion = horizontal ? "E" : "N";
-            }
-        }
-
-        for (Map.Entry<Integer, List<Integer>> entry : celdasBarco.entrySet()) {
-            List<Integer> casillas = entry.getValue();
             int tamano = casillas.size();
-            String realId = (tamano == 5) ? realIdBarco5 : (tamano == 3 ? realIdBarco3 : realIdBarco1);
 
-            boolean enHorizontal = casillas.size() > 1 && (casillas.get(1) - casillas.get(0) == 1);
-            String orientacion = enHorizontal ? "E" : "S";
+            // Usamos las variables correctas (las que llegan por parámetros)
+            String realId = (tamano >= 4) ? realIdBarco5 : (tamano >= 2 ? realIdBarco3 : realIdBarco1);
+            if (realId == null || realId.isEmpty()) continue;
 
-            int centroIndex = casillas.size() / 2;
+            boolean enHorizontal = tamano > 1 && (casillas.get(1) - casillas.get(0) == 1);
+            String orientacion = enHorizontal ? "E" : "N";
+
+            int centroIndex = tamano / 2;
             int posCentro = casillas.get(centroIndex);
 
             int xCentro = posCentro % 15;
@@ -183,7 +171,6 @@ public class GestorConfiguracionFlota {
         // Guardamos cómo debe dibujarse en la UI
         rotacionPorBarco.put(idBarcoActual, horizontal ? 0f : 90f);
 
-        int offset = tamano / 2;
         for (int i = -offset; i <= offset; i++) {
             int fila = horizontal ? yCentroApp : (yCentroApp + i);
             int col = horizontal ? (xCentro + i) : xCentro;
