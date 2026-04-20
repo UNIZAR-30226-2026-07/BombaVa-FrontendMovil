@@ -10,6 +10,7 @@ import com.example.bombavafrontmovil.models.UserShip;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import android.widget.Toast;
 
 public class PantallaJuegoController {
 
@@ -451,6 +452,20 @@ public class PantallaJuegoController {
     }
 
     public void mostrarToast(String texto) {
-        Toast.makeText(activity, texto, Toast.LENGTH_SHORT).show();
+        if (ui != null) {
+            ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.INFO);
+        }
+    }
+
+    public void mostrarError(String texto) {
+        if (ui != null) {
+            ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.ERROR);
+        }
+    }
+
+    public void mostrarSuccess(String texto) {
+        if (ui != null) {
+            ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.SUCCESS);
+        }
     }
 }

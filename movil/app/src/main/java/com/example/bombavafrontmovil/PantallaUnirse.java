@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Toast;
 
 import com.example.bombavafrontmovil.network.SocketManager;
 
@@ -51,7 +50,7 @@ public class PantallaUnirse extends BaseActivity {
                     e.printStackTrace();
                 }
             } else {
-                Toast.makeText(this, "Introduce un código válido", Toast.LENGTH_SHORT).show();
+                AppNotifier.show(this, "Introduce un código válido", AppNotifier.Type.ERROR);
             }
         });
     }
@@ -83,9 +82,9 @@ public class PantallaUnirse extends BaseActivity {
         mSocket.on("lobby:error", args -> runOnUiThread(() -> {
             try {
                 JSONObject data = (JSONObject) args[0];
-                Toast.makeText(this, data.optString("message", "Error al unirse"), Toast.LENGTH_SHORT).show();
+                AppNotifier.show(this, data.optString("message", "Error al unirse"), AppNotifier.Type.ERROR);
             } catch (Exception e) {
-                Toast.makeText(this, "Error al unirse", Toast.LENGTH_SHORT).show();
+                AppNotifier.show(this, "Error al unirse", AppNotifier.Type.ERROR);
             }
 
             btnJoin.setEnabled(true);

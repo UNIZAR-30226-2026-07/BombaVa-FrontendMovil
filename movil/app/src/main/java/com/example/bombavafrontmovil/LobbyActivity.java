@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -45,7 +44,7 @@ public class LobbyActivity extends AppCompatActivity {
         mSocket.emit("lobby:create");
 
         btnGoToGame.setOnClickListener(v ->
-                Toast.makeText(this, "Espera a que se una un rival", Toast.LENGTH_SHORT).show()
+                AppNotifier.show(this, "Espera a que se una un rival", AppNotifier.Type.INFO)
         );
     }
 
@@ -85,9 +84,9 @@ public class LobbyActivity extends AppCompatActivity {
         mSocket.on("lobby:error", args -> runOnUiThread(() -> {
             try {
                 JSONObject data = (JSONObject) args[0];
-                Toast.makeText(this, data.optString("message", "Error de lobby"), Toast.LENGTH_SHORT).show();
+                AppNotifier.show(this, data.optString("message", "Error de lobby"), AppNotifier.Type.ERROR);
             } catch (Exception e) {
-                Toast.makeText(this, "Error de lobby", Toast.LENGTH_SHORT).show();
+                AppNotifier.show(this, "Error de lobby", AppNotifier.Type.ERROR);
             }
         }));
     }
