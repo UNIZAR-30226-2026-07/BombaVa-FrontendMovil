@@ -309,14 +309,10 @@ public class PantallaJuegoController {
             boolean afecta = (idAnterior != null && idAnterior.equals(b.id)) ||
                     (idNuevo != null && idNuevo.equals(b.id));
             if (!afecta) continue;
+
             posiciones.addAll(board.posicionesPara(b.x, b.y, b.orientation, b.tipo, gestor));
         }
 
-        for (Integer pos : posiciones) {
-            Casilla casilla = board.getMatriz().get(pos);
-            String shipId = casilla.getIdBarcoStr();
-            casilla.setSeleccionado(shipId != null && shipId.equals(idNuevo) && casilla.isEsAliado());
-        }
         board.repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 

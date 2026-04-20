@@ -41,6 +41,13 @@ public class BarcoLogico {
         return esAliado;
     }
 
+    public int getRangoVision() {
+        if (tipo == 1) return 4;
+        if (tipo == 3) return 3;
+        if (tipo == 5) return 2;
+        return 2;
+    }
+
     public List<int[]> getCeldas() {
         return getCeldasPara(x, y, orientation, tipo);
     }
