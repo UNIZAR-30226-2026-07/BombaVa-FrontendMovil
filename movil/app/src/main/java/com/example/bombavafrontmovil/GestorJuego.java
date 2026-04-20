@@ -22,6 +22,7 @@ public class GestorJuego {
     final PartidaListener listener;
     final Map<String, UserShip> diccionarioFlota;
     final Map<String, UserShip> inventarioOriginal;
+    final List<TorpedoLogico> torpedosActivos = new ArrayList<>();
 
     boolean esMiTurno = false;
 
@@ -29,7 +30,7 @@ public class GestorJuego {
     final GestorJuegoSocketBinder socketBinder;
 
     // Solo controla cómo se PINTA el tablero
-    private boolean invertirPerspectiva = true;
+    //private boolean invertirPerspectiva = true;
 
     public interface PartidaListener {
         void onSnapshotCompleto();
@@ -60,48 +61,30 @@ public class GestorJuego {
         unirseAPartida();
     }
 
-    public boolean isInvertirPerspectiva() {
-        return invertirPerspectiva;
-    }
-
-    public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
-        try {
-            if (myFleet == null || enemyFleet == null || myFleet.length() == 0 || enemyFleet.length() == 0) {
-                return;
+    public boolean isPerspectivaInvertida() {
+        // Buscamos nuestro primer barco aliado para saber dónde nos puso el servidor
+        for (BarcoLogico b : flota) {
+            if (b.esAliado) {
+                // Si la Y lógica de mi barco está en la mitad superior (Norte del server),
+                // necesito invertir mi pantalla para jugar desde abajo (Sur visual).
+                return b.y < 7;
             }
-
-            double mediaMy = mediaY(myFleet);
-            double mediaEnemy = mediaY(enemyFleet);
-
-            // Si mis barcos vienen "más arriba", invertimos para pintarlos abajo.
-            invertirPerspectiva = mediaMy < mediaEnemy;
-
-            android.util.Log.d(
-                    "DEBUG_PERSPECTIVA",
-                    "mediaMy=" + mediaMy +
-                            " mediaEnemy=" + mediaEnemy +
-                            " invertir=" + invertirPerspectiva
-            );
-        } catch (Exception e) {
-            android.util.Log.e("DEBUG_PERSPECTIVA", "Error recalculando perspectiva", e);
         }
-    }
-
-    private double mediaY(JSONArray fleet) throws Exception {
-        double suma = 0.0;
-        for (int i = 0; i < fleet.length(); i++) {
-            JSONObject s = fleet.getJSONObject(i);
-            suma += s.getInt("y");
-        }
-        return suma / fleet.length();
-    }
-
-    public int filaLogicaDesdeVisual(int filaVisual) {
-        return invertirPerspectiva ? (14 - filaVisual) : filaVisual;
+        return false; // Por defecto no invertimos
     }
 
     public int filaVisualDesdeLogica(int filaLogica) {
-        return invertirPerspectiva ? (14 - filaLogica) : filaLogica;
+        if (isPerspectivaInvertida()) {
+            return 14 - filaLogica;
+        }
+        return filaLogica;
+    }
+
+    public int filaLogicaDesdeVisual(int filaVisual) {
+        if (isPerspectivaInvertida()) {
+            return 14 - filaVisual;
+        }
+        return filaVisual;
     }
 
     private void unirseAPartida() {
@@ -198,11 +181,97 @@ public class GestorJuego {
             payload.put("matchId", matchId);
             payload.put("shipId", shipId);
 
-            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque torpedo-> " + payload.toString());
+            Log.d("DEBUG_TORPEDO", "📡 Solicitando permiso de disparo al Servidor...");
             socket.emit("ship:attack:torpedo", payload);
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    // 🌊 REGISTRA EL TORPEDO (Ya no usamos la memoria, usamos los datos reales del server)
+    public void registrarTorpedoDesdeServer(String id, int x, int y, int vectorX, int vectorY, int lifeDistance, boolean esAliado) {
+        // Le pasamos el parámetro 'esAliado' al final
+        TorpedoLogico nuevoTorpedo = new TorpedoLogico(id, x, y, vectorX, vectorY, lifeDistance, esAliado);
+        torpedosActivos.add(nuevoTorpedo);
+
+        if (listener != null) {
+            listener.onSnapshotCompleto();
+        }
+    }
+
+    // 💥 PROCESA EL IMPACTO, BAJA LA VIDA Y HUNDE BARCOS
+    public void procesarImpactoTorpedo(String shipId, String proyectilId, int newHp) {
+        // 1. Borramos el torpedo del agua
+        TorpedoLogico torpedoRoto = null;
+        for (TorpedoLogico t : torpedosActivos) {
+            if (t.id.equals(proyectilId)) {
+                torpedoRoto = t;
+                break;
+            }
+        }
+        if (torpedoRoto != null) torpedosActivos.remove(torpedoRoto);
+
+        // 2. Buscamos el barco y le restamos la vida
+        BarcoLogico barcoHundido = null;
+        for (BarcoLogico b : flota) {
+            if (b.id.equals(shipId)) {
+                b.hpActual = newHp;
+                Log.d("DEBUG_TORPEDO", "💥 ¡Impacto en barco " + shipId + "! Vida restante: " + newHp);
+
+                // 🔥 SI LA VIDA LLEGA A 0, LO MARCAMOS PARA EL FONDO DEL MAR
+                if (b.hpActual <= 0) {
+                    barcoHundido = b;
+                    Log.d("DEBUG_TORPEDO", "🏴‍☠️ ¡Barco " + shipId + " HUNDIDO! Desaparece del mapa.");
+                }
+                break;
+            }
+        }
+
+        // Si se ha hundido, lo eliminamos de la flota para que deje de pintarse
+        if (barcoHundido != null) {
+            flota.remove(barcoHundido);
+        }
+
+        // 3. Forzamos al tablero a pintarse
+        if (listener != null) {
+            listener.onSnapshotCompleto();
+        }
+    }
+
+    // LÓGICA DE MOVIMIENTO DE TORPEDOS (CON LOGS EXTRA)
+    public void avanzarTorpedos() {
+        List<TorpedoLogico> torpedosParaEliminar = new ArrayList<>();
+        Log.d("DEBUG_TORPEDO_VISUAL", "--- AVANCE DE TURNO | Torpedos en el agua: " + torpedosActivos.size());
+
+        for (TorpedoLogico t : torpedosActivos) {
+            int oldX = t.x, oldY = t.y;
+            t.x += t.vectorX;
+            t.y += t.vectorY;
+
+            Log.d("DEBUG_TORPEDO_VISUAL", "🚀 Torpedo " + t.id.substring(0,4) + " viaja lógicamente de (" + oldX + "," + oldY + ") -> (" + t.x + "," + t.y + ")");
+
+            if (t.x < 0 || t.x >= 15 || t.y < 0 || t.y >= 15) {
+                Log.d("DEBUG_TORPEDO_VISUAL", "🌊 Torpedo salió de los límites del mapa.");
+                torpedosParaEliminar.add(t);
+                continue;
+            }
+
+            boolean choco = false;
+            for (BarcoLogico b : flota) {
+                if (b.hpActual <= 0) continue; // 🔥 No chocar con restos de barcos hundidos
+
+                for (int[] celda : b.getCeldas()) {
+                    if (celda[1] == t.x && celda[0] == t.y) {
+                        Log.d("DEBUG_TORPEDO_VISUAL", "💥 Choque visual adelantado con barco " + b.id.substring(0,4));
+                        torpedosParaEliminar.add(t);
+                        choco = true;
+                        break;
+                    }
+                }
+                if (choco) break;
+            }
+        }
+        torpedosActivos.removeAll(torpedosParaEliminar);
     }
 
     public void colocarMina(String shipId, int filaVisual, int columna) {

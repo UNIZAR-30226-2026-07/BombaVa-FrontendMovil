@@ -89,6 +89,11 @@ public class PantallaJuegoBoard {
                 adapter.notifyItemChanged(i);
             }
         }
+
+        sincronizarTorpedosVisuales(gestor);
+
+        // 3. Notificamos al adapter
+        adapter.notifyDataSetChanged();
     }
 
     public void repaintPositions(LinkedHashSet<Integer> posiciones,
@@ -246,5 +251,34 @@ public class PantallaJuegoBoard {
         if ("S".equals(orientation)) return 0;
         if ("W".equals(orientation)) return 1;
         return 2;
+    }
+
+    public void sincronizarTorpedosVisuales(GestorJuego gestor) {
+        if (gestor == null) return;
+
+        // 1. Limpiar agua
+        for (Casilla c : matriz) {
+            c.setTieneTorpedo(false, "N", true);
+        }
+
+        // 2. Pintar torpedos
+        for (TorpedoLogico t : gestor.torpedosActivos) {
+            int filaVisual = gestor.filaVisualDesdeLogica(t.y);
+
+            // Si el tablero está dado la vuelta,
+            // tenemos que girar el "Sprite" (dibujo) del torpedo para que no vuele hacia atrás.
+            String direccionVisual = t.direccion;
+            if (gestor.isPerspectivaInvertida()) {
+                if ("N".equals(t.direccion)) direccionVisual = "S";
+                else if ("S".equals(t.direccion)) direccionVisual = "N";
+            }
+
+            android.util.Log.d("DEBUG_TORPEDO_VISUAL", "🎨 Pintando en Pantalla -> Columna: " + t.x + ", Fila Visual: " + filaVisual + " | Apuntando hacia: " + direccionVisual);
+
+            if (filaVisual >= 0 && filaVisual < 15 && t.x >= 0 && t.x < 15) {
+                int posicionArray = filaVisual * 15 + t.x;
+                matriz.get(posicionArray).setTieneTorpedo(true, direccionVisual, t.esAliado);
+            }
+        }
     }
 }

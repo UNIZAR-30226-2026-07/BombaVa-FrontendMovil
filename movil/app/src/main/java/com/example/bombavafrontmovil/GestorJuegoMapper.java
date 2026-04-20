@@ -51,10 +51,6 @@ public class GestorJuegoMapper {
                 enemyFleet = data.optJSONArray("visibleEnemyFleet");
             }
 
-            if (playerFleet != null && enemyFleet != null) {
-                game.recalcularPerspectiva(playerFleet, enemyFleet);
-            }
-
             if (playerFleet != null) {
                 for (int i = 0; i < playerFleet.length(); i++) {
                     JSONObject s = playerFleet.getJSONObject(i);

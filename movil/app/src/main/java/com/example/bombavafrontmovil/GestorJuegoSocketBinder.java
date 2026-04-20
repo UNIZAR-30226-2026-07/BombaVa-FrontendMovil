@@ -18,6 +18,8 @@ public class GestorJuegoSocketBinder {
     }
 
     public void configurarListeners() {
+        liberarListeners();
+
         game.socket.on("game:joined", args -> Log.d(TAG, "¡SERVER CONFIRMA! game:joined recibido."));
 
         game.socket.on("match:startInfo", args -> {
@@ -37,18 +39,11 @@ public class GestorJuegoSocketBinder {
                 String nextPlayerId = data.getString("nextPlayerId");
                 game.esMiTurno = nextPlayerId.equals(game.myUserId);
 
-                if (data.has("resources") && game.esMiTurno) {
-                    JSONObject res = data.getJSONObject("resources");
-                    if (game.listener != null) {
-                        game.listener.onRecursosActualizados(
-                                res.optInt("fuel", -1),
-                                res.optInt("ammo", -1)
-                        );
-                    }
-                }
+                // AVANZAMOS LOS TORPEDOS EN CADA TURNO
+                game.avanzarTorpedos();
 
                 if (game.listener != null) {
-                    game.listener.onSnapshotCompleto();
+                    game.listener.onSnapshotCompleto(); // Forzamos el repintado del tablero
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:turn_changed", e);
@@ -156,10 +151,7 @@ public class GestorJuegoSocketBinder {
                 JSONArray myFleet = data.optJSONArray("myFleet");
                 JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
-                // Recalcular SOLO perspectiva visual
-                if (myFleet != null && enemyFleet != null) {
-                    game.recalcularPerspectiva(myFleet, enemyFleet);
-                }
+
 
                 if (myFleet != null) {
                     for (int i = 0; i < myFleet.length(); i++) {
@@ -256,25 +248,52 @@ public class GestorJuegoSocketBinder {
         });
 
         game.socket.on("projectile:launched", args -> {
-            Log.d("DEBUG_ATTACK", "🌊 [POST-ATAQUE] ¡Torpedo lanzado con éxito! -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
+                Log.d("DEBUG_TORPEDO", "🌊 [LANZAMIENTO] -> " + data.toString());
 
-                String attackerId = data.optString("attackerId", "");
-                boolean esMiAtaque = attackerId.equals(game.myUserId);
+                String projectileId = data.getString("id");
+                String type = data.getString("type");
+                int x = data.getInt("x");
+                int y = data.getInt("y");
+                int vectorX = data.getInt("vectorX");
+                int vectorY = data.getInt("vectorY");
+                int lifeDistance = data.getInt("lifeDistance");
+                int ammoCurrent = data.optInt("ammoCurrent", -1);
+                String ownerId = data.getString("ownerId");
 
-                if (esMiAtaque) {
-                    int nuevaMunicion = data.optInt("ammoCurrent", -1);
-                    if (nuevaMunicion != -1 && game.listener != null) {
-                        game.listener.onRecursosActualizados(-1, nuevaMunicion);
-                    }
+                // Actualizamos munición si somos los que disparamos
+                boolean esMiAtaque = ownerId.equals(game.myUserId);
+                if (esMiAtaque && ammoCurrent != -1 && game.listener != null) {
+                    game.listener.onRecursosActualizados(-1, ammoCurrent);
                 }
 
-                // (Opcional) Si quieres añadir una animación, esto lo ven ambos jugadores:
-                // if (game.listener != null) game.listener.onAnimacionTorpedo(...);
+                // Si es un torpedo, lo registramos en el gestor
+                if ("TORPEDO".equals(type)) {
+                    // 🔥 Añadimos 'esMiAtaque' como último parámetro
+                    game.registrarTorpedoDesdeServer(projectileId, x, y, vectorX, vectorY, lifeDistance, esMiAtaque);
+                }
 
             } catch (Exception e) {
-                Log.e(TAG, "Fallo al leer projectile:launched", e);
+                Log.e(TAG, "Fallo al procesar projectile:launched", e);
+            }
+        });
+
+        // 💥 2. CUANDO UN PROYECTIL IMPACTA
+        game.socket.on("projectile:hit", args -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                Log.d("DEBUG_TORPEDO", "💥 [IMPACTO] -> " + data.toString());
+
+                String shipId = data.getString("shipId");
+                String proyectilId = data.getString("proyectilColisionado");
+                int newHp = data.getInt("newHp");
+
+                // Llamamos al gestor para aplicar el daño y borrar el torpedo
+                game.procesarImpactoTorpedo(shipId, proyectilId, newHp);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo al procesar projectile:hit", e);
             }
         });
     }

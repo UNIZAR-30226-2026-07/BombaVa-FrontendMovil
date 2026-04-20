@@ -130,6 +130,24 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
+        if (c.hasTorpedo()) {
+            vh.waterView.setImageResource(R.drawable.ic_torpedo);
+
+            float rotT = 0f;
+            if ("N".equals(c.getDireccionTorpedo())) rotT = 0f;
+            else if ("S".equals(c.getDireccionTorpedo())) rotT = 180f;
+            else if ("E".equals(c.getDireccionTorpedo())) rotT = 90f;
+            else if ("W".equals(c.getDireccionTorpedo())) rotT = 270f;
+            vh.waterView.setRotation(rotT);
+
+            if (!c.isTorpedoAliado()) {
+                // Si es un torpedo enemigo, le ponemos un tinte rojo para asustar
+                vh.waterView.setColorFilter(Color.argb(200, 255, 50, 50), PorterDuff.Mode.SRC_ATOP);
+            } else {
+                vh.waterView.clearColorFilter();
+            }
+        }
+
         vh.itemView.setOnClickListener(v -> listener.onCasillaClick(c));
     }
 

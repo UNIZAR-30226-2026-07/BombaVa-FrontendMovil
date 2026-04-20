@@ -108,22 +108,15 @@ public class PantallaJuegoController {
             });
         }
 
-        // Botón Torpedo
         if (ui.btnAtk2 != null) {
             ui.btnAtk2.setOnClickListener(v -> {
-                if (idBarcoSeleccionado == null) {
-                    mostrarToast("Selecciona antes un barco aliado");
-                    return;
+                if (idBarcoSeleccionado != null && gestor != null) {
+                    if (ui.btnAtk2.getText().toString().equalsIgnoreCase("TORPEDO")) {
+                        // El torpedo no requiere apuntar a una casilla, se lanza directo
+                        gestor.lanzarTorpedo(idBarcoSeleccionado);
+                        board.repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
+                    }
                 }
-                if (gestor == null || !gestor.isEsMiTurno()) {
-                    mostrarToast("No es tu turno");
-                    return;
-                }
-
-                tipoAtaque = 2;
-                ui.ocultarInfoBarco();
-                actualizarRangoAtaqueVisual();
-                mostrarToast("Torpedo preparado. Selecciona objetivo en la línea.");
             });
         }
 
