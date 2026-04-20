@@ -208,7 +208,7 @@ public class PantallaJuego extends AppCompatActivity {
 
                     @Override
                     public void onErrorJuego(String mensaje) {
-                        runOnUiThread(() -> controller.mostrarToast(mensaje));
+                        runOnUiThread(() -> controller.mostrarError(mensaje));
                     }
 
                     @Override

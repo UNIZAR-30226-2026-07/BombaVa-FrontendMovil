@@ -6,6 +6,19 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.app.Activity;
+import android.graphics.Color;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 public class PantallaJuegoUi {
 
@@ -31,6 +44,16 @@ public class PantallaJuegoUi {
     public final ProgressBar barAmmo;
     public final TextView txtFuel;
     public final TextView txtAmmo;
+
+    public enum TipoNotificacion {
+        INFO,
+        ERROR,
+        SUCCESS
+    }
+
+    private final Handler notificationHandler = new Handler(Looper.getMainLooper());
+    private TextView notificationBanner;
+    private Runnable hideNotificationRunnable;
 
     public PantallaJuegoUi(Activity activity) {
         layNoSel = activity.findViewById(R.id.txtNoSelection);
@@ -62,6 +85,7 @@ public class PantallaJuegoUi {
         }
 
         mostrar(layNoSel);
+        inicializarBannerNotificaciones(activity);
     }
 
     public void mostrar(View layout) {
@@ -71,6 +95,85 @@ public class PantallaJuegoUi {
         if (layAtk != null) layAtk.setVisibility(View.GONE);
 
         if (layout != null) layout.setVisibility(View.VISIBLE);
+    }
+    private void inicializarBannerNotificaciones(Activity activity) {
+        ViewGroup root = activity.findViewById(android.R.id.content);
+        if (root == null) return;
+
+        notificationBanner = new TextView(activity);
+        notificationBanner.setVisibility(View.GONE);
+        notificationBanner.setAlpha(0f);
+        notificationBanner.setTranslationY(-120f);
+        notificationBanner.setTextColor(Color.WHITE);
+        notificationBanner.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        notificationBanner.setPadding(dp(activity, 16), dp(activity, 12), dp(activity, 16), dp(activity, 12));
+        notificationBanner.setGravity(Gravity.CENTER_VERTICAL);
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.WRAP_CONTENT
+        );
+        params.gravity = Gravity.TOP;
+        params.setMargins(dp(activity, 12), dp(activity, 12), dp(activity, 12), 0);
+
+        notificationBanner.setLayoutParams(params);
+        notificationBanner.setElevation(dp(activity, 8));
+        notificationBanner.setBackgroundColor(Color.parseColor("#455A64"));
+
+        root.addView(notificationBanner);
+    }
+
+    public void mostrarNotificacion(String mensaje, TipoNotificacion tipo) {
+        if (notificationBanner == null) return;
+
+        if (hideNotificationRunnable != null) {
+            notificationHandler.removeCallbacks(hideNotificationRunnable);
+        }
+
+        switch (tipo) {
+            case ERROR:
+                notificationBanner.setBackgroundColor(Color.parseColor("#C62828"));
+                break;
+            case SUCCESS:
+                notificationBanner.setBackgroundColor(Color.parseColor("#2E7D32"));
+                break;
+            case INFO:
+            default:
+                notificationBanner.setBackgroundColor(Color.parseColor("#455A64"));
+                break;
+        }
+
+        notificationBanner.setText(mensaje);
+        notificationBanner.setVisibility(View.VISIBLE);
+        notificationBanner.animate().cancel();
+        notificationBanner.animate()
+                .alpha(1f)
+                .translationY(0f)
+                .setDuration(220)
+                .start();
+
+        hideNotificationRunnable = () -> ocultarNotificacion();
+        notificationHandler.postDelayed(hideNotificationRunnable, 2200);
+    }
+
+    public void ocultarNotificacion() {
+        if (notificationBanner == null || notificationBanner.getVisibility() != View.VISIBLE) return;
+
+        notificationBanner.animate().cancel();
+        notificationBanner.animate()
+                .alpha(0f)
+                .translationY(-120f)
+                .setDuration(200)
+                .withEndAction(() -> notificationBanner.setVisibility(View.GONE))
+                .start();
+    }
+
+    private int dp(Activity activity, int value) {
+        return (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                value,
+                activity.getResources().getDisplayMetrics()
+        );
     }
 
     public void actualizarRecursos(int fuel, int ammo) {
