@@ -63,18 +63,27 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             vh.waterView.getBackground().clearColorFilter();
         }
 
-        if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
-            vh.waterView.getBackground().setColorFilter(
-                    Color.argb(70, 255, 255, 180),
-                    PorterDuff.Mode.SRC_ATOP
-            );
+        // Casilla visible / oculta por niebla
+        if (!c.isVisible()) {
+            if (vh.waterView.getBackground() != null) {
+                vh.waterView.getBackground().setColorFilter(
+                        Color.argb(210, 10, 20, 35),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            }
+        } else {
+            if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
+                vh.waterView.getBackground().setColorFilter(
+                        Color.argb(70, 255, 255, 180),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            }
         }
 
-        if (c.isTieneBarco()) {
+        if (c.isTieneBarco() && c.isVisible()) {
             boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
             boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
 
-            // En vertical, intercambiamos proa/popa porque tus sprites quedan al revés.
             if (esVertical) {
                 if (c.isEsProa()) {
                     vh.waterView.setImageResource(R.drawable.barco_popa);
@@ -84,7 +93,6 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
                     vh.waterView.setImageResource(R.drawable.barco_medio);
                 }
             } else {
-                // En horizontal estaba bien
                 if (c.isEsProa()) {
                     vh.waterView.setImageResource(R.drawable.barco_proa);
                 } else if (esPiezaInicial) {

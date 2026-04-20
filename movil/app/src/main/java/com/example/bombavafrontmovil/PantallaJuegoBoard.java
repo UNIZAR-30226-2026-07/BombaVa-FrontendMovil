@@ -45,6 +45,7 @@ public class PantallaJuegoBoard {
 
         for (Casilla c : matriz) c.resetVisual();
 
+        // 1. Pintamos todos los barcos en bruto
         for (BarcoLogico b : gestor.getFlota()) {
             boolean esSel = idBarcoSeleccionado != null
                     && idBarcoSeleccionado.equals(b.id)
@@ -78,12 +79,17 @@ public class PantallaJuegoBoard {
             }
         }
 
+        // 2. Aplicamos niebla de guerra
+        aplicarNieblaDeGuerra(gestor);
+
+        // 3. Pintamos rango de ataque
         for (Integer pos : posicionesRangoActual) {
             if (pos >= 0 && pos < matriz.size()) {
                 matriz.get(pos).setEnRangoAtaque(true);
             }
         }
 
+        // 4. Notificamos solo cambios
         for (int i = 0; i < matriz.size(); i++) {
             if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
                 adapter.notifyItemChanged(i);
@@ -95,60 +101,8 @@ public class PantallaJuegoBoard {
                                  GestorJuego gestor,
                                  String idBarcoSeleccionado,
                                  LinkedHashSet<Integer> posicionesRangoActual) {
-        if (posiciones.isEmpty()) return;
-
-        for (Integer pos : posiciones) {
-            if (pos >= 0 && pos < matriz.size()) {
-                matriz.get(pos).resetVisual();
-            }
-        }
-
-        if (gestor != null) {
-            for (BarcoLogico b : gestor.getFlota()) {
-                boolean esSel = idBarcoSeleccionado != null
-                        && idBarcoSeleccionado.equals(b.id)
-                        && b.esAliado;
-
-                int dir = orientacionADireccionVisual(b.orientation);
-                List<int[]> celdasRender = BarcoLogico.getCeldasPara(b.x, b.y, b.orientation, b.tipo);
-
-                for (int[] celdaBarco : celdasRender) {
-                    int filaLogica = celdaBarco[0];
-                    int col = celdaBarco[1];
-                    int fila = gestor.filaVisualDesdeLogica(filaLogica);
-
-                    if (fila < 0 || fila >= 15 || col < 0 || col >= 15) continue;
-
-                    int pos = fila * 15 + col;
-                    if (!posiciones.contains(pos)) continue;
-
-                    Casilla cas = matriz.get(pos);
-                    cas.setTieneBarco(true);
-                    cas.setIdBarcoStr(b.id);
-                    cas.setEsAliado(b.esAliado);
-                    cas.setTipoBarco(b.tipo);
-                    cas.setDireccion(dir);
-                    cas.setEsProa(celdaBarco[2] == 1);
-                    cas.setIndiceEnBarco(celdaBarco[3]);
-                    cas.setSlug(b.slug);
-                    cas.setVidaActual(b.hpActual);
-                    cas.setVidaMax(b.hpMax);
-                    cas.setSeleccionado(esSel);
-                }
-            }
-        }
-
-        for (Integer pos : posiciones) {
-            if (pos >= 0 && pos < matriz.size()) {
-                matriz.get(pos).setEnRangoAtaque(posicionesRangoActual.contains(pos));
-            }
-        }
-
-        for (Integer pos : posiciones) {
-            if (pos >= 0 && pos < matriz.size()) {
-                adapter.notifyItemChanged(pos);
-            }
-        }
+        // Con niebla de guerra conviene recalcular todo el tablero
+        repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
     public void repaintDiffFlotas(List<BarcoLogico> flotaAnterior,
@@ -156,61 +110,71 @@ public class PantallaJuegoBoard {
                                   GestorJuego gestor,
                                   String idBarcoSeleccionado,
                                   LinkedHashSet<Integer> posicionesRangoActual) {
-        LinkedHashSet<Integer> posiciones = new LinkedHashSet<>();
+        // Con niebla de guerra conviene recalcular todo el tablero
+        repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
+    }
 
-        java.util.Map<String, BarcoLogico> mapaAnterior = new java.util.HashMap<>();
-        java.util.Map<String, BarcoLogico> mapaNueva = new java.util.HashMap<>();
+    private void aplicarNieblaDeGuerra(GestorJuego gestor) {
+        // 1. Todo invisible por defecto
+        for (Casilla c : matriz) {
+            c.setVisible(false);
+        }
 
-        if (flotaAnterior != null) {
-            for (BarcoLogico b : flotaAnterior) {
-                mapaAnterior.put(b.id, b);
+        // 2. Mis barcos y su rango Manhattan generan visión
+        for (BarcoLogico b : gestor.getFlota()) {
+            if (!b.esAliado) continue;
+
+            List<int[]> celdasAliadas = BarcoLogico.getCeldasPara(b.x, b.y, b.orientation, b.tipo);
+            int rangoVision = b.getRangoVision();
+
+            // Las propias celdas del barco siempre visibles
+            for (int[] celdaBarco : celdasAliadas) {
+                int filaLogica = celdaBarco[0];
+                int col = celdaBarco[1];
+                int filaVisual = gestor.filaVisualDesdeLogica(filaLogica);
+
+                if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
+                matriz.get(filaVisual * 15 + col).setVisible(true);
+            }
+
+            // Campo de visión Manhattan desde cada celda del barco
+            for (Casilla casilla : matriz) {
+                int xObjetivo = casilla.getColumna();
+                int yObjetivoLogica = gestor.filaLogicaDesdeVisual(casilla.getFila());
+
+                boolean visible = false;
+                for (int[] origen : celdasAliadas) {
+                    int yOrigen = origen[0];
+                    int xOrigen = origen[1];
+
+                    int dist = Math.abs(xObjetivo - xOrigen) + Math.abs(yObjetivoLogica - yOrigen);
+                    if (dist <= rangoVision) {
+                        visible = true;
+                        break;
+                    }
+                }
+
+                if (visible) {
+                    casilla.setVisible(true);
+                }
             }
         }
 
-        if (flotaNueva != null) {
-            for (BarcoLogico b : flotaNueva) {
-                mapaNueva.put(b.id, b);
+        // 3. Ocultamos barcos enemigos en casillas no visibles
+        for (Casilla c : matriz) {
+            if (c.isTieneBarco() && !c.isEsAliado() && !c.isVisible()) {
+                c.setTieneBarco(false);
+                c.setIdBarco(-1);
+                c.setIdBarcoStr(null);
+                c.setTipoBarco(0);
+                c.setDireccion(0);
+                c.setEsProa(false);
+                c.setIndiceEnBarco(0);
+                c.setSlug(null);
+                c.setVidaActual(0);
+                c.setVidaMax(0);
+                c.setSeleccionado(false);
             }
-        }
-
-        java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
-        ids.addAll(mapaAnterior.keySet());
-        ids.addAll(mapaNueva.keySet());
-
-        for (String id : ids) {
-            BarcoLogico anterior = mapaAnterior.get(id);
-            BarcoLogico nuevo = mapaNueva.get(id);
-
-            boolean haCambiado = false;
-
-            if (anterior == null || nuevo == null) {
-                haCambiado = true;
-            } else {
-                haCambiado =
-                        anterior.x != nuevo.x ||
-                                anterior.y != nuevo.y ||
-                                !java.util.Objects.equals(anterior.orientation, nuevo.orientation) ||
-                                anterior.hpActual != nuevo.hpActual ||
-                                anterior.hpMax != nuevo.hpMax ||
-                                anterior.tipo != nuevo.tipo ||
-                                anterior.esAliado != nuevo.esAliado;
-            }
-
-            if (!haCambiado) continue;
-
-            if (anterior != null) {
-                posiciones.addAll(posicionesPara(anterior.x, anterior.y, anterior.orientation, anterior.tipo, gestor));
-            }
-
-            if (nuevo != null) {
-                posiciones.addAll(posicionesPara(nuevo.x, nuevo.y, nuevo.orientation, nuevo.tipo, gestor));
-            }
-        }
-
-        posiciones.addAll(posicionesRangoActual);
-
-        if (!posiciones.isEmpty()) {
-            repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
         }
     }
 
