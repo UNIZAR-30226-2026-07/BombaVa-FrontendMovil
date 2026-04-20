@@ -146,6 +146,7 @@ public class GestorJuegoSocketBinder {
             Log.d(TAG, "¡SERVER RESPONDE! match:vision_update -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
+                Log.w("DEBUG_TORPEDO", "📩 [UPDATED] Recibido del server: " + data.toString());
                 List<BarcoLogico> nuevaFlota = new ArrayList<>();
 
                 JSONArray myFleet = data.optJSONArray("myFleet");
@@ -214,6 +215,14 @@ public class GestorJuegoSocketBinder {
                 if (hayCambios && game.listener != null) {
                     game.listener.onVisionUpdateParcial(flotaAnterior, nuevaFlota);
                 }
+
+                JSONArray proyPropios = data.optJSONArray("proyPropios");
+                JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
+                game.sincronizarProyectilesVision(proyPropios, proyEnemigos);
+
+                if (game.listener != null) {
+                    game.listener.onSnapshotCompleto();
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:vision_update", e);
             }
@@ -247,6 +256,21 @@ public class GestorJuegoSocketBinder {
             }
         });
 
+        game.socket.on("projectile:updated", args -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String id = data.getString("projectile");
+                String status = data.getString("status");
+                int x = data.has("x") && !data.isNull("x") ? data.getInt("x") : -1;
+                int y = data.has("y") && !data.isNull("y") ? data.getInt("y") : -1;
+                int life = data.optInt("lifeDistance", -1);
+
+                game.actualizarTorpedo(id, status, x, y, life);
+            } catch (Exception e) {
+                Log.e(TAG, "Fallo al procesar projectile:updated", e);
+            }
+        });
+
         game.socket.on("projectile:launched", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -270,7 +294,7 @@ public class GestorJuegoSocketBinder {
 
                 // Si es un torpedo, lo registramos en el gestor
                 if ("TORPEDO".equals(type)) {
-                    // 🔥 Añadimos 'esMiAtaque' como último parámetro
+                    // Añadimos 'esMiAtaque' como último parámetro
                     game.registrarTorpedoDesdeServer(projectileId, x, y, vectorX, vectorY, lifeDistance, esMiAtaque);
                 }
 
@@ -279,7 +303,7 @@ public class GestorJuegoSocketBinder {
             }
         });
 
-        // 💥 2. CUANDO UN PROYECTIL IMPACTA
+        // 2. CUANDO UN PROYECTIL IMPACTA
         game.socket.on("projectile:hit", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];

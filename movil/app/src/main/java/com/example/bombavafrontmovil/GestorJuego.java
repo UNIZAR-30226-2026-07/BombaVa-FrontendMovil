@@ -218,7 +218,7 @@ public class GestorJuego {
                 b.hpActual = newHp;
                 Log.d("DEBUG_TORPEDO", "💥 ¡Impacto en barco " + shipId + "! Vida restante: " + newHp);
 
-                // 🔥 SI LA VIDA LLEGA A 0, LO MARCAMOS PARA EL FONDO DEL MAR
+                // SI LA VIDA LLEGA A 0, LO MARCAMOS PARA EL FONDO DEL MAR
                 if (b.hpActual <= 0) {
                     barcoHundido = b;
                     Log.d("DEBUG_TORPEDO", "🏴‍☠️ ¡Barco " + shipId + " HUNDIDO! Desaparece del mapa.");
@@ -238,40 +238,64 @@ public class GestorJuego {
         }
     }
 
-    // LÓGICA DE MOVIMIENTO DE TORPEDOS (CON LOGS EXTRA)
     public void avanzarTorpedos() {
-        List<TorpedoLogico> torpedosParaEliminar = new ArrayList<>();
-        Log.d("DEBUG_TORPEDO_VISUAL", "--- AVANCE DE TURNO | Torpedos en el agua: " + torpedosActivos.size());
+        Log.d("DEBUG_TORPEDO", "El frontend ya no mueve torpedos. Esperando órdenes del servidor...");
+    }
 
+    // CTUALIZAMOS EL TORPEDO SEGÚN EL SERVIDOR
+    public void actualizarTorpedo(String id, String status, int newX, int newY, int newLife) {
         for (TorpedoLogico t : torpedosActivos) {
-            int oldX = t.x, oldY = t.y;
-            t.x += t.vectorX;
-            t.y += t.vectorY;
+            if (t.id.equals(id)) {
+                if (newX != -1) t.x = newX;
+                if (newY != -1) t.y = newY;
+                if (newLife != -1) t.lifeDistance = newLife;
 
-            Log.d("DEBUG_TORPEDO_VISUAL", "🚀 Torpedo " + t.id.substring(0,4) + " viaja lógicamente de (" + oldX + "," + oldY + ") -> (" + t.x + "," + t.y + ")");
+                Log.d("DEBUG_TORPEDO_VISUAL", "📍 Servidor movió el torpedo " + id.substring(0,4) + " a (" + t.x + "," + t.y + ")");
 
-            if (t.x < 0 || t.x >= 15 || t.y < 0 || t.y >= 15) {
-                Log.d("DEBUG_TORPEDO_VISUAL", "🌊 Torpedo salió de los límites del mapa.");
-                torpedosParaEliminar.add(t);
-                continue;
-            }
-
-            boolean choco = false;
-            for (BarcoLogico b : flota) {
-                if (b.hpActual <= 0) continue; // 🔥 No chocar con restos de barcos hundidos
-
-                for (int[] celda : b.getCeldas()) {
-                    if (celda[1] == t.x && celda[0] == t.y) {
-                        Log.d("DEBUG_TORPEDO_VISUAL", "💥 Choque visual adelantado con barco " + b.id.substring(0,4));
-                        torpedosParaEliminar.add(t);
-                        choco = true;
-                        break;
-                    }
-                }
-                if (choco) break;
+                // Si el servidor dice que va a morir, podríamos hacer algo, pero por ahora
+                // simplemente esperamos al evento projectile:hit o al vision_update para borrarlo
+                break;
             }
         }
-        torpedosActivos.removeAll(torpedosParaEliminar);
+
+        // Forzamos repintado para que se mueva en la pantalla
+        if (listener != null) {
+            listener.onSnapshotCompleto();
+        }
+    }
+
+    // SINCRONIZACIÓN TOTAL DE VISIÓN
+    public void sincronizarProyectilesVision(JSONArray proyPropios, JSONArray proyEnemigos) {
+        // Vaciamos la lista local porque el servidor nos manda la foto completa
+        torpedosActivos.clear();
+
+        try {
+            // Cargamos los nuestros
+            if (proyPropios != null) {
+                for (int i = 0; i < proyPropios.length(); i++) {
+                    JSONObject p = proyPropios.getJSONObject(i);
+                    registrarTorpedoDesdeServer(
+                            p.getString("id"), p.getInt("x"), p.getInt("y"),
+                            p.optInt("vectorX", 0), p.optInt("vectorY", 0),
+                            p.optInt("lifeDistance", 0), true
+                    );
+                }
+            }
+            // Cargamos los del rival
+            if (proyEnemigos != null) {
+                for (int i = 0; i < proyEnemigos.length(); i++) {
+                    JSONObject p = proyEnemigos.getJSONObject(i);
+                    registrarTorpedoDesdeServer(
+                            p.getString("id"), p.getInt("x"), p.getInt("y"),
+                            p.optInt("vectorX", 0), p.optInt("vectorY", 0),
+                            p.optInt("lifeDistance", 0), false
+                    );
+                }
+            }
+            Log.d("DEBUG_TORPEDO", "👁️ Visión actualizada: " + torpedosActivos.size() + " proyectiles en el radar.");
+        } catch (Exception e) {
+            Log.e("DEBUG_TORPEDO", "Error procesando proyectiles de vision_update", e);
+        }
     }
 
     public void colocarMina(String shipId, int filaVisual, int columna) {
