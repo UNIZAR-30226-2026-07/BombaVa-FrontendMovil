@@ -28,10 +28,12 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public final ImageView waterView;
+        public final ImageView imgMina;
 
         public ViewHolder(View view) {
             super(view);
             waterView = view.findViewById(R.id.view_water);
+            imgMina = view.findViewById(R.id.imgMina);
         }
     }
 
@@ -68,6 +70,25 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
                     Color.argb(70, 255, 255, 180),
                     PorterDuff.Mode.SRC_ATOP
             );
+        }
+
+        if (vh.imgMina != null) {
+            if (c.hasMina()) {
+                android.util.Log.d("DEBUG_MINA_UI", "Intentando dibujar mina en posición: " + c.getDireccion() + " | ¿Es aliada?: " + c.isMinaAliada());
+                vh.imgMina.setVisibility(View.VISIBLE);
+
+                if (c.isMinaAliada()) {
+                    vh.imgMina.setColorFilter(Color.parseColor("#4488FF"), PorterDuff.Mode.SRC_ATOP);
+                } else {
+                    vh.imgMina.setColorFilter(Color.parseColor("#FF4444"), PorterDuff.Mode.SRC_ATOP);
+                }
+            } else {
+                vh.imgMina.setVisibility(View.GONE);
+                vh.imgMina.clearColorFilter();
+            }
+        } else {
+            // Si entra aquí, es que no guardaste el XML de la celda correctamente
+            android.util.Log.e("DEBUG_MINA_UI", "¡ERROR! vh.imgMina es NULL. Revisa el archivo XML de la celda.");
         }
 
         if (c.isTieneBarco()) {

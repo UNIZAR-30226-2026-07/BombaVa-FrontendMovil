@@ -1,5 +1,7 @@
 package com.example.bombavafrontmovil;
 
+import android.widget.ImageView;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -84,16 +86,16 @@ public class PantallaJuegoBoard {
             }
         }
 
+        // PRIMERO colocamos los proyectiles (Torpedos y Minas) en la lógica
+        sincronizarTorpedosVisuales(gestor);
+
+        //  DESPUÉS comparamos toda la matriz con la foto antigua
+        // Si una casilla cambió (se movió un barco, entró un misil, etc.), la actualizamos.
         for (int i = 0; i < matriz.size(); i++) {
             if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
                 adapter.notifyItemChanged(i);
             }
         }
-
-        sincronizarTorpedosVisuales(gestor);
-
-        // 3. Notificamos al adapter
-        adapter.notifyDataSetChanged();
     }
 
     public void repaintPositions(LinkedHashSet<Integer> posiciones,
@@ -256,28 +258,42 @@ public class PantallaJuegoBoard {
     public void sincronizarTorpedosVisuales(GestorJuego gestor) {
         if (gestor == null) return;
 
-        // 1. Limpiar agua
+        // 1. Limpieza total previa para evitar fantasmas de frames anteriores
         for (Casilla c : matriz) {
             c.setTieneTorpedo(false, "N", true);
+            c.setTieneMina(false, false);
         }
 
-        // 2. Pintar torpedos
-        for (TorpedoLogico t : gestor.torpedosActivos) {
-            int filaVisual = gestor.filaVisualDesdeLogica(t.y);
+        // 2. Usamos un Set para evitar pintar la misma posición dos veces si la lógica está duplicada
+        java.util.Set<Integer> posicionesOcupadas = new java.util.HashSet<>();
 
-            // Si el tablero está dado la vuelta,
-            // tenemos que girar el "Sprite" (dibujo) del torpedo para que no vuele hacia atrás.
-            String direccionVisual = t.direccion;
-            if (gestor.isPerspectivaInvertida()) {
-                if ("N".equals(t.direccion)) direccionVisual = "S";
-                else if ("S".equals(t.direccion)) direccionVisual = "N";
-            }
+        for (TorpedoLogico p : gestor.torpedosActivos) {
+            int filaVisual = gestor.filaVisualDesdeLogica(p.y);
+            int col = p.x;
 
-            android.util.Log.d("DEBUG_TORPEDO_VISUAL", "🎨 Pintando en Pantalla -> Columna: " + t.x + ", Fila Visual: " + filaVisual + " | Apuntando hacia: " + direccionVisual);
+            // Validar rango y evitar duplicados en la misma celda
+            if (filaVisual >= 0 && filaVisual < 15 && col >= 0 && col < 15) {
+                int pos = filaVisual * 15 + col;
 
-            if (filaVisual >= 0 && filaVisual < 15 && t.x >= 0 && t.x < 15) {
-                int posicionArray = filaVisual * 15 + t.x;
-                matriz.get(posicionArray).setTieneTorpedo(true, direccionVisual, t.esAliado);
+                if (posicionesOcupadas.contains(pos)) continue; // Si ya pintamos algo aquí, saltamos
+                posicionesOcupadas.add(pos);
+
+                Casilla c = matriz.get(pos);
+
+                if ("MINE".equals(p.tipo)) {
+                    // p.esAliado debe venir correctamente del servidor.
+                    // Si el rival la ve "aliada" (azul), es que el servidor no está enviando bien el bando.
+                    c.setTieneMina(true, p.esAliado);
+                    android.util.Log.d("DEBUG_MINA", "Pintando MINA REAL en pos: " + pos + " (col:" + col + " fila:" + filaVisual + ")");
+                }
+                else if ("TORPEDO".equals(p.tipo)) {
+                    String orientacionVisual = p.direccion;
+                    if (gestor.isPerspectivaInvertida()) {
+                        if (orientacionVisual.equals("N")) orientacionVisual = "S";
+                        else if (orientacionVisual.equals("S")) orientacionVisual = "N";
+                    }
+                    c.setTieneTorpedo(true, orientacionVisual, p.esAliado);
+                }
             }
         }
     }

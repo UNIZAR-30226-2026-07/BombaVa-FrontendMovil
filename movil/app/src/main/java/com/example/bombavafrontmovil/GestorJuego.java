@@ -189,10 +189,10 @@ public class GestorJuego {
     }
 
     // 🌊 REGISTRA EL TORPEDO (Ya no usamos la memoria, usamos los datos reales del server)
-    public void registrarTorpedoDesdeServer(String id, int x, int y, int vectorX, int vectorY, int lifeDistance, boolean esAliado) {
-        // Le pasamos el parámetro 'esAliado' al final
-        TorpedoLogico nuevoTorpedo = new TorpedoLogico(id, x, y, vectorX, vectorY, lifeDistance, esAliado);
-        torpedosActivos.add(nuevoTorpedo);
+    // Añadimos 'String tipo' al final
+    public void registrarTorpedoDesdeServer(String id, int x, int y, int vectorX, int vectorY, int lifeDistance, boolean esAliado, String tipo) {
+        TorpedoLogico nuevoProyectil = new TorpedoLogico(id, x, y, vectorX, vectorY, lifeDistance, esAliado, tipo);
+        torpedosActivos.add(nuevoProyectil); // Guardamos la mina en la misma lista
 
         if (listener != null) {
             listener.onSnapshotCompleto();
@@ -266,33 +266,31 @@ public class GestorJuego {
 
     // SINCRONIZACIÓN TOTAL DE VISIÓN
     public void sincronizarProyectilesVision(JSONArray proyPropios, JSONArray proyEnemigos) {
-        // Vaciamos la lista local porque el servidor nos manda la foto completa
         torpedosActivos.clear();
-
         try {
-            // Cargamos los nuestros
             if (proyPropios != null) {
                 for (int i = 0; i < proyPropios.length(); i++) {
                     JSONObject p = proyPropios.getJSONObject(i);
                     registrarTorpedoDesdeServer(
                             p.getString("id"), p.getInt("x"), p.getInt("y"),
                             p.optInt("vectorX", 0), p.optInt("vectorY", 0),
-                            p.optInt("lifeDistance", 0), true
+                            p.optInt("lifeDistance", 0), true,
+                            p.optString("type", "TORPEDO")
                     );
                 }
             }
-            // Cargamos los del rival
             if (proyEnemigos != null) {
                 for (int i = 0; i < proyEnemigos.length(); i++) {
                     JSONObject p = proyEnemigos.getJSONObject(i);
                     registrarTorpedoDesdeServer(
                             p.getString("id"), p.getInt("x"), p.getInt("y"),
                             p.optInt("vectorX", 0), p.optInt("vectorY", 0),
-                            p.optInt("lifeDistance", 0), false
+                            p.optInt("lifeDistance", 0), false,
+                            p.optString("type", "TORPEDO")
                     );
                 }
             }
-            Log.d("DEBUG_TORPEDO", "👁️ Visión actualizada: " + torpedosActivos.size() + " proyectiles en el radar.");
+            Log.d("DEBUG_TORPEDO", "👁️ Visión actualizada: " + torpedosActivos.size() + " proyectiles.");
         } catch (Exception e) {
             Log.e("DEBUG_TORPEDO", "Error procesando proyectiles de vision_update", e);
         }

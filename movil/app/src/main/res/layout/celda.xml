@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/view_water"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/fondo_celda"
-    android:scaleType="fitXY"
-    android:contentDescription="Celda" />
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/view_water"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/fondo_celda"
+        android:scaleType="fitXY"
+        android:contentDescription="Celda" />
+
+    <ImageView
+        android:id="@+id/imgMina"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="4dp"
+        android:src="@drawable/ic_mina"
+        android:visibility="gone"
+        android:contentDescription="Mina naval" />
+
+</FrameLayout>

@@ -1,5 +1,9 @@
 package com.example.bombavafrontmovil;
 
+import android.graphics.Color;
+import android.view.View;
+import android.widget.ImageView;
+
 import java.util.Objects;
 
 public class Casilla {
@@ -23,11 +27,23 @@ public class Casilla {
     private boolean tieneTorpedo = false;
     private String direccionTorpedo = "N";
     private boolean esTorpedoAliado = true;
+    private boolean tieneMina = false;
+    private boolean minaAliada = false;
 
     public Casilla(int fila, int columna) {
         this.fila = fila;
         this.columna = columna;
     }
+
+    public void setTieneMina(boolean tieneMina, boolean esAliada) {
+        this.tieneMina = tieneMina;
+        this.minaAliada = esAliada;
+    }
+
+    public boolean hasMina() { return tieneMina; }
+    public boolean isMinaAliada() { return minaAliada; }
+
+
 
     public int getFila() { return fila; }
     public int getColumna() { return columna; }
@@ -152,6 +168,8 @@ public class Casilla {
                 && Objects.equals(slug, otra.slug)
                 && tieneTorpedo == otra.tieneTorpedo
                 && Objects.equals(direccionTorpedo, otra.direccionTorpedo)
-                && esTorpedoAliado == otra.esTorpedoAliado;
+                && esTorpedoAliado == otra.esTorpedoAliado
+                && tieneMina == otra.tieneMina
+                && minaAliada == otra.minaAliada;
     }
 }

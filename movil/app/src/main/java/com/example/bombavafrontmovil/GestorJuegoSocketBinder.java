@@ -274,10 +274,8 @@ public class GestorJuegoSocketBinder {
         game.socket.on("projectile:launched", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
-                Log.d("DEBUG_TORPEDO", "🌊 [LANZAMIENTO] -> " + data.toString());
-
                 String projectileId = data.getString("id");
-                String type = data.getString("type");
+                String type = data.getString("type"); // "MINE" o "TORPEDO"
                 int x = data.getInt("x");
                 int y = data.getInt("y");
                 int vectorX = data.getInt("vectorX");
@@ -286,17 +284,12 @@ public class GestorJuegoSocketBinder {
                 int ammoCurrent = data.optInt("ammoCurrent", -1);
                 String ownerId = data.getString("ownerId");
 
-                // Actualizamos munición si somos los que disparamos
                 boolean esMiAtaque = ownerId.equals(game.myUserId);
                 if (esMiAtaque && ammoCurrent != -1 && game.listener != null) {
                     game.listener.onRecursosActualizados(-1, ammoCurrent);
                 }
 
-                // Si es un torpedo, lo registramos en el gestor
-                if ("TORPEDO".equals(type)) {
-                    // Añadimos 'esMiAtaque' como último parámetro
-                    game.registrarTorpedoDesdeServer(projectileId, x, y, vectorX, vectorY, lifeDistance, esMiAtaque);
-                }
+                game.registrarTorpedoDesdeServer(projectileId, x, y, vectorX, vectorY, lifeDistance, esMiAtaque, type);
 
             } catch (Exception e) {
                 Log.e(TAG, "Fallo al procesar projectile:launched", e);
