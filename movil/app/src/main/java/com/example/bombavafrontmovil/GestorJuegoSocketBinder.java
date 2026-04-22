@@ -39,11 +39,10 @@ public class GestorJuegoSocketBinder {
                 String nextPlayerId = data.getString("nextPlayerId");
                 game.esMiTurno = nextPlayerId.equals(game.myUserId);
 
-                // AVANZAMOS LOS TORPEDOS EN CADA TURNO
-                game.avanzarTorpedos();
-
+                // El servidor se encarga de mover torpedos vía projectile:updated.
+                // Aquí solo forzamos el repintado para reflejar el estado actual.
                 if (game.listener != null) {
-                    game.listener.onSnapshotCompleto(); // Forzamos el repintado del tablero
+                    game.listener.onSnapshotCompleto();
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:turn_changed", e);
@@ -152,8 +151,6 @@ public class GestorJuegoSocketBinder {
                 JSONArray myFleet = data.optJSONArray("myFleet");
                 JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
-
-
                 if (myFleet != null) {
                     for (int i = 0; i < myFleet.length(); i++) {
                         JSONObject s = myFleet.getJSONObject(i);
@@ -216,6 +213,7 @@ public class GestorJuegoSocketBinder {
                     game.listener.onVisionUpdateParcial(flotaAnterior, nuevaFlota);
                 }
 
+                // BUG FIX: sincronizamos proyectiles ANTES del repintado final
                 JSONArray proyPropios = data.optJSONArray("proyPropios");
                 JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
                 game.sincronizarProyectilesVision(proyPropios, proyEnemigos);
@@ -256,20 +254,12 @@ public class GestorJuegoSocketBinder {
             }
         });
 
-        game.socket.on("projectile:updated", args -> {
-            try {
-                JSONObject data = (JSONObject) args[0];
-                String id = data.getString("projectile");
-                String status = data.getString("status");
-                int x = data.has("x") && !data.isNull("x") ? data.getInt("x") : -1;
-                int y = data.has("y") && !data.isNull("y") ? data.getInt("y") : -1;
-                int life = data.optInt("lifeDistance", -1);
+        // ─── EVENTOS DE PROYECTILES ───────────────────────────────────────────────
 
-                game.actualizarTorpedo(id, status, x, y, life);
-            } catch (Exception e) {
-                Log.e(TAG, "Fallo al procesar projectile:updated", e);
-            }
-        });
+        // BUG FIX: el nombre del evento en el backend es "projectile:update" (sin 'd').
+        // Registramos ambos por compatibilidad con cualquier versión del servidor.
+        game.socket.on("projectile:update", args -> procesarProyectilUpdate(args));
+        game.socket.on("projectile:updated", args -> procesarProyectilUpdate(args));
 
         game.socket.on("projectile:launched", args -> {
             try {
@@ -296,7 +286,6 @@ public class GestorJuegoSocketBinder {
             }
         });
 
-        // 2. CUANDO UN PROYECTIL IMPACTA
         game.socket.on("projectile:hit", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -306,13 +295,52 @@ public class GestorJuegoSocketBinder {
                 String proyectilId = data.getString("proyectilColisionado");
                 int newHp = data.getInt("newHp");
 
-                // Llamamos al gestor para aplicar el daño y borrar el torpedo
                 game.procesarImpactoTorpedo(shipId, proyectilId, newHp);
 
             } catch (Exception e) {
                 Log.e(TAG, "Fallo al procesar projectile:hit", e);
             }
         });
+    }
+
+    /**
+     * Procesa el evento de actualización de posición de un proyectil en vuelo.
+     * El backend emite esto en cada cambio de turno para los torpedos activos.
+     */
+    private void procesarProyectilUpdate(Object[] args) {
+        try {
+            JSONObject data = (JSONObject) args[0];
+            String id = data.getString("projectile");
+            String status = data.getString("status");
+
+            if ("ENDOFLIFE".equals(status)) {
+                // El torpedo ha llegado al final de su vida sin impactar — lo borramos
+                TorpedoLogico aEliminar = null;
+                for (TorpedoLogico t : game.torpedosActivos) {
+                    if (t.id.equals(id)) {
+                        aEliminar = t;
+                        break;
+                    }
+                }
+                if (aEliminar != null) {
+                    game.torpedosActivos.remove(aEliminar);
+                    Log.d("DEBUG_TORPEDO", "🕳️ Torpedo " + id.substring(0, Math.min(4, id.length())) + " expiró (ENDOFLIFE)");
+                }
+            } else {
+                // El torpedo sigue vivo: actualizamos su posición
+                int x = data.has("x") && !data.isNull("x") ? data.getInt("x") : -1;
+                int y = data.has("y") && !data.isNull("y") ? data.getInt("y") : -1;
+                int life = data.optInt("lifeDistance", -1);
+                game.actualizarTorpedo(id, status, x, y, life);
+            }
+
+            // Repintamos para mostrar el movimiento
+            if (game.listener != null) {
+                game.listener.onSnapshotCompleto();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Fallo al procesar projectile:update", e);
+        }
     }
 
     public void liberarListeners() {
@@ -325,5 +353,9 @@ public class GestorJuegoSocketBinder {
         game.socket.off("match:vision_update");
         game.socket.off("match:finished");
         game.socket.off("game:error");
+        game.socket.off("projectile:update");
+        game.socket.off("projectile:updated");
+        game.socket.off("projectile:launched");
+        game.socket.off("projectile:hit");
     }
 }

@@ -43,8 +43,6 @@ public class Casilla {
     public boolean hasMina() { return tieneMina; }
     public boolean isMinaAliada() { return minaAliada; }
 
-
-
     public int getFila() { return fila; }
     public int getColumna() { return columna; }
 
@@ -123,6 +121,12 @@ public class Casilla {
         slug = null;
         vidaActual = 0;
         vidaMax = 0;
+        // BUG FIX: torpedo y mina también deben resetearse en cada repintado completo
+        tieneTorpedo = false;
+        direccionTorpedo = "N";
+        esTorpedoAliado = true;
+        tieneMina = false;
+        minaAliada = false;
     }
 
     public Casilla clonar() {
@@ -144,6 +148,8 @@ public class Casilla {
         c.tieneTorpedo = tieneTorpedo;
         c.direccionTorpedo = direccionTorpedo;
         c.esTorpedoAliado = esTorpedoAliado;
+        c.tieneMina = tieneMina;
+        c.minaAliada = minaAliada;
         return c;
     }
 

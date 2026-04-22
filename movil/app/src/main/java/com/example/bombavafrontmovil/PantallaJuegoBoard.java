@@ -86,11 +86,9 @@ public class PantallaJuegoBoard {
             }
         }
 
-        // PRIMERO colocamos los proyectiles (Torpedos y Minas) en la lógica
+        // Proyectiles SIEMPRE después de barcos para que se pinten encima
         sincronizarTorpedosVisuales(gestor);
 
-        //  DESPUÉS comparamos toda la matriz con la foto antigua
-        // Si una casilla cambió (se movió un barco, entró un misil, etc.), la actualizamos.
         for (int i = 0; i < matriz.size(); i++) {
             if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
                 adapter.notifyItemChanged(i);
@@ -169,15 +167,10 @@ public class PantallaJuegoBoard {
         java.util.Map<String, BarcoLogico> mapaNueva = new java.util.HashMap<>();
 
         if (flotaAnterior != null) {
-            for (BarcoLogico b : flotaAnterior) {
-                mapaAnterior.put(b.id, b);
-            }
+            for (BarcoLogico b : flotaAnterior) mapaAnterior.put(b.id, b);
         }
-
         if (flotaNueva != null) {
-            for (BarcoLogico b : flotaNueva) {
-                mapaNueva.put(b.id, b);
-            }
+            for (BarcoLogico b : flotaNueva) mapaNueva.put(b.id, b);
         }
 
         java.util.LinkedHashSet<String> ids = new java.util.LinkedHashSet<>();
@@ -188,30 +181,19 @@ public class PantallaJuegoBoard {
             BarcoLogico anterior = mapaAnterior.get(id);
             BarcoLogico nuevo = mapaNueva.get(id);
 
-            boolean haCambiado = false;
-
-            if (anterior == null || nuevo == null) {
-                haCambiado = true;
-            } else {
-                haCambiado =
-                        anterior.x != nuevo.x ||
-                                anterior.y != nuevo.y ||
-                                !java.util.Objects.equals(anterior.orientation, nuevo.orientation) ||
-                                anterior.hpActual != nuevo.hpActual ||
-                                anterior.hpMax != nuevo.hpMax ||
-                                anterior.tipo != nuevo.tipo ||
-                                anterior.esAliado != nuevo.esAliado;
-            }
+            boolean haCambiado = anterior == null || nuevo == null
+                    || anterior.x != nuevo.x
+                    || anterior.y != nuevo.y
+                    || !java.util.Objects.equals(anterior.orientation, nuevo.orientation)
+                    || anterior.hpActual != nuevo.hpActual
+                    || anterior.hpMax != nuevo.hpMax
+                    || anterior.tipo != nuevo.tipo
+                    || anterior.esAliado != nuevo.esAliado;
 
             if (!haCambiado) continue;
 
-            if (anterior != null) {
-                posiciones.addAll(posicionesPara(anterior.x, anterior.y, anterior.orientation, anterior.tipo, gestor));
-            }
-
-            if (nuevo != null) {
-                posiciones.addAll(posicionesPara(nuevo.x, nuevo.y, nuevo.orientation, nuevo.tipo, gestor));
-            }
+            if (anterior != null) posiciones.addAll(posicionesPara(anterior.x, anterior.y, anterior.orientation, anterior.tipo, gestor));
+            if (nuevo != null)    posiciones.addAll(posicionesPara(nuevo.x, nuevo.y, nuevo.orientation, nuevo.tipo, gestor));
         }
 
         posiciones.addAll(posicionesRangoActual);
@@ -219,10 +201,6 @@ public class PantallaJuegoBoard {
         if (!posiciones.isEmpty()) {
             repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
         }
-    }
-
-    public LinkedHashSet<Integer> posicionesDeBarco(BarcoLogico barco) {
-        return posicionesPara(barco.x, barco.y, barco.orientation, barco.tipo, null);
     }
 
     public LinkedHashSet<Integer> posicionesPara(int x, int y, String orientation, int tipo) {
@@ -236,10 +214,7 @@ public class PantallaJuegoBoard {
         for (int[] celda : celdas) {
             int filaLogica = celda[0];
             int col = celda[1];
-
-            int fila = (gestor != null)
-                    ? gestor.filaVisualDesdeLogica(filaLogica)
-                    : (14 - filaLogica);
+            int fila = (gestor != null) ? gestor.filaVisualDesdeLogica(filaLogica) : (14 - filaLogica);
 
             if (fila < 0 || fila >= 15 || col < 0 || col >= 15) continue;
             posiciones.add(fila * 15 + col);
@@ -255,46 +230,96 @@ public class PantallaJuegoBoard {
         return 2;
     }
 
+    /**
+     * Pinta todos los proyectiles activos sobre el tablero.
+     *
+     * FUENTE DE VERDAD: las coordenadas x,y de cada TorpedoLogico son ABSOLUTAS
+     * del mapa del servidor (igual que las de los barcos). Se convierten a fila
+     * visual con filaVisualDesdeLogica(), exactamente igual que se hace con los barcos.
+     *
+     * La dirección visual se deriva del vector absoluto del proyectil y luego se
+     * invierte si el jugador ve el tablero en perspectiva invertida (jugador NORTH
+     * que ve desde arriba → su "avanzar" es hacia filas visuales crecientes).
+     */
     public void sincronizarTorpedosVisuales(GestorJuego gestor) {
         if (gestor == null) return;
 
-        // 1. Limpieza total previa para evitar fantasmas de frames anteriores
+        // Limpieza total: resetVisual() ya limpió torpedo/mina, pero por si
+        // se llama a este método de forma aislada, limpiamos explícitamente.
         for (Casilla c : matriz) {
             c.setTieneTorpedo(false, "N", true);
             c.setTieneMina(false, false);
         }
 
-        // 2. Usamos un Set para evitar pintar la misma posición dos veces si la lógica está duplicada
+        boolean perspInvertida = gestor.isPerspectivaInvertida();
         java.util.Set<Integer> posicionesOcupadas = new java.util.HashSet<>();
 
         for (TorpedoLogico p : gestor.torpedosActivos) {
+
+            // ── Posición visual ──────────────────────────────────────────────
+            // Las coordenadas x,y del torpedo son absolutas del servidor,
+            // igual que las de los barcos. Usamos la misma conversión.
             int filaVisual = gestor.filaVisualDesdeLogica(p.y);
             int col = p.x;
 
-            // Validar rango y evitar duplicados en la misma celda
-            if (filaVisual >= 0 && filaVisual < 15 && col >= 0 && col < 15) {
-                int pos = filaVisual * 15 + col;
+            if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
 
-                if (posicionesOcupadas.contains(pos)) continue; // Si ya pintamos algo aquí, saltamos
-                posicionesOcupadas.add(pos);
+            int pos = filaVisual * 15 + col;
+            if (posicionesOcupadas.contains(pos)) continue;
+            posicionesOcupadas.add(pos);
 
-                Casilla c = matriz.get(pos);
+            Casilla c = matriz.get(pos);
 
-                if ("MINE".equals(p.tipo)) {
-                    // p.esAliado debe venir correctamente del servidor.
-                    // Si el rival la ve "aliada" (azul), es que el servidor no está enviando bien el bando.
-                    c.setTieneMina(true, p.esAliado);
-                    android.util.Log.d("DEBUG_MINA", "Pintando MINA REAL en pos: " + pos + " (col:" + col + " fila:" + filaVisual + ")");
+            if ("MINE".equals(p.tipo)) {
+                c.setTieneMina(true, p.esAliado);
+                android.util.Log.d("DEBUG_MINA", "Pintando MINA en (" + col + "," + filaVisual + ") aliada=" + p.esAliado);
+
+            } else {
+                // ── Dirección visual del torpedo ─────────────────────────────
+                // El vector (vectorX, vectorY) es ABSOLUTO del servidor.
+                // Convertimos el vector absoluto a string de dirección visual.
+                // Si la perspectiva está invertida (jugador NORTH), tanto el eje
+                // vertical como el horizontal se invierten en pantalla, por lo
+                // que invertimos los dos componentes del vector.
+                int vx = p.vectorX;
+                int vy = p.vectorY;
+
+                if (perspInvertida) {
+                    vx = -vx;
+                    vy = -vy;
                 }
-                else if ("TORPEDO".equals(p.tipo)) {
-                    String orientacionVisual = p.direccion;
-                    if (gestor.isPerspectivaInvertida()) {
-                        if (orientacionVisual.equals("N")) orientacionVisual = "S";
-                        else if (orientacionVisual.equals("S")) orientacionVisual = "N";
-                    }
-                    c.setTieneTorpedo(true, orientacionVisual, p.esAliado);
-                }
+
+                String dirVisual = vectorADireccion(vx, vy);
+                c.setTieneTorpedo(true, dirVisual, p.esAliado);
+
+                android.util.Log.d("DEBUG_TORPEDO_DIR",
+                        "Torpedo " + p.id.substring(0, Math.min(4, p.id.length()))
+                                + " vector abs=(" + p.vectorX + "," + p.vectorY + ")"
+                                + " perspInv=" + perspInvertida
+                                + " → dirVisual=" + dirVisual
+                                + " pos=(" + col + "," + filaVisual + ")");
             }
         }
+    }
+
+    /**
+     * Convierte un vector de movimiento (absoluto o ya corregido por perspectiva)
+     * a la cadena de dirección que usa Casilla/BoardAdapter.
+     *
+     * El icono ic_torpedo apunta hacia ARRIBA (Norte) con rotación 0°.
+     * BoardAdapter aplica: N→0°, S→180°, E→90°, W→270°.
+     *
+     * Tabla de vectores del servidor:
+     *   vectorY=-1 → el torpedo sube en coords servidor  → visualmente Norte  → "N"
+     *   vectorY=+1 → el torpedo baja en coords servidor  → visualmente Sur    → "S"
+     *   vectorX=+1 → el torpedo va a la derecha          → visualmente Este   → "E"
+     *   vectorX=-1 → el torpedo va a la izquierda        → visualmente Oeste  → "W"
+     */
+    private String vectorADireccion(int vx, int vy) {
+        if (vy < 0) return "N";
+        if (vy > 0) return "S";
+        if (vx > 0) return "E";
+        if (vx < 0) return "W";
+        return "N"; // fallback
     }
 }
