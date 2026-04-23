@@ -220,10 +220,7 @@ public class PantallaJuegoUi {
         else if (barco.tipo == 3) nombreTipo = "Fragata";
         else if (barco.tipo == 5) nombreTipo = "Acorazado";
 
-        int vision = 0;
-        if (barco.tipo == 1) vision = 4;
-        else if (barco.tipo == 3) vision = 3;
-        else if (barco.tipo == 5) vision = 2;
+        int vision = barco.getRangoVision();
 
         if (txtInfoGlobal != null) {
             txtInfoGlobal.setText(
