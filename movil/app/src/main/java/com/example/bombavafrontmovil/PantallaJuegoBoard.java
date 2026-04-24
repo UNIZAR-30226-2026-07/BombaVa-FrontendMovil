@@ -42,11 +42,13 @@ public class PantallaJuegoBoard {
                             LinkedHashSet<Integer> posicionesRangoActual) {
         if (gestor == null) return;
 
+        // --- TOMA DE SNAPSHOT Y LIMPIEZA ---
         List<Casilla> snapshotAnterior = new ArrayList<>(matriz.size());
         for (Casilla c : matriz) snapshotAnterior.add(c.clonar());
 
         for (Casilla c : matriz) c.resetVisual();
 
+        // --- DIBUJADO DE BARCOS ---
         for (BarcoLogico b : gestor.getFlota()) {
             boolean esSel = idBarcoSeleccionado != null
                     && idBarcoSeleccionado.equals(b.id)
@@ -80,22 +82,47 @@ public class PantallaJuegoBoard {
             }
         }
 
+        // --- DIBUJADO DE RANGOS ---
         for (Integer pos : posicionesRangoActual) {
             if (pos >= 0 && pos < matriz.size()) {
                 matriz.get(pos).setEnRangoAtaque(true);
             }
         }
 
+        List<Integer> celdasARepintar = new ArrayList<>();
+
+        // ANTES de calcular el nuevo turno, anotamos dónde HABÍA proyectiles en la foto anterior
+        // (Usamos snapshotAnterior porque la matriz ya ha pasado por resetVisual)
+        for (int i = 0; i < snapshotAnterior.size(); i++) {
+            if (snapshotAnterior.get(i).hasTorpedo() || snapshotAnterior.get(i).hasMina()) {
+                celdasARepintar.add(i);
+            }
+        }
+
+        // Movemos los proyectiles a sus nuevas posiciones en la lógica de la matriz
         // Proyectiles SIEMPRE después de barcos para que se pinten encima
         sincronizarTorpedosVisuales(gestor);
 
+        // Anotamos las NUEVAS posiciones donde han aterrizado los proyectiles tras el movimiento
         for (int i = 0; i < matriz.size(); i++) {
-            if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
-                adapter.notifyItemChanged(i);
+            if (matriz.get(i).hasTorpedo() || matriz.get(i).hasMina()) {
+                celdasARepintar.add(i);
             }
         }
-    }
 
+        // Comparamos el resto del tablero (Barcos movidos, daños, agua, rangos) con la foto vieja
+        for (int i = 0; i < matriz.size(); i++) {
+            if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
+                celdasARepintar.add(i);
+            }
+        }
+
+        // Mandamos repintar SOLO las celdas afectadas (limpiando las posiciones repetidas con un Set)
+        java.util.Set<Integer> celdasUnicas = new java.util.HashSet<>(celdasARepintar);
+        for (Integer pos : celdasUnicas) {
+            adapter.notifyItemChanged(pos);
+        }
+    }
     public void repaintPositions(LinkedHashSet<Integer> posiciones,
                                  GestorJuego gestor,
                                  String idBarcoSeleccionado,

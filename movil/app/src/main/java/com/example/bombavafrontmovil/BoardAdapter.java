@@ -73,18 +73,21 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         }
 
         if (vh.imgMina != null) {
+            // Asumiendo que tu objeto Casilla tiene un método para saber si hay una mina
             if (c.hasMina()) {
-                android.util.Log.d("DEBUG_MINA_UI", "Intentando dibujar mina en posición: " + c.getDireccion() + " | ¿Es aliada?: " + c.isMinaAliada());
                 vh.imgMina.setVisibility(View.VISIBLE);
+                vh.imgMina.setImageResource(R.drawable.ic_mina);
 
+                // Opcional: Si quieres diferenciar si la mina es tuya o del enemigo
                 if (c.isMinaAliada()) {
-                    vh.imgMina.setColorFilter(Color.parseColor("#4488FF"), PorterDuff.Mode.SRC_ATOP);
+                    // Tinte verde o azulado para tus minas
+                    vh.imgMina.setColorFilter(Color.argb(255, 100, 255, 100), PorterDuff.Mode.MULTIPLY);
                 } else {
-                    vh.imgMina.setColorFilter(Color.parseColor("#FF4444"), PorterDuff.Mode.SRC_ATOP);
+                    // Dejarla con sus colores originales (Rojo y Amarillo) para minas enemigas (si las llegas a ver)
+                    vh.imgMina.clearColorFilter();
                 }
             } else {
                 vh.imgMina.setVisibility(View.GONE);
-                vh.imgMina.clearColorFilter();
             }
         } else {
             // Si entra aquí, es que no guardaste el XML de la celda correctamente

@@ -39,8 +39,6 @@ public class GestorJuegoSocketBinder {
                 String nextPlayerId = data.getString("nextPlayerId");
                 game.esMiTurno = nextPlayerId.equals(game.myUserId);
 
-                // El servidor se encarga de mover torpedos vía projectile:updated.
-                // Aquí solo forzamos el repintado para reflejar el estado actual.
                 if (game.listener != null) {
                     game.listener.onSnapshotCompleto();
                 }
@@ -74,9 +72,7 @@ public class GestorJuegoSocketBinder {
                         b.y = newY;
 
                         if (game.listener != null) {
-                            if (esMiAccion) {
-                                game.listener.onRecursosActualizados(fuelRes, -1);
-                            }
+                            if (esMiAccion) game.listener.onRecursosActualizados(fuelRes, -1);
                             game.listener.onBarcoMovido(sId, oldX, oldY, newX, newY, orientation, tipo);
                         }
                         return;
@@ -108,9 +104,7 @@ public class GestorJuegoSocketBinder {
                         b.orientation = orientation;
 
                         if (game.listener != null) {
-                            if (esMiAccion) {
-                                game.listener.onRecursosActualizados(fuelRes, -1);
-                            }
+                            if (esMiAccion) game.listener.onRecursosActualizados(fuelRes, -1);
                             game.listener.onBarcoRotado(sId, x, y, oldOrientation, orientation, tipo);
                         }
                         return;
@@ -126,14 +120,11 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 int ammoCurrent = data.optInt("ammoCurrent", -1);
-
                 String attackerId = data.optString("attackerId", "");
                 boolean esMiAtaque = attackerId.equals(game.myUserId);
 
                 if (game.listener != null) {
-                    if (esMiAtaque) {
-                        game.listener.onRecursosActualizados(-1, ammoCurrent);
-                    }
+                    if (esMiAtaque) game.listener.onRecursosActualizados(-1, ammoCurrent);
                     game.listener.onSnapshotCompleto();
                 }
             } catch (Exception e) {
@@ -146,60 +137,40 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 Log.w("DEBUG_TORPEDO", "📩 [UPDATED] Recibido del server: " + data.toString());
-                List<BarcoLogico> nuevaFlota = new ArrayList<>();
 
+                List<BarcoLogico> nuevaFlota = new ArrayList<>();
                 JSONArray myFleet = data.optJSONArray("myFleet");
                 JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
                 if (myFleet != null) {
                     for (int i = 0; i < myFleet.length(); i++) {
                         JSONObject s = myFleet.getJSONObject(i);
-                        nuevaFlota.add(
-                                game.mapper.construirBarcoDesdeJson(
-                                        s,
-                                        true,
-                                        game.diccionarioFlota.get(s.getString("id"))
-                                )
-                        );
+                        nuevaFlota.add(game.mapper.construirBarcoDesdeJson(
+                                s, true, game.diccionarioFlota.get(s.getString("id"))));
                     }
                 }
-
                 if (enemyFleet != null) {
                     for (int i = 0; i < enemyFleet.length(); i++) {
                         JSONObject s = enemyFleet.getJSONObject(i);
-                        nuevaFlota.add(
-                                game.mapper.construirBarcoDesdeJson(
-                                        s,
-                                        false,
-                                        null
-                                )
-                        );
+                        nuevaFlota.add(game.mapper.construirBarcoDesdeJson(s, false, null));
                     }
                 }
 
                 List<BarcoLogico> flotaAnterior = new ArrayList<>(game.flota);
+                boolean hayCambios = flotaAnterior.size() != nuevaFlota.size();
 
-                boolean hayCambios = false;
-
-                if (flotaAnterior.size() != nuevaFlota.size()) {
-                    hayCambios = true;
-                } else {
+                if (!hayCambios) {
                     java.util.Map<String, BarcoLogico> mapaAnterior = new java.util.HashMap<>();
-                    for (BarcoLogico b : flotaAnterior) {
-                        mapaAnterior.put(b.id, b);
-                    }
-
+                    for (BarcoLogico b : flotaAnterior) mapaAnterior.put(b.id, b);
                     for (BarcoLogico nuevo : nuevaFlota) {
                         BarcoLogico anterior = mapaAnterior.get(nuevo.id);
-
-                        if (anterior == null ||
-                                anterior.x != nuevo.x ||
-                                anterior.y != nuevo.y ||
-                                !java.util.Objects.equals(anterior.orientation, nuevo.orientation) ||
-                                anterior.hpActual != nuevo.hpActual ||
-                                anterior.hpMax != nuevo.hpMax ||
-                                anterior.tipo != nuevo.tipo ||
-                                anterior.esAliado != nuevo.esAliado) {
+                        if (anterior == null
+                                || anterior.x != nuevo.x || anterior.y != nuevo.y
+                                || !java.util.Objects.equals(anterior.orientation, nuevo.orientation)
+                                || anterior.hpActual != nuevo.hpActual
+                                || anterior.hpMax != nuevo.hpMax
+                                || anterior.tipo != nuevo.tipo
+                                || anterior.esAliado != nuevo.esAliado) {
                             hayCambios = true;
                             break;
                         }
@@ -213,7 +184,8 @@ public class GestorJuegoSocketBinder {
                     game.listener.onVisionUpdateParcial(flotaAnterior, nuevaFlota);
                 }
 
-                // BUG FIX: sincronizamos proyectiles ANTES del repintado final
+                // El vision_update es la fuente de verdad: sobreescribe cualquier
+                // movimiento local optimista que hayamos aplicado en avanzarTorpedosLocalmente().
                 JSONArray proyPropios = data.optJSONArray("proyPropios");
                 JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
                 game.sincronizarProyectilesVision(proyPropios, proyEnemigos);
@@ -233,8 +205,7 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onPartidaTerminada(
                             data.optString("winnerId", ""),
-                            data.optString("reason", "")
-                    );
+                            data.optString("reason", ""));
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:finished", e);
@@ -246,9 +217,7 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String msg = data.optString("message", "Error de juego");
-                if (game.listener != null) {
-                    game.listener.onErrorJuego(msg);
-                }
+                if (game.listener != null) game.listener.onErrorJuego(msg);
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en game:error", e);
             }
@@ -256,20 +225,26 @@ public class GestorJuegoSocketBinder {
 
         // ─── EVENTOS DE PROYECTILES ───────────────────────────────────────────────
 
-        // BUG FIX: el nombre del evento en el backend es "projectile:update" (sin 'd').
-        // Registramos ambos por compatibilidad con cualquier versión del servidor.
-        game.socket.on("projectile:update", args -> procesarProyectilUpdate(args));
-        game.socket.on("projectile:updated", args -> procesarProyectilUpdate(args));
+        // Ponemos escuchas para TODAS las posibles variaciones que el backend pueda estar usando
+        game.socket.on("projectile:updated", args -> {
+            Log.d("DEBUG_BOMBA", "📡 [SOCKET] ¡RECIBIDO projectile:updated (CON D)!");
+            procesarProyectilUpdate(args);
+        });
+
+        game.socket.on("projectile:update", args -> {
+            Log.d("DEBUG_BOMBA", "📡 [SOCKET] ¡RECIBIDO projectile:update (SIN D)!");
+            procesarProyectilUpdate(args);
+        });
 
         game.socket.on("projectile:launched", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String projectileId = data.getString("id");
-                String type = data.getString("type"); // "MINE" o "TORPEDO"
+                String type = data.getString("type");
                 int x = data.getInt("x");
                 int y = data.getInt("y");
-                int vectorX = data.getInt("vectorX");
-                int vectorY = data.getInt("vectorY");
+                int vectorX = data.optInt("vectorX", 0);
+                int vectorY = data.optInt("vectorY", 0);
                 int lifeDistance = data.getInt("lifeDistance");
                 int ammoCurrent = data.optInt("ammoCurrent", -1);
                 String ownerId = data.getString("ownerId");
@@ -278,9 +253,7 @@ public class GestorJuegoSocketBinder {
                 if (esMiAtaque && ammoCurrent != -1 && game.listener != null) {
                     game.listener.onRecursosActualizados(-1, ammoCurrent);
                 }
-
                 game.registrarTorpedoDesdeServer(projectileId, x, y, vectorX, vectorY, lifeDistance, esMiAtaque, type);
-
             } catch (Exception e) {
                 Log.e(TAG, "Fallo al procesar projectile:launched", e);
             }
@@ -290,13 +263,10 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 Log.d("DEBUG_TORPEDO", "💥 [IMPACTO] -> " + data.toString());
-
                 String shipId = data.getString("shipId");
                 String proyectilId = data.getString("proyectilColisionado");
                 int newHp = data.getInt("newHp");
-
                 game.procesarImpactoTorpedo(shipId, proyectilId, newHp);
-
             } catch (Exception e) {
                 Log.e(TAG, "Fallo al procesar projectile:hit", e);
             }
@@ -305,7 +275,8 @@ public class GestorJuegoSocketBinder {
 
     /**
      * Procesa el evento de actualización de posición de un proyectil en vuelo.
-     * El backend emite esto en cada cambio de turno para los torpedos activos.
+     * El backend emite esto durante la resolución de turno para cada torpedo activo.
+     * Las coordenadas x,y que llegan aquí ya están traducidas a la perspectiva del jugador.
      */
     private void procesarProyectilUpdate(Object[] args) {
         try {
@@ -314,30 +285,23 @@ public class GestorJuegoSocketBinder {
             String status = data.getString("status");
 
             if ("ENDOFLIFE".equals(status)) {
-                // El torpedo ha llegado al final de su vida sin impactar — lo borramos
                 TorpedoLogico aEliminar = null;
                 for (TorpedoLogico t : game.torpedosActivos) {
-                    if (t.id.equals(id)) {
-                        aEliminar = t;
-                        break;
-                    }
+                    if (t.id.equals(id)) { aEliminar = t; break; }
                 }
                 if (aEliminar != null) {
                     game.torpedosActivos.remove(aEliminar);
-                    Log.d("DEBUG_TORPEDO", "🕳️ Torpedo " + id.substring(0, Math.min(4, id.length())) + " expiró (ENDOFLIFE)");
+                    Log.d("DEBUG_TORPEDO", "🕳️ Torpedo "
+                            + id.substring(0, Math.min(4, id.length())) + " eliminado (ENDOFLIFE)");
                 }
             } else {
-                // El torpedo sigue vivo: actualizamos su posición
                 int x = data.has("x") && !data.isNull("x") ? data.getInt("x") : -1;
                 int y = data.has("y") && !data.isNull("y") ? data.getInt("y") : -1;
                 int life = data.optInt("lifeDistance", -1);
                 game.actualizarTorpedo(id, status, x, y, life);
             }
 
-            // Repintamos para mostrar el movimiento
-            if (game.listener != null) {
-                game.listener.onSnapshotCompleto();
-            }
+            if (game.listener != null) game.listener.onSnapshotCompleto();
         } catch (Exception e) {
             Log.e(TAG, "Fallo al procesar projectile:update", e);
         }

@@ -204,16 +204,25 @@ public class GestorJuego {
         // Evitar duplicados si ya existe un proyectil con ese id
         for (TorpedoLogico t : torpedosActivos) {
             if (t.id.equals(id)) {
-                // Actualizamos posición y vida en lugar de duplicar
                 t.x = x;
                 t.y = y;
                 t.vectorX = vectorX;
                 t.vectorY = vectorY;
+
                 t.lifeDistance = lifeDistance;
                 t.esAliado = esAliado;
-                Log.d("DEBUG_TORPEDO", "↩️ Torpedo " + id.substring(0, Math.min(4, id.length())) + " ya existía, actualizado.");
-                if (listener != null) listener.onSnapshotCompleto();
-                return;
+                t.tipo = tipo;
+
+                // Actualizar dirección visual si el vector ha cambiado
+                if (t.vectorY == -1) t.direccion = "N";
+                else if (t.vectorY == 1) t.direccion = "S";
+                else if (t.vectorX == 1) t.direccion = "E";
+                else if (t.vectorX == -1) t.direccion = "W";
+
+                if (listener != null) {
+                    listener.onSnapshotCompleto();
+                }
+                return; // Salimos para no añadirlo dos veces
             }
         }
 
@@ -269,21 +278,26 @@ public class GestorJuego {
      * Actualiza la posición de un torpedo existente según un evento del servidor.
      * Las coordenadas x, y recibidas son absolutas del mapa.
      */
-    public void actualizarTorpedo(String id, String status, int newX, int newY, int newLife) {
+    public void actualizarTorpedo(String id, String status, int x, int y, int life) {
+        // Si el proyectil muere, el SocketBinder ya lo elimina de la lista antes de llamar aquí
+        // o puedes gestionarlo aquí también.
+
         for (TorpedoLogico t : torpedosActivos) {
             if (t.id.equals(id)) {
-                if (newX != -1) t.x = newX;
-                if (newY != -1) t.y = newY;
-                if (newLife != -1) t.lifeDistance = newLife;
+                // Solo calculamos dirección si tenemos una posición previa válida
+                if (x != -1 && y != -1) {
+                    // Cálculo de dirección por comparación de movimiento
+                    if (x > t.x) t.direccion = "E";
+                    else if (x < t.x) t.direccion = "W";
+                    else if (y > t.y) t.direccion = "S";
+                    else if (y < t.y) t.direccion = "N";
 
-                Log.d("DEBUG_TORPEDO_VISUAL", "📍 Torpedo " + id.substring(0, Math.min(4, id.length()))
-                        + " movido a (" + t.x + "," + t.y + ")");
-                break;
+                    t.x = x;
+                    t.y = y;
+                }
+                if (life != -1) t.lifeDistance = life;
+                return;
             }
-        }
-
-        if (listener != null) {
-            listener.onSnapshotCompleto();
         }
     }
 
@@ -293,43 +307,62 @@ public class GestorJuego {
      * Las coordenadas que llegan aquí son absolutas del mapa del servidor.
      */
     public void sincronizarProyectilesVision(JSONArray proyPropios, JSONArray proyEnemigos) {
+        // Guardamos el estado actual para NO perder la rotación de los misiles
+        Map<String, TorpedoLogico> mapaAntiguos = new HashMap<>();
+        for (TorpedoLogico t : torpedosActivos) {
+            mapaAntiguos.put(t.id, t);
+        }
+
         torpedosActivos.clear();
+
         try {
-            if (proyPropios != null) {
-                for (int i = 0; i < proyPropios.length(); i++) {
-                    JSONObject p = proyPropios.getJSONObject(i);
-                    // Coordenadas absolutas del servidor, sin traducir
-                    torpedosActivos.add(new TorpedoLogico(
-                            p.getString("id"),
-                            p.getInt("x"),
-                            p.getInt("y"),
-                            p.optInt("vectorX", 0),
-                            p.optInt("vectorY", 0),
-                            p.optInt("lifeDistance", 0),
-                            true,  // son los nuestros
-                            p.optString("type", "TORPEDO")
-                    ));
-                }
-            }
-            if (proyEnemigos != null) {
-                for (int i = 0; i < proyEnemigos.length(); i++) {
-                    JSONObject p = proyEnemigos.getJSONObject(i);
-                    // Coordenadas absolutas del servidor, sin traducir
-                    torpedosActivos.add(new TorpedoLogico(
-                            p.getString("id"),
-                            p.getInt("x"),
-                            p.getInt("y"),
-                            p.optInt("vectorX", 0),
-                            p.optInt("vectorY", 0),
-                            p.optInt("lifeDistance", 0),
-                            false, // son del enemigo
-                            p.optString("type", "TORPEDO")
-                    ));
-                }
-            }
+            procesarArrayVision(proyPropios, mapaAntiguos, true);
+            procesarArrayVision(proyEnemigos, mapaAntiguos, false);
+
             Log.d("DEBUG_TORPEDO", "👁️ Visión sincronizada: " + torpedosActivos.size() + " proyectiles activos.");
         } catch (Exception e) {
             Log.e("DEBUG_TORPEDO", "Error procesando proyectiles de vision_update", e);
+        }
+    }
+
+    // Metodo auxiliar para no repetir código
+    private void procesarArrayVision(JSONArray array, Map<String, TorpedoLogico> mapaAntiguos, boolean esAliado) throws Exception {
+        if (array == null) return;
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject p = array.getJSONObject(i);
+            String id = p.getString("id");
+            int x = p.getInt("x");
+            int y = p.getInt("y");
+            int vx = p.optInt("vectorX", 0);
+            int vy = p.optInt("vectorY", 0);
+            int life = p.optInt("lifeDistance", 0);
+            String tipo = p.optString("type", "TORPEDO");
+
+            TorpedoLogico antiguo = mapaAntiguos.get(id);
+            if (antiguo != null) {
+                // Recuperar vector si el backend lo oculta por la niebla
+                if (vx == 0 && vy == 0) {
+                    vx = antiguo.vectorX;
+                    vy = antiguo.vectorY;
+                }
+
+                // Truco del radar para la rotación matemática
+                if (antiguo.x != x || antiguo.y != y) {
+                    if (x > antiguo.x) antiguo.direccion = "E";
+                    else if (x < antiguo.x) antiguo.direccion = "W";
+                    else if (y > antiguo.y) antiguo.direccion = "S";
+                    else if (y < antiguo.y) antiguo.direccion = "N";
+                }
+
+                antiguo.x = x;
+                antiguo.y = y;
+                antiguo.vectorX = vx;
+                antiguo.vectorY = vy;
+                antiguo.lifeDistance = life;
+                torpedosActivos.add(antiguo);
+            } else {
+                torpedosActivos.add(new TorpedoLogico(id, x, y, vx, vy, life, esAliado, tipo));
+            }
         }
     }
 
