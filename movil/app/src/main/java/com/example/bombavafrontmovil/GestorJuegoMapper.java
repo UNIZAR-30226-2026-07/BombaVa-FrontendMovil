@@ -68,6 +68,7 @@ public class GestorJuegoMapper {
                             + " pos=(" + s.optInt("x", -1) + "," + s.optInt("y", -1) + ")"
                             + " orient=" + s.optString("orientation", "?")
                             + " hpActual=" + s.optInt("currentHp", -1)
+                            + " visionRange=" + s.optInt("visionRange", -1)
                             + " -> inventario="
                             + (matchShip != null ? matchShip.getId() : "null")
                             + " template="
@@ -177,14 +178,12 @@ public class GestorJuegoMapper {
 
         try {
             String orientacionRecibida = s.optString("orientation", "NO_RECIBIDA");
-            android.util.Log.d("DEBUG_ORIENTACION", "🚢 Mapeando barco. JSON recibido: " + s.toString());
-            android.util.Log.d("DEBUG_ORIENTACION", "🧭 Orientación detectada por el Mapper: " + orientacionRecibida);
+            Log.d("DEBUG_ORIENTACION", "🚢 Mapeando barco. JSON recibido: " + s.toString());
+            Log.d("DEBUG_ORIENTACION", "🧭 Orientación detectada por el Mapper: " + orientacionRecibida);
         } catch (Exception e) {
-            android.util.Log.e("DEBUG_ORIENTACION", "Error leyendo JSON del barco", e);
+            Log.e("DEBUG_ORIENTACION", "Error leyendo JSON del barco", e);
         }
 
-        // MUY IMPORTANTE:
-        // aquí NO se traduce nada. Se guarda exactamente lo que manda el backend.
         BarcoLogico barco = new BarcoLogico(
                 idPartida,
                 tamanoReal,
@@ -197,6 +196,9 @@ public class GestorJuegoMapper {
 
         barco.hpActual = s.optInt("currentHp", tamanoReal);
         barco.hpMax = hpMaxReal;
+
+        // NUEVO: rango de visión real desde backend
+        barco.visionRange = s.optInt("visionRange", -1);
 
         return barco;
     }

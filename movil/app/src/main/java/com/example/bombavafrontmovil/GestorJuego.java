@@ -66,20 +66,19 @@ public class GestorJuego {
 
     public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
         try {
-            if (myFleet == null || enemyFleet == null || myFleet.length() == 0 || enemyFleet.length() == 0) {
+            if (myFleet == null || myFleet.length() == 0) {
                 return;
             }
 
             double mediaMy = mediaY(myFleet);
-            double mediaEnemy = mediaY(enemyFleet);
 
-            // Si mis barcos vienen "más arriba", invertimos para pintarlos abajo.
-            invertirPerspectiva = mediaMy < mediaEnemy;
+            // La perspectiva debe depender SOLO de mi propia flota.
+            // Si mi flota está en la mitad superior lógica, invertimos para pintarla abajo.
+            invertirPerspectiva = mediaMy < 7.0;
 
             android.util.Log.d(
                     "DEBUG_PERSPECTIVA",
                     "mediaMy=" + mediaMy +
-                            " mediaEnemy=" + mediaEnemy +
                             " invertir=" + invertirPerspectiva
             );
         } catch (Exception e) {

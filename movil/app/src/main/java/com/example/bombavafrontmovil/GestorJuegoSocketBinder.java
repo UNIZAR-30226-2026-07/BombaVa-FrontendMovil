@@ -59,35 +59,18 @@ public class GestorJuegoSocketBinder {
             Log.d(TAG, "¡SERVER RESPONDE! ship:moved -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
-                String sId = data.getString("shipId");
-                JSONObject pos = data.getJSONObject("position");
                 int fuelRes = data.optInt("fuelReserve", -1);
 
                 String userId = data.optString("userId", "");
                 boolean esMiAccion = userId.equals(game.myUserId);
 
-                for (BarcoLogico b : game.flota) {
-                    if (b.id.equals(sId)) {
-                        int oldX = b.x;
-                        int oldY = b.y;
-                        String orientation = b.orientation;
-                        int tipo = b.tipo;
-
-                        int newX = pos.getInt("x");
-                        int newY = pos.getInt("y");
-
-                        b.x = newX;
-                        b.y = newY;
-
-                        if (game.listener != null) {
-                            if (esMiAccion) {
-                                game.listener.onRecursosActualizados(fuelRes, -1);
-                            }
-                            game.listener.onBarcoMovido(sId, oldX, oldY, newX, newY, orientation, tipo);
-                        }
-                        return;
-                    }
+                if (game.listener != null && esMiAccion) {
+                    game.listener.onRecursosActualizados(fuelRes, -1);
                 }
+
+                // IMPORTANTE:
+                // No actualizamos posiciones aquí.
+                // La fuente de verdad es match:vision_update.
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:moved", e);
             }
@@ -97,31 +80,18 @@ public class GestorJuegoSocketBinder {
             Log.d(TAG, "¡SERVER RESPONDE! ship:rotated -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
-                String sId = data.getString("shipId");
-                String orientation = data.getString("orientation");
                 int fuelRes = data.optInt("fuelReserve", -1);
 
                 String userId = data.optString("userId", "");
                 boolean esMiAccion = userId.equals(game.myUserId);
 
-                for (BarcoLogico b : game.flota) {
-                    if (b.id.equals(sId)) {
-                        String oldOrientation = b.orientation;
-                        int x = b.x;
-                        int y = b.y;
-                        int tipo = b.tipo;
-
-                        b.orientation = orientation;
-
-                        if (game.listener != null) {
-                            if (esMiAccion) {
-                                game.listener.onRecursosActualizados(fuelRes, -1);
-                            }
-                            game.listener.onBarcoRotado(sId, x, y, oldOrientation, orientation, tipo);
-                        }
-                        return;
-                    }
+                if (game.listener != null && esMiAccion) {
+                    game.listener.onRecursosActualizados(fuelRes, -1);
                 }
+
+                // IMPORTANTE:
+                // No actualizamos orientación aquí.
+                // La fuente de verdad es match:vision_update.
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:rotated", e);
             }
@@ -151,13 +121,14 @@ public class GestorJuegoSocketBinder {
             Log.d(TAG, "¡SERVER RESPONDE! match:vision_update -> " + args[0]);
             try {
                 JSONObject data = (JSONObject) args[0];
+
                 List<BarcoLogico> nuevaFlota = new ArrayList<>();
 
                 JSONArray myFleet = data.optJSONArray("myFleet");
                 JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
                 // Recalcular SOLO perspectiva visual
-                if (myFleet != null && enemyFleet != null) {
+                if (myFleet != null) {
                     game.recalcularPerspectiva(myFleet, enemyFleet);
                 }
 
