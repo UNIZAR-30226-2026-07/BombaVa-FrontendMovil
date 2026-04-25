@@ -29,6 +29,9 @@ public class GestorJuego {
     final GestorJuegoMapper mapper;
     final GestorJuegoSocketBinder socketBinder;
 
+    // Controla cómo se pinta el tablero
+    private boolean invertirPerspectiva = true;
+
     public interface PartidaListener {
         void onSnapshotCompleto();
         void onRecursosActualizados(int fuel, int ammo);
@@ -58,27 +61,51 @@ public class GestorJuego {
         unirseAPartida();
     }
 
+    public boolean isInvertirPerspectiva() {
+        return invertirPerspectiva;
+    }
+
+    // Compatibilidad con código previo
     public boolean isPerspectivaInvertida() {
-        for (BarcoLogico b : flota) {
-            if (b.esAliado) {
-                return b.y < 7;
+        return invertirPerspectiva;
+    }
+
+    public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
+        try {
+            if (myFleet == null || myFleet.length() == 0) {
+                return;
             }
+
+            double mediaMy = mediaY(myFleet);
+
+            // Solo depende de mi propia flota
+            invertirPerspectiva = mediaMy < 7.0;
+
+            Log.d(
+                    "DEBUG_PERSPECTIVA",
+                    "mediaMy=" + mediaMy +
+                            " invertir=" + invertirPerspectiva
+            );
+        } catch (Exception e) {
+            Log.e("DEBUG_PERSPECTIVA", "Error recalculando perspectiva", e);
         }
-        return false;
+    }
+
+    private double mediaY(JSONArray fleet) throws Exception {
+        double suma = 0.0;
+        for (int i = 0; i < fleet.length(); i++) {
+            JSONObject s = fleet.getJSONObject(i);
+            suma += s.getInt("y");
+        }
+        return suma / fleet.length();
     }
 
     public int filaVisualDesdeLogica(int filaLogica) {
-        if (isPerspectivaInvertida()) {
-            return 14 - filaLogica;
-        }
-        return filaLogica;
+        return invertirPerspectiva ? (14 - filaLogica) : filaLogica;
     }
 
     public int filaLogicaDesdeVisual(int filaVisual) {
-        if (isPerspectivaInvertida()) {
-            return 14 - filaVisual;
-        }
-        return filaVisual;
+        return invertirPerspectiva ? (14 - filaVisual) : filaVisual;
     }
 
     private void unirseAPartida() {
@@ -181,39 +208,42 @@ public class GestorJuego {
         }
     }
 
+    public void colocarMina(String shipId, int filaVisual, int columna) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            payload.put("shipId", shipId);
+
+            JSONObject target = new JSONObject();
+            target.put("x", columna);
+            target.put("y", filaLogicaDesdeVisual(filaVisual));
+            payload.put("target", target);
+
+            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Mina -> " + payload.toString());
+            socket.emit("ship:attack:mine", payload);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     /**
      * Registra un torpedo/mina recibido desde el servidor.
-     *
-     * IMPORTANTE: los parámetros x, y, vectorX, vectorY son COORDENADAS ABSOLUTAS
-     * del mapa del servidor. NO se traducen aquí. La conversión a coordenadas
-     * visuales se hace en PantallaJuegoBoard.sincronizarTorpedosVisuales(),
-     * igual que se hace con los barcos en repaintFull().
-     *
-     * El evento projectile:launched del servidor manda coordenadas ya traducidas
-     * al bando del jugador que disparó. Eso significa que para el rival llegan
-     * incorrectas. Por eso la fuente de verdad real son los datos de
-     * match:vision_update → sincronizarProyectilesVision(), que sí llegan
-     * correctamente a cada jugador. Este método se usa solo como registro rápido
-     * para mostrar feedback inmediato al tirador; la posición definitiva siempre
-     * se sobreescribe con el siguiente vision_update.
+     * x,y y vectores son coordenadas absolutas del servidor.
      */
     public void registrarTorpedoDesdeServer(String id, int x, int y,
                                             int vectorX, int vectorY,
                                             int lifeDistance, boolean esAliado,
                                             String tipo) {
-        // Evitar duplicados si ya existe un proyectil con ese id
         for (TorpedoLogico t : torpedosActivos) {
             if (t.id.equals(id)) {
                 t.x = x;
                 t.y = y;
                 t.vectorX = vectorX;
                 t.vectorY = vectorY;
-
                 t.lifeDistance = lifeDistance;
                 t.esAliado = esAliado;
                 t.tipo = tipo;
 
-                // Actualizar dirección visual si el vector ha cambiado
                 if (t.vectorY == -1) t.direccion = "N";
                 else if (t.vectorY == 1) t.direccion = "S";
                 else if (t.vectorX == 1) t.direccion = "E";
@@ -222,25 +252,22 @@ public class GestorJuego {
                 if (listener != null) {
                     listener.onSnapshotCompleto();
                 }
-                return; // Salimos para no añadirlo dos veces
+                return;
             }
         }
 
         TorpedoLogico nuevo = new TorpedoLogico(id, x, y, vectorX, vectorY, lifeDistance, esAliado, tipo);
         torpedosActivos.add(nuevo);
-        Log.d("DEBUG_TORPEDO", "➕ Registrado proyectil " + tipo + " id=" + id.substring(0, Math.min(4, id.length()))
-                + " pos=(" + x + "," + y + ") vec=(" + vectorX + "," + vectorY + ") aliado=" + esAliado);
+        Log.d("DEBUG_TORPEDO", "➕ Registrado proyectil " + tipo + " id=" +
+                id.substring(0, Math.min(4, id.length())) +
+                " pos=(" + x + "," + y + ") vec=(" + vectorX + "," + vectorY + ") aliado=" + esAliado);
 
         if (listener != null) {
             listener.onSnapshotCompleto();
         }
     }
 
-    /**
-     * Aplica el daño de un impacto, elimina el proyectil y hunde el barco si procede.
-     */
     public void procesarImpactoTorpedo(String shipId, String proyectilId, int newHp) {
-        // 1. Borrar el torpedo del agua
         TorpedoLogico torpedoRoto = null;
         for (TorpedoLogico t : torpedosActivos) {
             if (t.id.equals(proyectilId)) {
@@ -250,7 +277,6 @@ public class GestorJuego {
         }
         if (torpedoRoto != null) torpedosActivos.remove(torpedoRoto);
 
-        // 2. Bajar la vida del barco
         BarcoLogico barcoHundido = null;
         for (BarcoLogico b : flota) {
             if (b.id.equals(shipId)) {
@@ -273,20 +299,10 @@ public class GestorJuego {
         }
     }
 
-
-    /**
-     * Actualiza la posición de un torpedo existente según un evento del servidor.
-     * Las coordenadas x, y recibidas son absolutas del mapa.
-     */
     public void actualizarTorpedo(String id, String status, int x, int y, int life) {
-        // Si el proyectil muere, el SocketBinder ya lo elimina de la lista antes de llamar aquí
-        // o puedes gestionarlo aquí también.
-
         for (TorpedoLogico t : torpedosActivos) {
             if (t.id.equals(id)) {
-                // Solo calculamos dirección si tenemos una posición previa válida
                 if (x != -1 && y != -1) {
-                    // Cálculo de dirección por comparación de movimiento
                     if (x > t.x) t.direccion = "E";
                     else if (x < t.x) t.direccion = "W";
                     else if (y > t.y) t.direccion = "S";
@@ -302,12 +318,9 @@ public class GestorJuego {
     }
 
     /**
-     * Reemplaza la lista completa de proyectiles activos con los datos del servidor.
-     * Llamado desde match:vision_update — esta es la FUENTE DE VERDAD de posiciones.
-     * Las coordenadas que llegan aquí son absolutas del mapa del servidor.
+     * Fuente de verdad de proyectiles desde vision_update
      */
     public void sincronizarProyectilesVision(JSONArray proyPropios, JSONArray proyEnemigos) {
-        // Guardamos el estado actual para NO perder la rotación de los misiles
         Map<String, TorpedoLogico> mapaAntiguos = new HashMap<>();
         for (TorpedoLogico t : torpedosActivos) {
             mapaAntiguos.put(t.id, t);
@@ -325,9 +338,9 @@ public class GestorJuego {
         }
     }
 
-    // Metodo auxiliar para no repetir código
     private void procesarArrayVision(JSONArray array, Map<String, TorpedoLogico> mapaAntiguos, boolean esAliado) throws Exception {
         if (array == null) return;
+
         for (int i = 0; i < array.length(); i++) {
             JSONObject p = array.getJSONObject(i);
             String id = p.getString("id");
@@ -340,13 +353,11 @@ public class GestorJuego {
 
             TorpedoLogico antiguo = mapaAntiguos.get(id);
             if (antiguo != null) {
-                // Recuperar vector si el backend lo oculta por la niebla
                 if (vx == 0 && vy == 0) {
                     vx = antiguo.vectorX;
                     vy = antiguo.vectorY;
                 }
 
-                // Truco del radar para la rotación matemática
                 if (antiguo.x != x || antiguo.y != y) {
                     if (x > antiguo.x) antiguo.direccion = "E";
                     else if (x < antiguo.x) antiguo.direccion = "W";
@@ -359,28 +370,12 @@ public class GestorJuego {
                 antiguo.vectorX = vx;
                 antiguo.vectorY = vy;
                 antiguo.lifeDistance = life;
+                antiguo.esAliado = esAliado;
+                antiguo.tipo = tipo;
                 torpedosActivos.add(antiguo);
             } else {
                 torpedosActivos.add(new TorpedoLogico(id, x, y, vx, vy, life, esAliado, tipo));
             }
-        }
-    }
-
-    public void colocarMina(String shipId, int filaVisual, int columna) {
-        try {
-            JSONObject payload = new JSONObject();
-            payload.put("matchId", matchId);
-            payload.put("shipId", shipId);
-
-            JSONObject target = new JSONObject();
-            target.put("x", columna);
-            target.put("y", filaLogicaDesdeVisual(filaVisual));
-            payload.put("target", target);
-
-            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Mina -> " + payload.toString());
-            socket.emit("ship:attack:mine", payload);
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

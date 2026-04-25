@@ -61,44 +61,53 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         vh.waterView.setImageDrawable(null);
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
 
+        if (vh.imgMina != null) {
+            vh.imgMina.setVisibility(View.GONE);
+            vh.imgMina.clearColorFilter();
+            vh.imgMina.setImageDrawable(null);
+        }
+
         if (vh.waterView.getBackground() != null) {
             vh.waterView.getBackground().clearColorFilter();
         }
 
-        if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
-            vh.waterView.getBackground().setColorFilter(
-                    Color.argb(70, 255, 255, 180),
-                    PorterDuff.Mode.SRC_ATOP
-            );
-        }
-
-        if (vh.imgMina != null) {
-            // Asumiendo que tu objeto Casilla tiene un método para saber si hay una mina
-            if (c.hasMina()) {
-                vh.imgMina.setVisibility(View.VISIBLE);
-                vh.imgMina.setImageResource(R.drawable.ic_mina);
-
-                // Opcional: Si quieres diferenciar si la mina es tuya o del enemigo
-                if (c.isMinaAliada()) {
-                    // Tinte verde o azulado para tus minas
-                    vh.imgMina.setColorFilter(Color.argb(255, 100, 255, 100), PorterDuff.Mode.MULTIPLY);
-                } else {
-                    // Dejarla con sus colores originales (Rojo y Amarillo) para minas enemigas (si las llegas a ver)
-                    vh.imgMina.clearColorFilter();
-                }
-            } else {
-                vh.imgMina.setVisibility(View.GONE);
+        // Niebla de guerra
+        if (!c.isVisible()) {
+            if (vh.waterView.getBackground() != null) {
+                vh.waterView.getBackground().setColorFilter(
+                        Color.argb(210, 10, 20, 35),
+                        PorterDuff.Mode.SRC_ATOP
+                );
             }
         } else {
-            // Si entra aquí, es que no guardaste el XML de la celda correctamente
-            android.util.Log.e("DEBUG_MINA_UI", "¡ERROR! vh.imgMina es NULL. Revisa el archivo XML de la celda.");
+            if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
+                vh.waterView.getBackground().setColorFilter(
+                        Color.argb(70, 255, 255, 180),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            }
         }
 
-        if (c.isTieneBarco()) {
+        // MINAS
+        if (vh.imgMina != null && c.hasMina() && c.isVisible()) {
+            vh.imgMina.setVisibility(View.VISIBLE);
+            vh.imgMina.setImageResource(R.drawable.ic_mina);
+
+            if (c.isMinaAliada()) {
+                vh.imgMina.setColorFilter(
+                        Color.argb(255, 100, 255, 100),
+                        PorterDuff.Mode.MULTIPLY
+                );
+            } else {
+                vh.imgMina.clearColorFilter();
+            }
+        }
+
+        // BARCOS
+        if (c.isTieneBarco() && c.isVisible()) {
             boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
             boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
 
-            // En vertical, intercambiamos proa/popa porque tus sprites quedan al revés.
             if (esVertical) {
                 if (c.isEsProa()) {
                     vh.waterView.setImageResource(R.drawable.barco_popa);
@@ -108,7 +117,6 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
                     vh.waterView.setImageResource(R.drawable.barco_medio);
                 }
             } else {
-                // En horizontal estaba bien
                 if (c.isEsProa()) {
                     vh.waterView.setImageResource(R.drawable.barco_proa);
                 } else if (esPiezaInicial) {
@@ -154,7 +162,8 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
-        if (c.hasTorpedo()) {
+        // TORPEDOS
+        if (c.hasTorpedo() && c.isVisible()) {
             vh.waterView.setImageResource(R.drawable.ic_torpedo);
 
             float rotT = 0f;
@@ -162,11 +171,14 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             else if ("S".equals(c.getDireccionTorpedo())) rotT = 180f;
             else if ("E".equals(c.getDireccionTorpedo())) rotT = 90f;
             else if ("W".equals(c.getDireccionTorpedo())) rotT = 270f;
+
             vh.waterView.setRotation(rotT);
 
             if (!c.isTorpedoAliado()) {
-                // Si es un torpedo enemigo, le ponemos un tinte rojo para asustar
-                vh.waterView.setColorFilter(Color.argb(200, 255, 50, 50), PorterDuff.Mode.SRC_ATOP);
+                vh.waterView.setColorFilter(
+                        Color.argb(200, 255, 50, 50),
+                        PorterDuff.Mode.SRC_ATOP
+                );
             } else {
                 vh.waterView.clearColorFilter();
             }
