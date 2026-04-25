@@ -71,7 +71,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             vh.waterView.getBackground().clearColorFilter();
         }
 
-        // Niebla de guerra
+        // Casilla visible / oculta por niebla
         if (!c.isVisible()) {
             if (vh.waterView.getBackground() != null) {
                 vh.waterView.getBackground().setColorFilter(

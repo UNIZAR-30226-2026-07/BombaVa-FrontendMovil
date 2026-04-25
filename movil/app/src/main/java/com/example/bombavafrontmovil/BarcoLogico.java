@@ -16,6 +16,9 @@ public class BarcoLogico {
     public int hpActual = 1;
     public int hpMax = 1;
 
+    // NUEVO: rango de visión real recibido del backend
+    public int visionRange = -1;
+
     public BarcoLogico() {}
 
     public BarcoLogico(String id, int tipo, int x, int y, String orientation, boolean esAliado, String slug) {
@@ -39,6 +42,17 @@ public class BarcoLogico {
 
     public boolean isEsAliado() {
         return esAliado;
+    }
+
+    public int getRangoVision() {
+        // Si backend ya lo ha mandado, usamos ese valor
+        if (visionRange >= 0) return visionRange;
+
+        // Fallback temporal por si algún evento aún no lo manda
+        if (tipo == 1) return 4;
+        if (tipo == 3) return 3;
+        if (tipo == 5) return 2;
+        return 2;
     }
 
     public List<int[]> getCeldas() {

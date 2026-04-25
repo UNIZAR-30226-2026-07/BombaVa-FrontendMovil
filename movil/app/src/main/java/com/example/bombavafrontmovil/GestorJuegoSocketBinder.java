@@ -70,7 +70,8 @@ public class GestorJuegoSocketBinder {
                     game.listener.onRecursosActualizados(fuelRes, -1);
                 }
 
-                // No actualizamos aquí la posición.
+                // IMPORTANTE:
+                // No actualizamos posiciones aquí.
                 // La fuente de verdad es match:vision_update.
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:moved", e);
@@ -90,7 +91,8 @@ public class GestorJuegoSocketBinder {
                     game.listener.onRecursosActualizados(fuelRes, -1);
                 }
 
-                // No actualizamos aquí la orientación.
+                // IMPORTANTE:
+                // No actualizamos orientación aquí.
                 // La fuente de verdad es match:vision_update.
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:rotated", e);
@@ -106,7 +108,9 @@ public class GestorJuegoSocketBinder {
                 boolean esMiAtaque = attackerId.equals(game.myUserId);
 
                 if (game.listener != null) {
-                    if (esMiAtaque) game.listener.onRecursosActualizados(-1, ammoCurrent);
+                    if (esMiAtaque) {
+                        game.listener.onRecursosActualizados(-1, ammoCurrent);
+                    }
                     game.listener.onSnapshotCompleto();
                 }
             } catch (Exception e) {
@@ -124,7 +128,7 @@ public class GestorJuegoSocketBinder {
                 JSONArray myFleet = data.optJSONArray("myFleet");
                 JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
-                // Recalcular perspectiva visual
+                // Recalcular SOLO perspectiva visual
                 if (myFleet != null) {
                     game.recalcularPerspectiva(myFleet, enemyFleet);
                 }
@@ -132,15 +136,26 @@ public class GestorJuegoSocketBinder {
                 if (myFleet != null) {
                     for (int i = 0; i < myFleet.length(); i++) {
                         JSONObject s = myFleet.getJSONObject(i);
-                        nuevaFlota.add(game.mapper.construirBarcoDesdeJson(
-                                s, true, game.diccionarioFlota.get(s.getString("id"))));
+                        nuevaFlota.add(
+                                game.mapper.construirBarcoDesdeJson(
+                                        s,
+                                        true,
+                                        game.diccionarioFlota.get(s.getString("id"))
+                                )
+                        );
                     }
                 }
 
                 if (enemyFleet != null) {
                     for (int i = 0; i < enemyFleet.length(); i++) {
                         JSONObject s = enemyFleet.getJSONObject(i);
-                        nuevaFlota.add(game.mapper.construirBarcoDesdeJson(s, false, null));
+                        nuevaFlota.add(
+                                game.mapper.construirBarcoDesdeJson(
+                                        s,
+                                        false,
+                                        null
+                                )
+                        );
                     }
                 }
 
@@ -149,7 +164,9 @@ public class GestorJuegoSocketBinder {
 
                 if (!hayCambios) {
                     java.util.Map<String, BarcoLogico> mapaAnterior = new java.util.HashMap<>();
-                    for (BarcoLogico b : flotaAnterior) mapaAnterior.put(b.id, b);
+                    for (BarcoLogico b : flotaAnterior) {
+                        mapaAnterior.put(b.id, b);
+                    }
 
                     for (BarcoLogico nuevo : nuevaFlota) {
                         BarcoLogico anterior = mapaAnterior.get(nuevo.id);
@@ -194,7 +211,8 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onPartidaTerminada(
                             data.optString("winnerId", ""),
-                            data.optString("reason", ""));
+                            data.optString("reason", "")
+                    );
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:finished", e);
@@ -206,7 +224,9 @@ public class GestorJuegoSocketBinder {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String msg = data.optString("message", "Error de juego");
-                if (game.listener != null) game.listener.onErrorJuego(msg);
+                if (game.listener != null) {
+                    game.listener.onErrorJuego(msg);
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en game:error", e);
             }
@@ -278,8 +298,10 @@ public class GestorJuegoSocketBinder {
                 }
                 if (aEliminar != null) {
                     game.torpedosActivos.remove(aEliminar);
-                    Log.d("DEBUG_TORPEDO", "🕳️ Torpedo "
-                            + id.substring(0, Math.min(4, id.length())) + " eliminado (ENDOFLIFE)");
+                    Log.d(
+                            "DEBUG_TORPEDO",
+                            "🕳️ Torpedo " + id.substring(0, Math.min(4, id.length())) + " eliminado (ENDOFLIFE)"
+                    );
                 }
             } else {
                 int x = data.has("x") && !data.isNull("x") ? data.getInt("x") : -1;
@@ -288,7 +310,9 @@ public class GestorJuegoSocketBinder {
                 game.actualizarTorpedo(id, status, x, y, life);
             }
 
-            if (game.listener != null) game.listener.onSnapshotCompleto();
+            if (game.listener != null) {
+                game.listener.onSnapshotCompleto();
+            }
         } catch (Exception e) {
             Log.e(TAG, "Fallo al procesar projectile:update", e);
         }

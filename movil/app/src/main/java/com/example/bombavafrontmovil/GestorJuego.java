@@ -78,7 +78,8 @@ public class GestorJuego {
 
             double mediaMy = mediaY(myFleet);
 
-            // La perspectiva depende solo de mi flota
+            // La perspectiva depende solo de mi flota.
+            // Si mi flota está en la mitad superior lógica, invertimos para pintarla abajo.
             invertirPerspectiva = mediaMy < 7.0;
 
             Log.d(

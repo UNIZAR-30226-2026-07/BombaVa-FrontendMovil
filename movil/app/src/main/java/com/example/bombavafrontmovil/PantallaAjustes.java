@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Switch;
-import android.widget.Toast;
 
 public class PantallaAjustes extends BaseActivity {
 
@@ -91,7 +90,7 @@ public class PantallaAjustes extends BaseActivity {
             public void onStopTrackingTouch(SeekBar seekBar) {
                 int volumenActual = seekBar.getProgress();
                 prefs.edit().putInt("volumen_musica", volumenActual).apply();
-                Toast.makeText(PantallaAjustes.this, "Volumen guardado: " + volumenActual + "%", Toast.LENGTH_SHORT).show();
+                AppNotifier.show(PantallaAjustes.this, "Volumen guardado: " + volumenActual + "%", AppNotifier.Type.SUCCESS);
             }
         });
 

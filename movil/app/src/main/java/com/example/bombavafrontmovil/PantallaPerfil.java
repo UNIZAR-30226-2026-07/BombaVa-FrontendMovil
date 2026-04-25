@@ -9,7 +9,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
+
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -115,7 +115,7 @@ public class PantallaPerfil extends AppCompatActivity {
                     // Si el token ha caducado o el server da error 401/403
                     tvStatus.setText("Error: Autorización denegada.");
                     tvStatus.setTextColor(getResources().getColor(android.R.color.holo_red_light));
-                    Toast.makeText(PantallaPerfil.this, "Sesión caducada. Vuelve a ingresar.", Toast.LENGTH_LONG).show();
+                    AppNotifier.show(PantallaPerfil.this, "Sesión caducada. Vuelve a ingresar.", AppNotifier.Type.ERROR);
                     cerrarSesionDirecta();
                 }
             }

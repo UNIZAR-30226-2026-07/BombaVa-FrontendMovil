@@ -10,6 +10,7 @@ import com.example.bombavafrontmovil.models.UserShip;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import android.widget.Toast;
 
 public class PantallaJuegoController {
 
@@ -301,14 +302,10 @@ public class PantallaJuegoController {
             boolean afecta = (idAnterior != null && idAnterior.equals(b.id)) ||
                     (idNuevo != null && idNuevo.equals(b.id));
             if (!afecta) continue;
+
             posiciones.addAll(board.posicionesPara(b.x, b.y, b.orientation, b.tipo, gestor));
         }
 
-        for (Integer pos : posiciones) {
-            Casilla casilla = board.getMatriz().get(pos);
-            String shipId = casilla.getIdBarcoStr();
-            casilla.setSeleccionado(shipId != null && shipId.equals(idNuevo) && casilla.isEsAliado());
-        }
         board.repaintPositions(posiciones, gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
@@ -444,6 +441,20 @@ public class PantallaJuegoController {
     }
 
     public void mostrarToast(String texto) {
-        Toast.makeText(activity, texto, Toast.LENGTH_SHORT).show();
+        if (ui != null) {
+            ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.INFO);
+        }
+    }
+
+    public void mostrarError(String texto) {
+        if (ui != null) {
+            ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.ERROR);
+        }
+    }
+
+    public void mostrarSuccess(String texto) {
+        if (ui != null) {
+            ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.SUCCESS);
+        }
     }
 }

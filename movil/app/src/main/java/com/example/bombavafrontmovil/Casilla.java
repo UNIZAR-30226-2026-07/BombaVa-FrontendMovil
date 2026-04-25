@@ -10,6 +10,7 @@ public class Casilla {
     private int fila, columna;
     private boolean seleccionado = false;
     private boolean enRangoAtaque = false;
+    private boolean visible = true;
 
     private boolean tieneBarco = false;
     private int idBarco = -1;
@@ -52,6 +53,9 @@ public class Casilla {
     public boolean isEnRangoAtaque() { return enRangoAtaque; }
     public void setEnRangoAtaque(boolean enRangoAtaque) { this.enRangoAtaque = enRangoAtaque; }
 
+    public boolean isVisible() { return visible; }
+    public void setVisible(boolean visible) { this.visible = visible; }
+
     public boolean isTieneBarco() { return tieneBarco; }
     public void setTieneBarco(boolean tieneBarco) { this.tieneBarco = tieneBarco; }
 
@@ -91,6 +95,7 @@ public class Casilla {
 
     public int getVidaActual() { return vidaActual; }
     public void setVidaActual(int vidaActual) { this.vidaActual = vidaActual; }
+
     public int getVidaMax() { return vidaMax; }
     public void setVidaMax(int vidaMax) { this.vidaMax = vidaMax; }
 
@@ -109,6 +114,7 @@ public class Casilla {
     public void resetVisual() {
         seleccionado = false;
         enRangoAtaque = false;
+        visible = false; // por defecto todo queda cubierto por niebla
         tieneBarco = false;
         idBarco = -1;
         idBarcoStr = null;
@@ -133,6 +139,7 @@ public class Casilla {
         Casilla c = new Casilla(fila, columna);
         c.seleccionado = seleccionado;
         c.enRangoAtaque = enRangoAtaque;
+        c.visible = visible;
         c.tieneBarco = tieneBarco;
         c.idBarco = idBarco;
         c.idBarcoStr = idBarcoStr;
@@ -160,6 +167,7 @@ public class Casilla {
                 && columna == otra.columna
                 && seleccionado == otra.seleccionado
                 && enRangoAtaque == otra.enRangoAtaque
+                && visible == otra.visible
                 && tieneBarco == otra.tieneBarco
                 && idBarco == otra.idBarco
                 && Objects.equals(idBarcoStr, otra.idBarcoStr)

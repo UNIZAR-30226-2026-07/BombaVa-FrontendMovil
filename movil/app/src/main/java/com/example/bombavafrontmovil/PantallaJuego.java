@@ -88,7 +88,7 @@ public class PantallaJuego extends AppCompatActivity {
                     mensajeRetrasadoStartInfo = args;
                     Log.d(TAG, "match:startInfo recibido antes de crear GestorJuego, se guarda temporalmente");
                 } else {
-                    gestor.procesarStartInfo(args);
+                    Log.d(TAG, "match:startInfo ignorado en PantallaJuego porque ya lo gestiona GestorJuegoSocketBinder");
                 }
             }));
 
@@ -208,7 +208,7 @@ public class PantallaJuego extends AppCompatActivity {
 
                     @Override
                     public void onErrorJuego(String mensaje) {
-                        runOnUiThread(() -> controller.mostrarToast(mensaje));
+                        runOnUiThread(() -> controller.mostrarError(mensaje));
                     }
 
                     @Override

@@ -10,7 +10,6 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import android.os.Vibrator;
 import android.content.Context;
@@ -168,7 +167,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             adaptador.notifyDataSetChanged();
             ejecutarVibracion(50);
         } else {
-            Toast.makeText(this, "Colocación inválida", Toast.LENGTH_SHORT).show();
+            AppNotifier.show(this, "Colocación inválida", AppNotifier.Type.ERROR);
             ejecutarVibracion(150);
         }
     }
@@ -256,10 +255,10 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         if (armaTemporal.isEmpty()) return;
         if (gestorLogica.tieneArmaEquipada(idBarcoSeleccionadoParaArma, armaTemporal)) {
             gestorLogica.desequiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
-            Toast.makeText(this, "Arma retirada", Toast.LENGTH_SHORT).show();
+            AppNotifier.show(this, "Arma retirada", AppNotifier.Type.INFO);
         } else {
             gestorLogica.equiparArma(idBarcoSeleccionadoParaArma, armaTemporal);
-            Toast.makeText(this, "Arma equipada", Toast.LENGTH_SHORT).show();
+            AppNotifier.show(this, "Arma equipada", AppNotifier.Type.SUCCESS);
         }
         ejecutarVibracion(50);
         abrirPanelArmas(idBarcoSeleccionadoParaArma);
@@ -278,7 +277,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                 layoutControlesColocacion.setVisibility(View.GONE);
                 ((TextView)findViewById(R.id.tv_title)).setText("Modifica tus Armas");
             } else {
-                Toast.makeText(this, "Faltan barcos por colocar", Toast.LENGTH_SHORT).show();
+                AppNotifier.show(this, "Faltan barcos por colocar", AppNotifier.Type.ERROR);
             }
         } else {
             enviarFlotaAlServidor();
@@ -364,7 +363,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         if (!yaConfiguroAntes) {
             actualizarTodaLaVistaTablero();
             sincronizarArmasConUI();
-            Toast.makeText(this, "¡Bienvenido! Es tu primera vez, despliega tu flota.", Toast.LENGTH_LONG).show();
+            AppNotifier.show(this, "¡Bienvenido! Es tu primera vez, despliega tu flota.", AppNotifier.Type.INFO);
             return; // Cortamos aquí para que no lea el mazo por defecto del servidor
         }
 
@@ -396,7 +395,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                 sincronizarArmasConUI();
 
                 if (!mazoActivoEncontrado) {
-                    Toast.makeText(ConfigurarFlotaActivity.this, "Sin flota activa. ¡Despliega tus barcos!", Toast.LENGTH_SHORT).show();
+                    AppNotifier.show(ConfigurarFlotaActivity.this, "Sin flota activa. ¡Despliega tus barcos!", AppNotifier.Type.INFO);
                 }
             }
             @Override public void onFailure(Call<List<FleetConfigRequest>> call, Throwable t) {
@@ -412,13 +411,13 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         List<ShipPosition> posiciones = gestorLogica.obtenerPosicionesParaBackend(realIdBarco5, realIdBarco3, realIdBarco1);
         android.util.Log.d("DEBUG_ORIENTACION", "🚀 [PRE-ENVÍO] Posiciones generadas: " + new com.google.gson.Gson().toJson(posiciones));
 
-        if(posiciones.isEmpty()) { Toast.makeText(this, "Error: No se detectaron barcos para guardar.", Toast.LENGTH_SHORT).show(); return; }
+        if(posiciones.isEmpty()) { AppNotifier.show(this, "Error: No se detectaron barcos para guardar.", AppNotifier.Type.ERROR); return; }
 
         ApiClient.getApiService().crearMazoFlota("Bearer " + token, new FleetConfigRequest(nombreMazoUnico, posiciones)).enqueue(new Callback<Void>() {
             @Override
             public void onResponse(Call<Void> call, Response<Void> response) {
                 if (!response.isSuccessful()) return;
-                Toast.makeText(ConfigurarFlotaActivity.this, "Procesando tácticas...", Toast.LENGTH_SHORT).show();
+                AppNotifier.show(ConfigurarFlotaActivity.this, "Procesando tácticas...", AppNotifier.Type.INFO);
 
                 new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                     ApiClient.getApiService().obtenerMazo("Bearer " + token).enqueue(new Callback<List<FleetConfigRequest>>() {
@@ -451,7 +450,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                     prefs.edit().putBoolean("flota_guardada_" + userId, true).apply();
 
                     enviarArmasAlServidor(token);
-                    Toast.makeText(ConfigurarFlotaActivity.this, "¡Configuración actualizada!", Toast.LENGTH_SHORT).show();
+                    AppNotifier.show(ConfigurarFlotaActivity.this, "¡Configuración actualizada!", AppNotifier.Type.SUCCESS);
                     finish();
                 }
             }

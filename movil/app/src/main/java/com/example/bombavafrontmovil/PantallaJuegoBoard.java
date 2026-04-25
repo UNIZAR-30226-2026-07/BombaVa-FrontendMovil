@@ -47,7 +47,7 @@ public class PantallaJuegoBoard {
 
         for (Casilla c : matriz) c.resetVisual();
 
-        // 1. Pintamos barcos
+        // 1. Pintamos todos los barcos en bruto
         for (BarcoLogico b : gestor.getFlota()) {
             boolean esSel = idBarcoSeleccionado != null
                     && idBarcoSeleccionado.equals(b.id)
@@ -81,10 +81,10 @@ public class PantallaJuegoBoard {
             }
         }
 
-        // 2. Niebla
+        // 2. Aplicamos niebla de guerra
         aplicarNieblaDeGuerra(gestor);
 
-        // 3. Rango de ataque
+        // 3. Pintamos rango de ataque
         for (Integer pos : posicionesRangoActual) {
             if (pos >= 0 && pos < matriz.size()) {
                 matriz.get(pos).setEnRangoAtaque(true);
@@ -127,6 +127,7 @@ public class PantallaJuegoBoard {
                                  GestorJuego gestor,
                                  String idBarcoSeleccionado,
                                  LinkedHashSet<Integer> posicionesRangoActual) {
+        // Con niebla de guerra y proyectiles conviene recalcular todo el tablero
         repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
@@ -135,21 +136,24 @@ public class PantallaJuegoBoard {
                                   GestorJuego gestor,
                                   String idBarcoSeleccionado,
                                   LinkedHashSet<Integer> posicionesRangoActual) {
+        // Con niebla de guerra y proyectiles conviene recalcular todo el tablero
         repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
     private void aplicarNieblaDeGuerra(GestorJuego gestor) {
+        // 1. Todo invisible por defecto
         for (Casilla c : matriz) {
             c.setVisible(false);
         }
 
+        // 2. Mis barcos y su rango Manhattan generan visión
         for (BarcoLogico b : gestor.getFlota()) {
             if (!b.esAliado) continue;
 
             List<int[]> celdasAliadas = BarcoLogico.getCeldasPara(b.x, b.y, b.orientation, b.tipo);
             int rangoVision = b.getRangoVision();
 
-            // Las propias celdas del barco
+            // Las propias celdas del barco siempre visibles
             for (int[] celdaBarco : celdasAliadas) {
                 int filaLogica = celdaBarco[0];
                 int col = celdaBarco[1];
@@ -159,7 +163,7 @@ public class PantallaJuegoBoard {
                 matriz.get(filaVisual * 15 + col).setVisible(true);
             }
 
-            // Rango Manhattan
+            // Campo de visión Manhattan desde cada celda del barco
             for (Casilla casilla : matriz) {
                 int xObjetivo = casilla.getColumna();
                 int yObjetivoLogica = gestor.filaLogicaDesdeVisual(casilla.getFila());
@@ -182,7 +186,7 @@ public class PantallaJuegoBoard {
             }
         }
 
-        // Ocultamos barcos enemigos fuera de visión
+        // 3. Ocultamos barcos enemigos en casillas no visibles
         for (Casilla c : matriz) {
             if (c.isTieneBarco() && !c.isEsAliado() && !c.isVisible()) {
                 c.setTieneBarco(false);
