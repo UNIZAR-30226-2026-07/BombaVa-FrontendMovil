@@ -124,6 +124,7 @@ public class GestorJuegoSocketBinder {
                 JSONArray myFleet = data.optJSONArray("myFleet");
                 JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
+                // Recalcular perspectiva visual
                 if (myFleet != null) {
                     game.recalcularPerspectiva(myFleet, enemyFleet);
                 }

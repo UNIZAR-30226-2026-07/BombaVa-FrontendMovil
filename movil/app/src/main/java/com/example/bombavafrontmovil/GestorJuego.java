@@ -78,7 +78,7 @@ public class GestorJuego {
 
             double mediaMy = mediaY(myFleet);
 
-            // Solo depende de mi propia flota
+            // La perspectiva depende solo de mi flota
             invertirPerspectiva = mediaMy < 7.0;
 
             Log.d(
