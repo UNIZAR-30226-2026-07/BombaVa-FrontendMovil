@@ -28,7 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
-        android:text="COLECCIÓN"
+        android:text="COLECCION"
         android:textSize="12sp"
         android:paddingHorizontal="12dp"
         app:layout_constraintTop_toTopOf="@+id/btn_info_leyenda"
