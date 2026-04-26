@@ -22,13 +22,14 @@ public class GestorJuego {
     final PartidaListener listener;
     final Map<String, UserShip> diccionarioFlota;
     final Map<String, UserShip> inventarioOriginal;
+    final List<TorpedoLogico> torpedosActivos = new ArrayList<>();
 
     boolean esMiTurno = false;
 
     final GestorJuegoMapper mapper;
     final GestorJuegoSocketBinder socketBinder;
 
-    // Solo controla cómo se PINTA el tablero
+    // Controla cómo se pinta el tablero
     private boolean invertirPerspectiva = true;
 
     public interface PartidaListener {
@@ -64,6 +65,11 @@ public class GestorJuego {
         return invertirPerspectiva;
     }
 
+    // Compatibilidad con código previo
+    public boolean isPerspectivaInvertida() {
+        return invertirPerspectiva;
+    }
+
     public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
         try {
             if (myFleet == null || myFleet.length() == 0) {
@@ -72,17 +78,17 @@ public class GestorJuego {
 
             double mediaMy = mediaY(myFleet);
 
-            // La perspectiva debe depender SOLO de mi propia flota.
+            // La perspectiva depende solo de mi flota.
             // Si mi flota está en la mitad superior lógica, invertimos para pintarla abajo.
             invertirPerspectiva = mediaMy < 7.0;
 
-            android.util.Log.d(
+            Log.d(
                     "DEBUG_PERSPECTIVA",
                     "mediaMy=" + mediaMy +
                             " invertir=" + invertirPerspectiva
             );
         } catch (Exception e) {
-            android.util.Log.e("DEBUG_PERSPECTIVA", "Error recalculando perspectiva", e);
+            Log.e("DEBUG_PERSPECTIVA", "Error recalculando perspectiva", e);
         }
     }
 
@@ -95,18 +101,18 @@ public class GestorJuego {
         return suma / fleet.length();
     }
 
-    public int filaLogicaDesdeVisual(int filaVisual) {
-        return invertirPerspectiva ? (14 - filaVisual) : filaVisual;
-    }
-
     public int filaVisualDesdeLogica(int filaLogica) {
         return invertirPerspectiva ? (14 - filaLogica) : filaLogica;
+    }
+
+    public int filaLogicaDesdeVisual(int filaVisual) {
+        return invertirPerspectiva ? (14 - filaVisual) : filaVisual;
     }
 
     private void unirseAPartida() {
         try {
             socket.emit("game:join", matchId);
-            android.util.Log.d("DEBUG_JOIN", "Emit game:join -> " + matchId);
+            Log.d("DEBUG_JOIN", "Emit game:join -> " + matchId);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -153,7 +159,7 @@ public class GestorJuego {
             payload.put("shipId", shipId);
             payload.put("direction", direction);
             socket.emit("ship:move", payload);
-            android.util.Log.d("DEBUG_MOVE", "Emit ship:move -> " + payload.toString());
+            Log.d("DEBUG_MOVE", "Emit ship:move -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -166,7 +172,7 @@ public class GestorJuego {
             payload.put("shipId", shipId);
             payload.put("degrees", degrees);
             socket.emit("ship:rotate", payload);
-            android.util.Log.d("DEBUG_ROTATE", "Emit ship:rotate -> " + payload.toString());
+            Log.d("DEBUG_ROTATE", "Emit ship:rotate -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -183,7 +189,6 @@ public class GestorJuego {
             target.put("y", filaLogicaDesdeVisual(filaVisual));
             payload.put("target", target);
 
-
             Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque Cañon -> " + payload.toString());
             socket.emit("ship:attack:cannon", payload);
         } catch (Exception e) {
@@ -197,7 +202,7 @@ public class GestorJuego {
             payload.put("matchId", matchId);
             payload.put("shipId", shipId);
 
-            Log.d("DEBUG_ATTACK", "🚀 [PRE-ATAQUE] Emitiendo ataque torpedo-> " + payload.toString());
+            Log.d("DEBUG_TORPEDO", "📡 Solicitando permiso de disparo al Servidor...");
             socket.emit("ship:attack:torpedo", payload);
         } catch (Exception e) {
             e.printStackTrace();
@@ -222,12 +227,165 @@ public class GestorJuego {
         }
     }
 
+    /**
+     * Registra un torpedo/mina recibido desde el servidor.
+     * x,y y vectores son coordenadas absolutas del servidor.
+     */
+    public void registrarTorpedoDesdeServer(String id, int x, int y,
+                                            int vectorX, int vectorY,
+                                            int lifeDistance, boolean esAliado,
+                                            String tipo) {
+        for (TorpedoLogico t : torpedosActivos) {
+            if (t.id.equals(id)) {
+                t.x = x;
+                t.y = y;
+                t.vectorX = vectorX;
+                t.vectorY = vectorY;
+                t.lifeDistance = lifeDistance;
+                t.esAliado = esAliado;
+                t.tipo = tipo;
+
+                if (t.vectorY == -1) t.direccion = "N";
+                else if (t.vectorY == 1) t.direccion = "S";
+                else if (t.vectorX == 1) t.direccion = "E";
+                else if (t.vectorX == -1) t.direccion = "W";
+
+                if (listener != null) {
+                    listener.onSnapshotCompleto();
+                }
+                return;
+            }
+        }
+
+        TorpedoLogico nuevo = new TorpedoLogico(id, x, y, vectorX, vectorY, lifeDistance, esAliado, tipo);
+        torpedosActivos.add(nuevo);
+        Log.d("DEBUG_TORPEDO", "➕ Registrado proyectil " + tipo + " id=" +
+                id.substring(0, Math.min(4, id.length())) +
+                " pos=(" + x + "," + y + ") vec=(" + vectorX + "," + vectorY + ") aliado=" + esAliado);
+
+        if (listener != null) {
+            listener.onSnapshotCompleto();
+        }
+    }
+
+    public void procesarImpactoTorpedo(String shipId, String proyectilId, int newHp) {
+        TorpedoLogico torpedoRoto = null;
+        for (TorpedoLogico t : torpedosActivos) {
+            if (t.id.equals(proyectilId)) {
+                torpedoRoto = t;
+                break;
+            }
+        }
+        if (torpedoRoto != null) torpedosActivos.remove(torpedoRoto);
+
+        BarcoLogico barcoHundido = null;
+        for (BarcoLogico b : flota) {
+            if (b.id.equals(shipId)) {
+                b.hpActual = newHp;
+                Log.d("DEBUG_TORPEDO", "💥 Impacto en barco " + shipId + " → HP restante: " + newHp);
+                if (b.hpActual <= 0) {
+                    barcoHundido = b;
+                    Log.d("DEBUG_TORPEDO", "🏴‍☠️ Barco " + shipId + " HUNDIDO.");
+                }
+                break;
+            }
+        }
+
+        if (barcoHundido != null) {
+            flota.remove(barcoHundido);
+        }
+
+        if (listener != null) {
+            listener.onSnapshotCompleto();
+        }
+    }
+
+    public void actualizarTorpedo(String id, String status, int x, int y, int life) {
+        for (TorpedoLogico t : torpedosActivos) {
+            if (t.id.equals(id)) {
+                if (x != -1 && y != -1) {
+                    if (x > t.x) t.direccion = "E";
+                    else if (x < t.x) t.direccion = "W";
+                    else if (y > t.y) t.direccion = "S";
+                    else if (y < t.y) t.direccion = "N";
+
+                    t.x = x;
+                    t.y = y;
+                }
+                if (life != -1) t.lifeDistance = life;
+                return;
+            }
+        }
+    }
+
+    /**
+     * Fuente de verdad de proyectiles desde vision_update
+     */
+    public void sincronizarProyectilesVision(JSONArray proyPropios, JSONArray proyEnemigos) {
+        Map<String, TorpedoLogico> mapaAntiguos = new HashMap<>();
+        for (TorpedoLogico t : torpedosActivos) {
+            mapaAntiguos.put(t.id, t);
+        }
+
+        torpedosActivos.clear();
+
+        try {
+            procesarArrayVision(proyPropios, mapaAntiguos, true);
+            procesarArrayVision(proyEnemigos, mapaAntiguos, false);
+
+            Log.d("DEBUG_TORPEDO", "👁️ Visión sincronizada: " + torpedosActivos.size() + " proyectiles activos.");
+        } catch (Exception e) {
+            Log.e("DEBUG_TORPEDO", "Error procesando proyectiles de vision_update", e);
+        }
+    }
+
+    private void procesarArrayVision(JSONArray array, Map<String, TorpedoLogico> mapaAntiguos, boolean esAliado) throws Exception {
+        if (array == null) return;
+
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject p = array.getJSONObject(i);
+            String id = p.getString("id");
+            int x = p.getInt("x");
+            int y = p.getInt("y");
+            int vx = p.optInt("vectorX", 0);
+            int vy = p.optInt("vectorY", 0);
+            int life = p.optInt("lifeDistance", 0);
+            String tipo = p.optString("type", "TORPEDO");
+
+            TorpedoLogico antiguo = mapaAntiguos.get(id);
+            if (antiguo != null) {
+                if (vx == 0 && vy == 0) {
+                    vx = antiguo.vectorX;
+                    vy = antiguo.vectorY;
+                }
+
+                if (antiguo.x != x || antiguo.y != y) {
+                    if (x > antiguo.x) antiguo.direccion = "E";
+                    else if (x < antiguo.x) antiguo.direccion = "W";
+                    else if (y > antiguo.y) antiguo.direccion = "S";
+                    else if (y < antiguo.y) antiguo.direccion = "N";
+                }
+
+                antiguo.x = x;
+                antiguo.y = y;
+                antiguo.vectorX = vx;
+                antiguo.vectorY = vy;
+                antiguo.lifeDistance = life;
+                antiguo.esAliado = esAliado;
+                antiguo.tipo = tipo;
+                torpedosActivos.add(antiguo);
+            } else {
+                torpedosActivos.add(new TorpedoLogico(id, x, y, vx, vy, life, esAliado, tipo));
+            }
+        }
+    }
+
     public void terminarTurno() {
         try {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
             socket.emit("match:turn_end", payload);
-            android.util.Log.d("DEBUG_TURNO", "Emit match:turn_end -> " + payload.toString());
+            Log.d("DEBUG_TURNO", "Emit match:turn_end -> " + payload.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }

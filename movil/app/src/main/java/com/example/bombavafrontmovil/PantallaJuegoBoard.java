@@ -5,8 +5,10 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 public class PantallaJuegoBoard {
 
@@ -89,11 +91,35 @@ public class PantallaJuegoBoard {
             }
         }
 
-        // 4. Notificamos solo cambios
+        List<Integer> celdasARepintar = new ArrayList<>();
+
+        // 4. Posiciones antiguas de proyectiles/minas
+        for (int i = 0; i < snapshotAnterior.size(); i++) {
+            if (snapshotAnterior.get(i).hasTorpedo() || snapshotAnterior.get(i).hasMina()) {
+                celdasARepintar.add(i);
+            }
+        }
+
+        // 5. Pintamos torpedos/minas
+        sincronizarTorpedosVisuales(gestor);
+
+        // 6. Posiciones nuevas de proyectiles/minas
+        for (int i = 0; i < matriz.size(); i++) {
+            if (matriz.get(i).hasTorpedo() || matriz.get(i).hasMina()) {
+                celdasARepintar.add(i);
+            }
+        }
+
+        // 7. Añadimos cualquier otra celda modificada
         for (int i = 0; i < matriz.size(); i++) {
             if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
-                adapter.notifyItemChanged(i);
+                celdasARepintar.add(i);
             }
+        }
+
+        Set<Integer> celdasUnicas = new HashSet<>(celdasARepintar);
+        for (Integer pos : celdasUnicas) {
+            adapter.notifyItemChanged(pos);
         }
     }
 
@@ -101,7 +127,7 @@ public class PantallaJuegoBoard {
                                  GestorJuego gestor,
                                  String idBarcoSeleccionado,
                                  LinkedHashSet<Integer> posicionesRangoActual) {
-        // Con niebla de guerra conviene recalcular todo el tablero
+        // Con niebla de guerra y proyectiles conviene recalcular todo el tablero
         repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
@@ -110,7 +136,7 @@ public class PantallaJuegoBoard {
                                   GestorJuego gestor,
                                   String idBarcoSeleccionado,
                                   LinkedHashSet<Integer> posicionesRangoActual) {
-        // Con niebla de guerra conviene recalcular todo el tablero
+        // Con niebla de guerra y proyectiles conviene recalcular todo el tablero
         repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
@@ -193,7 +219,6 @@ public class PantallaJuegoBoard {
         for (int[] celda : celdas) {
             int filaLogica = celda[0];
             int col = celda[1];
-
             int fila = (gestor != null)
                     ? gestor.filaVisualDesdeLogica(filaLogica)
                     : (14 - filaLogica);
@@ -210,5 +235,57 @@ public class PantallaJuegoBoard {
         if ("S".equals(orientation)) return 0;
         if ("W".equals(orientation)) return 1;
         return 2;
+    }
+
+    /**
+     * Pinta torpedos y minas sobre el tablero.
+     * x,y son coordenadas absolutas lógicas del servidor.
+     */
+    public void sincronizarTorpedosVisuales(GestorJuego gestor) {
+        if (gestor == null) return;
+
+        for (Casilla c : matriz) {
+            c.setTieneTorpedo(false, "N", true);
+            c.setTieneMina(false, false);
+        }
+
+        boolean perspInvertida = gestor.isInvertirPerspectiva();
+        Set<Integer> posicionesOcupadas = new HashSet<>();
+
+        for (TorpedoLogico p : gestor.torpedosActivos) {
+            int filaVisual = gestor.filaVisualDesdeLogica(p.y);
+            int col = p.x;
+
+            if (filaVisual < 0 || filaVisual >= 15 || col < 0 || col >= 15) continue;
+
+            int pos = filaVisual * 15 + col;
+            if (posicionesOcupadas.contains(pos)) continue;
+            posicionesOcupadas.add(pos);
+
+            Casilla c = matriz.get(pos);
+
+            if ("MINE".equals(p.tipo)) {
+                c.setTieneMina(true, p.esAliado);
+            } else {
+                int vx = p.vectorX;
+                int vy = p.vectorY;
+
+                if (perspInvertida) {
+                    vx = -vx;
+                    vy = -vy;
+                }
+
+                String dirVisual = vectorADireccion(vx, vy);
+                c.setTieneTorpedo(true, dirVisual, p.esAliado);
+            }
+        }
+    }
+
+    private String vectorADireccion(int vx, int vy) {
+        if (vy < 0) return "N";
+        if (vy > 0) return "S";
+        if (vx > 0) return "E";
+        if (vx < 0) return "W";
+        return "N";
     }
 }

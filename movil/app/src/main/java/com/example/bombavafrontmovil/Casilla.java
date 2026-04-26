@@ -1,5 +1,9 @@
 package com.example.bombavafrontmovil;
 
+import android.graphics.Color;
+import android.view.View;
+import android.widget.ImageView;
+
 import java.util.Objects;
 
 public class Casilla {
@@ -21,11 +25,24 @@ public class Casilla {
     private int vidaCelda = 3;
     private String slug;
     private int vidaActual, vidaMax;
+    private boolean tieneTorpedo = false;
+    private String direccionTorpedo = "N";
+    private boolean esTorpedoAliado = true;
+    private boolean tieneMina = false;
+    private boolean minaAliada = false;
 
     public Casilla(int fila, int columna) {
         this.fila = fila;
         this.columna = columna;
     }
+
+    public void setTieneMina(boolean tieneMina, boolean esAliada) {
+        this.tieneMina = tieneMina;
+        this.minaAliada = esAliada;
+    }
+
+    public boolean hasMina() { return tieneMina; }
+    public boolean isMinaAliada() { return minaAliada; }
 
     public int getFila() { return fila; }
     public int getColumna() { return columna; }
@@ -85,6 +102,15 @@ public class Casilla {
     public String getSlug() { return slug; }
     public void setSlug(String slug) { this.slug = slug; }
 
+    public boolean hasTorpedo() { return tieneTorpedo; }
+    public void setTieneTorpedo(boolean tiene, String direccion, boolean esAliado) {
+        this.tieneTorpedo = tiene;
+        this.direccionTorpedo = direccion;
+        this.esTorpedoAliado = esAliado;
+    }
+    public String getDireccionTorpedo() { return direccionTorpedo; }
+    public boolean isTorpedoAliado() { return esTorpedoAliado; }
+
     public void resetVisual() {
         seleccionado = false;
         enRangoAtaque = false;
@@ -101,6 +127,12 @@ public class Casilla {
         slug = null;
         vidaActual = 0;
         vidaMax = 0;
+        // BUG FIX: torpedo y mina también deben resetearse en cada repintado completo
+        tieneTorpedo = false;
+        direccionTorpedo = "N";
+        esTorpedoAliado = true;
+        tieneMina = false;
+        minaAliada = false;
     }
 
     public Casilla clonar() {
@@ -120,6 +152,11 @@ public class Casilla {
         c.slug = slug;
         c.vidaActual = vidaActual;
         c.vidaMax = vidaMax;
+        c.tieneTorpedo = tieneTorpedo;
+        c.direccionTorpedo = direccionTorpedo;
+        c.esTorpedoAliado = esTorpedoAliado;
+        c.tieneMina = tieneMina;
+        c.minaAliada = minaAliada;
         return c;
     }
 
@@ -142,6 +179,11 @@ public class Casilla {
                 && vidaCelda == otra.vidaCelda
                 && vidaActual == otra.vidaActual
                 && vidaMax == otra.vidaMax
-                && Objects.equals(slug, otra.slug);
+                && Objects.equals(slug, otra.slug)
+                && tieneTorpedo == otra.tieneTorpedo
+                && Objects.equals(direccionTorpedo, otra.direccionTorpedo)
+                && esTorpedoAliado == otra.esTorpedoAliado
+                && tieneMina == otra.tieneMina
+                && minaAliada == otra.minaAliada;
     }
 }
