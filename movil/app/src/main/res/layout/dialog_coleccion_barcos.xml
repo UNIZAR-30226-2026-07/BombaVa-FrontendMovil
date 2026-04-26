@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_pergamino"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:gravity="center"
+            android:text="COLECCIÓN NAVAL"
+            android:textColor="#5C3A21"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="24dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_popa" />
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:layout_marginStart="-2dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_medio" />
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:layout_marginStart="-2dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_medio" />
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:layout_marginStart="-2dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_medio" />
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:layout_marginStart="-2dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_proa" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Acorazado"
+                        android:textColor="#5C3A21"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="• Tamaño: 5 Casillas\n• Blindaje (Vida): 50 HP\n• Rango de Visión: Bajo"
+                        android:textColor="#3E2723"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="24dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_popa" />
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:layout_marginStart="-2dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_medio" />
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:layout_marginStart="-2dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_proa" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Fragata"
+                        android:textColor="#5C3A21"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="• Tamaño: 3 Casillas\n• Blindaje (Vida): 30 HP\n• Rango de Visión: 3 Casillas"
+                        android:textColor="#3E2723"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginBottom="16dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
+
+                        <ImageView android:layout_width="36dp" android:layout_height="36dp" android:rotation="90" android:scaleType="fitXY" android:src="@drawable/barco_medio" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lancha Rápida"
+                        android:textColor="#5C3A21"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="• Tamaño: 1 Casilla\n• Blindaje (Vida): 20 HP\n• Rango de Visión: 4 Casillas"
+                        android:textColor="#3E2723"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <Button
+            android:id="@+id/btn_cerrar_coleccion"
+            style="@style/BotonMadera"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="CERRAR ENCICLOPEDIA"
+            android:textAllCaps="true" />
+
+    </LinearLayout>
+</FrameLayout>
