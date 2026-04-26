@@ -94,6 +94,11 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)");
         });
 
+        View btnColeccion = findViewById(R.id.btn_coleccion_barcos);
+        if (btnColeccion != null) {
+            btnColeccion.setOnClickListener(v -> mostrarDialogoColeccion());
+        }
+
         // NUEVAS ARMAS AL HACER CLIC
         findViewById(R.id.btn_ametralladora).setOnClickListener(v -> seleccionarArmaTemporal("Cañón"));
         findViewById(R.id.btn_misil).setOnClickListener(v -> seleccionarArmaTemporal("Mina"));
@@ -113,6 +118,24 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         rvTablero.setLayoutManager(new GridLayoutManager(this, 15));
         adaptador = new ConfigurarFlotaAdapter(celdasTablero, this::manejarToqueCelda);
         rvTablero.setAdapter(adaptador);
+    }
+
+    private void mostrarDialogoColeccion() {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.setContentView(R.layout.dialog_coleccion_barcos);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+
+        // Configurar el botón de cerrar
+        dialog.findViewById(R.id.btn_cerrar_coleccion).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     private void mostrarDialogoLeyenda() {
