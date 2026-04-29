@@ -128,21 +128,11 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
             float rot;
             switch (c.getDireccion()) {
-                case 0: // S
-                    rot = 180f;
-                    break;
-                case 1: // W
-                    rot = 270f;
-                    break;
-                case 2: // N
-                    rot = 0f;
-                    break;
-                case 3: // E
-                    rot = 90f;
-                    break;
-                default:
-                    rot = 0f;
-                    break;
+                case 0: rot = 180f; break; // S
+                case 1: rot = 270f; break; // W
+                case 2: rot = 0f; break;   // N
+                case 3: rot = 90f; break;  // E
+                default: rot = 0f; break;
             }
 
             vh.waterView.setRotation(rot);
@@ -166,13 +156,8 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         if (c.hasTorpedo() && c.isVisible()) {
             vh.waterView.setImageResource(R.drawable.ic_torpedo);
 
-            float rotT = 0f;
-            if ("N".equals(c.getDireccionTorpedo())) rotT = 0f;
-            else if ("S".equals(c.getDireccionTorpedo())) rotT = 180f;
-            else if ("E".equals(c.getDireccionTorpedo())) rotT = 90f;
-            else if ("W".equals(c.getDireccionTorpedo())) rotT = 270f;
-
-            vh.waterView.setRotation(rotT);
+            // APLICAMOS ROTACIÓN DIRECTA DEL FLOAT DE LA CASILLA
+            vh.waterView.setRotation(c.getRotacionTorpedo());
 
             if (!c.isTorpedoAliado()) {
                 vh.waterView.setColorFilter(
