@@ -281,40 +281,59 @@ public class GestorJuegoSocketBinder {
             }
         });
 
-        // 1. Pausa solicitada por el rival
+        // 1. Alguien pide pausa
         game.socket.on("match:pause_requested", args -> {
-            if (game.listener != null) {
-                // Necesitaremos añadir este metodo a PartidaListener
-                game.listener.onPausaSolicitada();
-            }
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String oponente = data.optString("from", "El oponente");
+                if (game.listener != null) {
+                    game.listener.onPausaSolicitada(oponente);
+                }
+            } catch (Exception e) { e.printStackTrace(); }
         });
 
-        // 2. La partida se ha pausado oficialmente (Estado WAITING)
+        // 2. Confirmación de pausa (Estado WAITING)
         game.socket.on("match:paused", args -> {
-            if (game.listener != null) {
-                game.listener.onPartidaPausadaConfirmada();
-            }
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String mensaje = data.optString("message", "Partida pausada");
+                if (game.listener != null) {
+                    game.listener.onPartidaPausadaConfirmada(mensaje);
+                }
+            } catch (Exception e) { e.printStackTrace(); }
         });
 
-        // 3. El rival ha rechazado nuestra petición de pausa
+        // 3. El oponente dijo que NO
         game.socket.on("match:pause_rejected", args -> {
-            if (game.listener != null) {
-                game.listener.onPausaRechazada();
-            }
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String mensaje = data.optString("message", "Pausa rechazada");
+                if (game.listener != null) {
+                    game.listener.onPausaRechazada(mensaje);
+                }
+            } catch (Exception e) { e.printStackTrace(); }
         });
 
         // 4. DESCONEXIÓN DEL RIVAL (Capa de bloqueo)
         game.socket.on("match:player_disconnected", args -> {
-            if (game.listener != null) {
-                game.listener.onOponenteConexionCambio(false);
-            }
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String mensaje = data.optString("message", "Oponente desconectado. Esperando...");
+                if (game.listener != null) {
+                    game.listener.onOponenteConexionCambio(false, mensaje);
+                }
+            } catch (Exception e) { e.printStackTrace(); }
         });
 
         // 5. RECONEXIÓN DEL RIVAL (Quitar bloqueo)
         game.socket.on("match:player_reconnected", args -> {
-            if (game.listener != null) {
-                game.listener.onOponenteConexionCambio(true);
-            }
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String mensaje = data.optString("message", "¡Oponente reconectado!");
+                if (game.listener != null) {
+                    game.listener.onOponenteConexionCambio(true, mensaje);
+                }
+            } catch (Exception e) { e.printStackTrace(); }
         });
     }
 

@@ -40,10 +40,10 @@ public class GestorJuego {
         void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo);
         void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo);
         void onVisionUpdateParcial(List<BarcoLogico> flotaAnterior, List<BarcoLogico> flotaNueva);
-        void onOponenteConexionCambio(boolean conectado);
-        void onPausaSolicitada();
-        void onPartidaPausadaConfirmada();
-        void onPausaRechazada();
+        void onPausaSolicitada(String oponente);
+        void onPartidaPausadaConfirmada(String mensaje);
+        void onPausaRechazada(String mensaje);
+        void onOponenteConexionCambio(boolean conectado, String mensaje);
     }
 
     public GestorJuego(Socket socket, String matchId, String myUserId, PartidaListener listener, Map<String, UserShip> inventario) {
@@ -77,10 +77,6 @@ public class GestorJuego {
         return invertirPerspectiva;
     }
 
-    // Compatibilidad con código previo
-    public boolean isPerspectivaInvertida() {
-        return invertirPerspectiva;
-    }
 
     public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
         try {
@@ -404,21 +400,35 @@ public class GestorJuego {
         }
     }
 
+    /**
+     * El usuario pulsa el botón de pausa
+     */
     public void solicitarPausa() {
         try {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
             socket.emit("match:pause_request", payload);
-        } catch (Exception e) { e.printStackTrace(); }
+            Log.d("DEBUG_PAUSA", "Emitiendo match:pause_request para matchId: " + matchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    public void responderPausa(boolean aceptar) {
+    /**
+     * El usuario responde a una solicitud del rival
+     */
+    public void responderPausa(boolean aceptada) {
         try {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
-            String evento = aceptar ? "match:pause_accept" : "match:pause_reject";
-            socket.emit(evento, payload);
-        } catch (Exception e) { e.printStackTrace(); }
+            String evento = aceptada ? "match:pause_accept" : "match:reject_pause";
+            // Nota: He usado reject_pause o pause_reject según tu lista,
+            // ajustalo al que prefiera el backend. Tu lista decía "match:pause_reject"
+            socket.emit(aceptada ? "match:pause_accept" : "match:pause_reject", payload);
+            Log.d("DEBUG_PAUSA", "Respondiendo a pausa. Aceptada: " + aceptada);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void liberarListeners() {

@@ -40,6 +40,8 @@ public class PantallaJuego extends AppCompatActivity {
 
     private Socket mSocket;
     private android.app.Dialog dialogoEspera;
+    private AlertDialog dialogoDesconexionRival;
+    private android.os.CountDownTimer timerDesconexion;
 
     private final Map<String, UserShip> diccionarioFlota = new HashMap<>();
     private boolean diccionarioListo = false;
@@ -259,31 +261,87 @@ public class PantallaJuego extends AppCompatActivity {
                     }
 
                     @Override
-                    public void onOponenteConexionCambio(boolean conectado) {
+                    public void onOponenteConexionCambio(boolean conectado, String mensaje) {
                         runOnUiThread(() -> {
                             if (!conectado) {
-                                AppNotifier.show(PantallaJuego.this, "Oponente desconectado. Esperando reanudación...", AppNotifier.Type.ERROR);
+                                // 1. Bloqueamos la interfaz
                                 ui.setEstadoBloqueoRed(true);
+
+                                // 2. Si no existe el diálogo, lo creamos
+                                if (dialogoDesconexionRival == null) {
+                                    dialogoDesconexionRival = new AlertDialog.Builder(PantallaJuego.this)
+                                            .setTitle("Conexión perdida")
+                                            .setMessage(mensaje)
+                                            .setCancelable(false) // No se puede cerrar tocando fuera
+                                            .create();
+                                }
+                                // Mostramos el diálogo
+                                dialogoDesconexionRival.show();
+                                AppNotifier.show(PantallaJuego.this, "Rival desconectado", AppNotifier.Type.ERROR);
+
+                                // 3. Iniciamos el contador de 2 minutos (120,000 milisegundos)
+                                if (timerDesconexion != null) {
+                                    timerDesconexion.cancel();
+                                }
+                                timerDesconexion = new android.os.CountDownTimer(120000, 1000) {
+                                    public void onTick(long millisUntilFinished) {
+                                        long segundosTotales = millisUntilFinished / 1000;
+                                        long minutos = segundosTotales / 60;
+                                        long segundos = segundosTotales % 60;
+
+                                        String tiempoFormateado = String.format(java.util.Locale.getDefault(), "%02d:%02d", minutos, segundos);
+
+                                        if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
+                                            dialogoDesconexionRival.setMessage(mensaje + "\n\nTiempo restante: " + tiempoFormateado);
+                                        }
+                                    }
+
+                                    public void onFinish() {
+                                        if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
+                                            dialogoDesconexionRival.setMessage("El tiempo se ha agotado. Esperando la resolución del servidor...");
+                                        }
+                                    }
+                                }.start();
+
                             } else {
-                                AppNotifier.show(PantallaJuego.this, "¡Oponente reconectado!", AppNotifier.Type.SUCCESS);
+                                // RIVAL SE HA RECONECTADO
+
+                                // 1. Desbloqueamos la interfaz
                                 ui.setEstadoBloqueoRed(false);
+
+                                // 2. Cancelamos el contador si estaba corriendo
+                                if (timerDesconexion != null) {
+                                    timerDesconexion.cancel();
+                                }
+
+                                // 3. Ocultamos el diálogo
+                                if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
+                                    dialogoDesconexionRival.dismiss();
+                                }
+
+                                AppNotifier.show(PantallaJuego.this, mensaje, AppNotifier.Type.SUCCESS);
                             }
                         });
                     }
 
-                    @Override
-                    public void onPausaSolicitada() {
+                    public void onPausaSolicitada(String oponente) {
                         runOnUiThread(() -> {
-                            ui.mostrarDialogoPausaSolicitada((aceptar) -> {
-                                gestor.responderPausa(aceptar);
-                            });
+                            // CORREGIDO: Usamos PantallaJuego.this
+                            new AlertDialog.Builder(PantallaJuego.this)
+                                    .setTitle("Solicitud de Pausa")
+                                    .setMessage(oponente + " quiere pausar la partida. ¿Aceptas?")
+                                    .setPositiveButton("ACEPTAR", (d, w) -> gestor.responderPausa(true))
+                                    .setNegativeButton("RECHAZAR", (d, w) -> gestor.responderPausa(false))
+                                    .setCancelable(false)
+                                    .show();
                         });
                     }
 
                     @Override
-                    public void onPartidaPausadaConfirmada() {
+                    public void onPartidaPausadaConfirmada(String mensaje) {
                         runOnUiThread(() -> {
-                            AppNotifier.show(PantallaJuego.this, "Partida pausada. Volviendo al menú...", AppNotifier.Type.INFO);
+                            // CORREGIDO: Usamos PantallaJuego.this
+                            AppNotifier.show(PantallaJuego.this, mensaje, AppNotifier.Type.INFO);
                             new android.os.Handler().postDelayed(() -> {
                                 Intent intent = new Intent(PantallaJuego.this, MainActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -294,10 +352,23 @@ public class PantallaJuego extends AppCompatActivity {
                     }
 
                     @Override
-                    public void onPausaRechazada() {
+                    public void onPausaRechazada(String mensaje) {
                         runOnUiThread(() -> {
-                            AppNotifier.show(PantallaJuego.this, "El oponente ha rechazado la pausa.", AppNotifier.Type.ERROR);
+                            // CORREGIDO: Usamos PantallaJuego.this
+                            new AlertDialog.Builder(PantallaJuego.this)
+                                    .setMessage(mensaje)
+                                    .setPositiveButton("ENTENDIDO", null)
+                                    .show();
                         });
+                    }
+
+                    // Y en el click del botón de pausa (normalmente en el Controller o aquí)
+                    public void alPulsarBotonPausa() {
+                        dialogoEspera = new AlertDialog.Builder(PantallaJuego.this)
+                                .setMessage("Enviando solicitud de pausa...")
+                                .setCancelable(false)
+                                .show();
+                        gestor.solicitarPausa();
                     }
                 },
                 diccionarioFlota // <--- EL MAPA VA AL FINAL
@@ -326,6 +397,11 @@ public class PantallaJuego extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Parar el timer si salimos de la pantalla
+        if (timerDesconexion != null) {
+            timerDesconexion.cancel();
+        }
 
         if (mSocket != null) {
             mSocket.off("match:startInfo");
