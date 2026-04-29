@@ -196,6 +196,16 @@ public class GestorJuegoMapper {
         // NUEVO: rango de visión real desde backend
         barco.visionRange = s.optInt("visionRange", -1);
 
+        JSONArray weaponsArray = s.optJSONArray("weapons");
+        if (weaponsArray != null) {
+            for (int i = 0; i < weaponsArray.length(); i++) {
+                JSONObject w = weaponsArray.optJSONObject(i);
+                if (w != null) {
+                    barco.armas.add(w.optString("type")); // Guardará "CANNON", "TORPEDO" o "MINE"
+                }
+            }
+        }
+
         return barco;
     }
 

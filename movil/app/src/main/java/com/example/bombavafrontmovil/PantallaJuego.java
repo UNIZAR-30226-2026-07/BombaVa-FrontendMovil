@@ -40,7 +40,8 @@ public class PantallaJuego extends AppCompatActivity {
 
     private Socket mSocket;
     private android.app.Dialog dialogoEspera;
-    private AlertDialog dialogoDesconexionRival;
+    private android.app.Dialog dialogoEsperandoPausa;
+    private android.app.Dialog dialogoDesconexionRival; // Cambiado a Dialog en vez de AlertDialog
     private android.os.CountDownTimer timerDesconexion;
 
     private final Map<String, UserShip> diccionarioFlota = new HashMap<>();
@@ -111,12 +112,11 @@ public class PantallaJuego extends AppCompatActivity {
         }
 
         boolean esReconexion = getIntent().getBooleanExtra("esReconexion", false);
-        String idReconexion = getIntent().getStringExtra("matchId"); // Usamos una variable temporal
+        String idReconexion = getIntent().getStringExtra("matchId");
 
         if (esReconexion && idReconexion != null) {
-            matchId = idReconexion; // ¡Solo lo sobrescribimos si de verdad estamos reconectando!
+            matchId = idReconexion;
             Log.d(TAG, "Reconectando a partida activa: " + matchId);
-            // Emitimos el join directamente
             try {
                 JSONObject payload = new JSONObject();
                 payload.put("matchId", matchId);
@@ -141,11 +141,7 @@ public class PantallaJuego extends AppCompatActivity {
 
         ui.btnPause.setOnClickListener(v -> {
             if (gestor == null) return;
-
-            new AlertDialog.Builder(this)
-                    .setTitle("Pausa")
-                    .setNegativeButton("Rendirse", (d, w) -> gestor.rendirse())
-                    .show();
+            mostrarDialogoMiMenuPausa();
         });
     }
 
@@ -191,7 +187,7 @@ public class PantallaJuego extends AppCompatActivity {
                 mSocket,
                 matchId,
                 myUserId,
-                new GestorJuego.PartidaListener() { // <--- EL LISTENER VA ANTES
+                new GestorJuego.PartidaListener() {
                     @Override
                     public void onSnapshotCompleto() {
                         runOnUiThread(() -> {
@@ -213,12 +209,15 @@ public class PantallaJuego extends AppCompatActivity {
 
                     @Override
                     public void onPartidaTerminada(String ganadorId, String razon) {
-                        runOnUiThread(() -> new AlertDialog.Builder(PantallaJuego.this)
-                                .setTitle("Fin de Partida")
-                                .setMessage(ganadorId != null && ganadorId.equals(myUserId) ? "¡Ganaste!" : "Perdiste...")
-                                .setCancelable(false)
-                                .setPositiveButton("Salir", (d, w) -> finish())
-                                .show());
+                        runOnUiThread(() -> {
+                            if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
+                                dialogoDesconexionRival.dismiss();
+                            }
+                            if (timerDesconexion != null) {
+                                timerDesconexion.cancel();
+                            }
+                            mostrarDialogoFinPartida(ganadorId, razon);
+                        });
                     }
 
                     @Override
@@ -267,19 +266,39 @@ public class PantallaJuego extends AppCompatActivity {
                                 // 1. Bloqueamos la interfaz
                                 ui.setEstadoBloqueoRed(true);
 
-                                // 2. Si no existe el diálogo, lo creamos
+                                // 2. Creamos el diálogo personalizado para la desconexión
                                 if (dialogoDesconexionRival == null) {
-                                    dialogoDesconexionRival = new AlertDialog.Builder(PantallaJuego.this)
-                                            .setTitle("Conexión perdida")
-                                            .setMessage(mensaje)
-                                            .setCancelable(false) // No se puede cerrar tocando fuera
-                                            .create();
+                                    dialogoDesconexionRival = new android.app.Dialog(PantallaJuego.this);
+                                    dialogoDesconexionRival.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+                                    dialogoDesconexionRival.setContentView(R.layout.dialog_personalizado);
+
+                                    if (dialogoDesconexionRival.getWindow() != null) {
+                                        dialogoDesconexionRival.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+                                        dialogoDesconexionRival.getWindow().setLayout(
+                                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                                        );
+                                    }
+                                    dialogoDesconexionRival.setCancelable(false); // No se puede cerrar
+
+                                    android.widget.TextView tvTitulo = dialogoDesconexionRival.findViewById(R.id.tvDialogTitle);
+                                    android.widget.Button btnAccion = dialogoDesconexionRival.findViewById(R.id.btnDialogAction);
+                                    android.widget.Button btnCancelar = dialogoDesconexionRival.findViewById(R.id.btnDialogCancel);
+                                    android.widget.ImageView ivIcono = dialogoDesconexionRival.findViewById(R.id.ivDialogIcon);
+
+                                    tvTitulo.setText("CONEXIÓN PERDIDA");
+                                    tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
+                                    ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
+                                    ivIcono.setColorFilter(android.graphics.Color.parseColor("#B71C1C"));
+
+                                    btnAccion.setVisibility(android.view.View.GONE);
+                                    btnCancelar.setVisibility(android.view.View.GONE);
                                 }
-                                // Mostramos el diálogo
+
                                 dialogoDesconexionRival.show();
                                 AppNotifier.show(PantallaJuego.this, "Rival desconectado", AppNotifier.Type.ERROR);
 
-                                // 3. Iniciamos el contador de 2 minutos (120,000 milisegundos)
+                                // 3. Iniciamos el contador
                                 if (timerDesconexion != null) {
                                     timerDesconexion.cancel();
                                 }
@@ -292,56 +311,55 @@ public class PantallaJuego extends AppCompatActivity {
                                         String tiempoFormateado = String.format(java.util.Locale.getDefault(), "%02d:%02d", minutos, segundos);
 
                                         if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
-                                            dialogoDesconexionRival.setMessage(mensaje + "\n\nTiempo restante: " + tiempoFormateado);
+                                            android.widget.TextView tvMensaje = dialogoDesconexionRival.findViewById(R.id.tvDialogMessage);
+                                            if (tvMensaje != null) {
+                                                tvMensaje.setText(mensaje + "\n\nTiempo restante: " + tiempoFormateado);
+                                            }
                                         }
                                     }
 
                                     public void onFinish() {
                                         if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
-                                            dialogoDesconexionRival.setMessage("El tiempo se ha agotado. Esperando la resolución del servidor...");
+                                            android.widget.TextView tvMensaje = dialogoDesconexionRival.findViewById(R.id.tvDialogMessage);
+                                            if (tvMensaje != null) {
+                                                tvMensaje.setText("El tiempo se ha agotado. Esperando la resolución del servidor...");
+                                            }
                                         }
                                     }
                                 }.start();
 
                             } else {
                                 // RIVAL SE HA RECONECTADO
-
-                                // 1. Desbloqueamos la interfaz
                                 ui.setEstadoBloqueoRed(false);
-
-                                // 2. Cancelamos el contador si estaba corriendo
                                 if (timerDesconexion != null) {
                                     timerDesconexion.cancel();
                                 }
-
-                                // 3. Ocultamos el diálogo
                                 if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) {
                                     dialogoDesconexionRival.dismiss();
                                 }
-
                                 AppNotifier.show(PantallaJuego.this, mensaje, AppNotifier.Type.SUCCESS);
                             }
                         });
                     }
 
+                    @Override
                     public void onPausaSolicitada(String oponente) {
                         runOnUiThread(() -> {
-                            // CORREGIDO: Usamos PantallaJuego.this
-                            new AlertDialog.Builder(PantallaJuego.this)
-                                    .setTitle("Solicitud de Pausa")
-                                    .setMessage(oponente + " quiere pausar la partida. ¿Aceptas?")
-                                    .setPositiveButton("ACEPTAR", (d, w) -> gestor.responderPausa(true))
-                                    .setNegativeButton("RECHAZAR", (d, w) -> gestor.responderPausa(false))
-                                    .setCancelable(false)
-                                    .show();
+                            mostrarDialogoOponentePidePausa(oponente);
                         });
                     }
 
                     @Override
                     public void onPartidaPausadaConfirmada(String mensaje) {
                         runOnUiThread(() -> {
-                            // CORREGIDO: Usamos PantallaJuego.this
+                            // Cerramos el diálogo de espera si estaba abierto
+                            if (dialogoEsperandoPausa != null && dialogoEsperandoPausa.isShowing()) {
+                                dialogoEsperandoPausa.dismiss();
+                            }
+
+                            // Usamos el mensaje que viene del servidor
                             AppNotifier.show(PantallaJuego.this, mensaje, AppNotifier.Type.INFO);
+
                             new android.os.Handler().postDelayed(() -> {
                                 Intent intent = new Intent(PantallaJuego.this, MainActivity.class);
                                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
@@ -354,24 +372,11 @@ public class PantallaJuego extends AppCompatActivity {
                     @Override
                     public void onPausaRechazada(String mensaje) {
                         runOnUiThread(() -> {
-                            // CORREGIDO: Usamos PantallaJuego.this
-                            new AlertDialog.Builder(PantallaJuego.this)
-                                    .setMessage(mensaje)
-                                    .setPositiveButton("ENTENDIDO", null)
-                                    .show();
+                            mostrarDialogoPausaRechazada();
                         });
                     }
-
-                    // Y en el click del botón de pausa (normalmente en el Controller o aquí)
-                    public void alPulsarBotonPausa() {
-                        dialogoEspera = new AlertDialog.Builder(PantallaJuego.this)
-                                .setMessage("Enviando solicitud de pausa...")
-                                .setCancelable(false)
-                                .show();
-                        gestor.solicitarPausa();
-                    }
                 },
-                diccionarioFlota // <--- EL MAPA VA AL FINAL
+                diccionarioFlota
         );
 
         controller.setGestor(gestor);
@@ -398,10 +403,10 @@ public class PantallaJuego extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        // Parar el timer si salimos de la pantalla
-        if (timerDesconexion != null) {
-            timerDesconexion.cancel();
-        }
+        if (timerDesconexion != null) timerDesconexion.cancel();
+        if (dialogoDesconexionRival != null && dialogoDesconexionRival.isShowing()) dialogoDesconexionRival.dismiss();
+        if (dialogoEsperandoPausa != null && dialogoEsperandoPausa.isShowing()) dialogoEsperandoPausa.dismiss();
+        if (dialogoEspera != null && dialogoEspera.isShowing()) dialogoEspera.dismiss();
 
         if (mSocket != null) {
             mSocket.off("match:startInfo");
@@ -411,5 +416,229 @@ public class PantallaJuego extends AppCompatActivity {
         if (gestor != null) {
             gestor.liberarListeners();
         }
+    }
+
+    // ------------------ POPUPS PERSONALIZADOS ------------------
+
+    // 1. Diálogo de Fin de Partida (Victoria/Derrota)
+    private void mostrarDialogoFinPartida(String ganadorId, String razon) {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_personalizado);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+        dialog.setCancelable(false);
+
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnAccion = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnCancelar = dialog.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        btnCancelar.setVisibility(android.view.View.GONE);
+        btnAccion.setText("VOLVER A LA BASE");
+
+        boolean heGanado = ganadorId != null && ganadorId.equals(myUserId);
+
+        if (heGanado) {
+            tvTitulo.setText("¡VICTORIA!");
+            if ("abandonment".equals(razon)) {
+                tvMensaje.setText("El enemigo ha huido cobardemente. ¡Has ganado por abandono de la flota rival!");
+            } else {
+                tvMensaje.setText("¡Has hundido la flota enemiga por completo! Eres el amo de los mares.");
+            }
+            ivIcono.setImageResource(android.R.drawable.btn_star_big_on);
+            ivIcono.setColorFilter(android.graphics.Color.parseColor("#2E7D32"));
+            tvTitulo.setTextColor(android.graphics.Color.parseColor("#2E7D32"));
+        } else {
+            tvTitulo.setText("DERROTA");
+            tvMensaje.setText("Tu flota ha sido aniquilada. Retirada táctica al astillero para reparaciones...");
+            ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
+            ivIcono.setColorFilter(android.graphics.Color.parseColor("#B71C1C"));
+            tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
+        }
+
+        btnAccion.setOnClickListener(v -> {
+            dialog.dismiss();
+            Intent intent = new Intent(PantallaJuego.this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(intent);
+            finish();
+        });
+
+        dialog.show();
+    }
+
+    // 2. Diálogo cuando el rival te pide Pausa
+    private void mostrarDialogoOponentePidePausa(String oponente) {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_personalizado);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+        dialog.setCancelable(false);
+
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnAceptar = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnRechazar = dialog.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        tvTitulo.setText("SOLICITUD DE TREGUA");
+        tvMensaje.setText("El comandante rival (" + oponente + ") solicita pausar la batalla temporalmente. La partida se guardará.\n\n¿Aceptas la tregua?");
+
+        ivIcono.setImageResource(android.R.drawable.ic_dialog_info);
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#1976D2"));
+        tvTitulo.setTextColor(android.graphics.Color.parseColor("#1976D2"));
+
+        btnRechazar.setVisibility(android.view.View.VISIBLE);
+        btnRechazar.setText("DENEGAR");
+        btnAceptar.setText("ACEPTAR TREGUA");
+
+        btnRechazar.setOnClickListener(v -> {
+            dialog.dismiss();
+            if(gestor != null) gestor.responderPausa(false);
+        });
+
+        btnAceptar.setOnClickListener(v -> {
+            dialog.dismiss();
+            if(gestor != null) gestor.responderPausa(true);
+        });
+
+        dialog.show();
+    }
+
+    // 3. Diálogo cuando TÚ pulsas tu propio botón de Pausa
+    private void mostrarDialogoMiMenuPausa() {
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_personalizado);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+        dialog.setCancelable(true);
+
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnSolicitar = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnRendirse = dialog.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        tvTitulo.setText("MENÚ DE COMANDO");
+        tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nPuedes solicitar una tregua al rival para guardar la partida, o izar la bandera blanca y rendirte.");
+
+        ivIcono.setImageResource(android.R.drawable.ic_menu_manage);
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#5C3A21"));
+        tvTitulo.setTextColor(android.graphics.Color.parseColor("#5C3A21"));
+
+        btnRendirse.setVisibility(android.view.View.VISIBLE);
+        // Cambia esto:
+        btnRendirse.setText("RENDIRSE");
+        btnSolicitar.setText("PAUSAR");
+
+        btnRendirse.setOnClickListener(v -> {
+            dialog.dismiss();
+            if(gestor != null) gestor.rendirse();
+        });
+
+        btnSolicitar.setOnClickListener(v -> {
+            dialog.dismiss();
+            if(gestor != null) {
+                mostrarDialogoEsperandoPausa(); // ¡Esto faltaba por añadir en tu código!
+                gestor.solicitarPausa();
+            }
+        });
+
+        dialog.show();
+    }
+
+    // 4. Diálogo de "Esperando respuesta a la tregua..."
+    private void mostrarDialogoEsperandoPausa() {
+        dialogoEsperandoPausa = new android.app.Dialog(this);
+        dialogoEsperandoPausa.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialogoEsperandoPausa.setContentView(R.layout.dialog_personalizado);
+
+        if (dialogoEsperandoPausa.getWindow() != null) {
+            dialogoEsperandoPausa.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialogoEsperandoPausa.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+        dialogoEsperandoPausa.setCancelable(false);
+
+        android.widget.TextView tvTitulo = dialogoEsperandoPausa.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialogoEsperandoPausa.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnAccion = dialogoEsperandoPausa.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnCancelar = dialogoEsperandoPausa.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialogoEsperandoPausa.findViewById(R.id.ivDialogIcon);
+
+        tvTitulo.setText("TREGUA ENVIADA");
+        tvMensaje.setText("Esperando la respuesta del comandante rival...");
+
+        ivIcono.setImageResource(android.R.drawable.ic_popup_sync);
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#5C3A21"));
+
+        btnAccion.setVisibility(android.view.View.GONE);
+        btnCancelar.setVisibility(android.view.View.GONE);
+
+        dialogoEsperandoPausa.show();
+    }
+
+    // 5. Diálogo de "Pausa Rechazada"
+    private void mostrarDialogoPausaRechazada() {
+        if (dialogoEsperandoPausa != null && dialogoEsperandoPausa.isShowing()) {
+            dialogoEsperandoPausa.dismiss();
+        }
+
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_personalizado);
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setLayout(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+        }
+        dialog.setCancelable(false);
+
+        android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
+        android.widget.Button btnAccion = dialog.findViewById(R.id.btnDialogAction);
+        android.widget.Button btnCancelar = dialog.findViewById(R.id.btnDialogCancel);
+        android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
+
+        tvTitulo.setText("TREGUA DENEGADA");
+        tvMensaje.setText("El enemigo ha rechazado tu solicitud de tregua. ¡La batalla continúa!");
+
+        ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#B71C1C"));
+        tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
+
+        btnCancelar.setVisibility(android.view.View.GONE);
+        btnAccion.setText("A LAS ARMAS");
+
+        btnAccion.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 }
