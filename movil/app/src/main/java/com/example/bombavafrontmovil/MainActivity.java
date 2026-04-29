@@ -11,19 +11,22 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.example.bombavafrontmovil.network.SocketManager;
 
 import org.json.JSONObject;
+
 import io.socket.client.Socket;
 
 public class MainActivity extends AppCompatActivity {
 
+    private static final String TAG = "DEBUG_AI";
+    private static final String TAG_RECONEXION = "RECONEXION";
+
     private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
-    private io.socket.client.Socket mSocket;
+    private Socket mSocket;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Enlazamos las vistas
         btnCompetitivo = findViewById(R.id.btnCompetitivo);
         btnUnirse = findViewById(R.id.btnUnirse);
         btnConfigurarFlota = findViewById(R.id.btnConfigFlota);
@@ -31,109 +34,107 @@ public class MainActivity extends AppCompatActivity {
         btnPractica = findViewById(R.id.btnPractica);
         btnAjustes = findViewById(R.id.btnSettings);
 
-        // --- BOTÓN COMPETITIVO ---
-        if (btnCompetitivo != null) {
-            btnCompetitivo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-                        String userId = prefs.getString("userId", "default");
-                        boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+        inicializarSocketSiHaySesion();
 
-                        if (tieneMazo) {
-                            startActivity(new Intent(MainActivity.this, PantallaJuego.class));
-                        } else {
-                            mostrarAvisoMazoVacio();
-                        }
-                    } else {
-                        mostrarDialogoAlistamiento();
+        // --- BOTÓN COMPETITIVO / IA ---
+        if (btnCompetitivo != null) {
+            btnCompetitivo.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+
+                    if (!tieneMazo) {
+                        mostrarAvisoMazoVacio();
+                        return;
                     }
+
+                    if (mSocket == null) {
+                        AppNotifier.show(MainActivity.this, "No se pudo conectar con el servidor", AppNotifier.Type.ERROR);
+                        inicializarSocketSiHaySesion();
+                        return;
+                    }
+
+                    try {
+                        AppNotifier.show(MainActivity.this, "Buscando partida contra IA...", AppNotifier.Type.INFO);
+                        mSocket.emit("game:play_bot", new JSONObject());
+                        Log.d(TAG, "Emit game:play_bot -> {}");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error lanzando partida contra IA", e);
+                        AppNotifier.show(MainActivity.this, "Error al iniciar la partida contra IA", AppNotifier.Type.ERROR);
+                    }
+
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN UNIRSE ---
         if (btnUnirse != null) {
-            btnUnirse.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-                        String userId = prefs.getString("userId", "default");
-                        boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+            btnUnirse.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
 
-                        if (tieneMazo) {
-                            startActivity(new Intent(MainActivity.this, PantallaUnirse.class));
-                        } else {
-                            mostrarAvisoMazoVacio();
-                        }
+                    if (tieneMazo) {
+                        startActivity(new Intent(MainActivity.this, PantallaUnirse.class));
                     } else {
-                        mostrarDialogoAlistamiento();
+                        mostrarAvisoMazoVacio();
                     }
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
-        // --- BOTÓN PRÁCTICA ---
+        // --- BOTÓN PRÁCTICA / CREAR PARTIDA NORMAL ---
         if (btnPractica != null) {
-            btnPractica.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-                        String userId = prefs.getString("userId", "default");
-                        boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+            btnPractica.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
 
-                        if (tieneMazo) {
-                            startActivity(new Intent(MainActivity.this, LobbyActivity.class));
-                        } else {
-                            mostrarAvisoMazoVacio();
-                        }
+                    if (tieneMazo) {
+                        startActivity(new Intent(MainActivity.this, LobbyActivity.class));
                     } else {
-                        mostrarDialogoAlistamiento();
+                        mostrarAvisoMazoVacio();
                     }
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN CONFIGURAR FLOTA ---
         if (btnConfigurarFlota != null) {
-            btnConfigurarFlota.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        startActivity(new Intent(MainActivity.this, ConfigurarFlotaActivity.class));
-                    } else {
-                        mostrarDialogoAlistamiento();
-                    }
+            btnConfigurarFlota.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    startActivity(new Intent(MainActivity.this, ConfigurarFlotaActivity.class));
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN PERFIL ---
         if (btnPerfil != null) {
-            btnPerfil.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        startActivity(new Intent(MainActivity.this, PantallaPerfil.class));
-                    } else {
-                        startActivity(new Intent(MainActivity.this, LoginActivity.class));
-                    }
+            btnPerfil.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    startActivity(new Intent(MainActivity.this, PantallaPerfil.class));
+                } else {
+                    startActivity(new Intent(MainActivity.this, LoginActivity.class));
                 }
             });
         }
 
         // --- BOTÓN AJUSTES ---
         if (btnAjustes != null) {
-            btnAjustes.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    // Navegamos directamente a la pantalla de Ajustes
-                    startActivity(new Intent(MainActivity.this, PantallaAjustes.class));
-                }
-            });
+            btnAjustes.setOnClickListener(v ->
+                    startActivity(new Intent(MainActivity.this, PantallaAjustes.class))
+            );
         }
 
         if (isUsuarioLogueado()) {
@@ -141,7 +142,101 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // --- MÉTODOS DE SEGURIDAD NAVAL ---
+    private void inicializarSocketSiHaySesion() {
+        if (!isUsuarioLogueado()) return;
+
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", "");
+
+        try {
+            SocketManager.getInstance().conectar(token);
+            mSocket = SocketManager.getInstance().getSocket();
+            configurarListenersSocketMain();
+        } catch (Exception e) {
+            Log.e(TAG, "Error inicializando socket en MainActivity", e);
+            mSocket = null;
+        }
+    }
+
+    private void configurarListenersSocketMain() {
+        if (mSocket == null) return;
+
+        mSocket.off("match:ready");
+        mSocket.off("game:error");
+
+        mSocket.on("match:ready", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String matchId = data.getString("matchId");
+
+                Log.d(TAG, "match:ready recibido -> matchId=" + matchId);
+
+                Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
+                intent.putExtra("MATCH_ID", matchId);
+                intent.putExtra("CODIGO_SALA", "");
+                intent.putExtra("ES_HOST", true);
+                startActivity(intent);
+
+            } catch (Exception e) {
+                Log.e(TAG, "Error leyendo match:ready en MainActivity", e);
+                AppNotifier.show(MainActivity.this, "No se pudo abrir la partida", AppNotifier.Type.ERROR);
+            }
+        }));
+
+        mSocket.on("game:error", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String msg = data.optString("message", "Error al iniciar partida");
+                AppNotifier.show(MainActivity.this, msg, AppNotifier.Type.ERROR);
+            } catch (Exception e) {
+                AppNotifier.show(MainActivity.this, "Error al iniciar partida", AppNotifier.Type.ERROR);
+            }
+        }));
+    }
+
+    private void iniciarChequeoReconexion() {
+        if (mSocket == null) return;
+
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+        if (token == null) return;
+
+        mSocket.off("game:active_found");
+        mSocket.off("game:no_active");
+        mSocket.off(Socket.EVENT_CONNECT);
+
+        mSocket.on("game:active_found", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String matchId = data.getString("matchId");
+
+                Log.d(TAG_RECONEXION, "¡Partida activa encontrada! ID: " + matchId);
+
+                Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
+                intent.putExtra("MATCH_ID", matchId);
+                intent.putExtra("token", token);
+                intent.putExtra("esReconexion", true);
+                startActivity(intent);
+                finish();
+            } catch (Exception e) {
+                Log.e(TAG_RECONEXION, "Error al procesar game:active_found", e);
+            }
+        }));
+
+        mSocket.on("game:no_active", args ->
+                Log.d(TAG_RECONEXION, "No hay partidas pendientes. Menú listo.")
+        );
+
+        mSocket.on(Socket.EVENT_CONNECT, args -> {
+            Log.d(TAG_RECONEXION, "Socket conectado, enviando game:check_active...");
+            mSocket.emit("game:check_active");
+        });
+
+        if (mSocket.connected()) {
+            Log.d(TAG_RECONEXION, "Socket ya conectado, enviando game:check_active...");
+            mSocket.emit("game:check_active");
+        }
+    }
 
     private boolean isUsuarioLogueado() {
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
@@ -149,15 +244,15 @@ public class MainActivity extends AppCompatActivity {
         return token != null && !token.isEmpty();
     }
 
-    // Pop-up estilizado con pergamino y madera (Login)
     private void mostrarDialogoAlistamiento() {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_personalizado);
 
-        // Hacemos el marco exterior transparente
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+            );
             dialog.getWindow().setLayout(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -166,49 +261,42 @@ public class MainActivity extends AppCompatActivity {
 
         dialog.setCancelable(true);
 
-        // Enlazamos las vistas
         android.widget.TextView tvTitulo = dialog.findViewById(R.id.tvDialogTitle);
         android.widget.TextView tvMensaje = dialog.findViewById(R.id.tvDialogMessage);
         android.widget.Button btnIdentificarse = dialog.findViewById(R.id.btnDialogAction);
         android.widget.Button btnCancelar = dialog.findViewById(R.id.btnDialogCancel);
         android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
 
-        // Configuración de textos y colores para advertencia
         tvTitulo.setText("¡ACCESO RESTRINGIDO!");
         tvMensaje.setText("Atención: Necesitas estar alistado en la flota para acceder a esta sección de la Sala de Mando.\n\n¿Deseas identificarte o crear una cuenta ahora?");
 
-        // Ponemos el icono de alerta y le damos el tono rojo oscuro/borgoña
         ivIcono.setImageResource(android.R.drawable.ic_dialog_alert);
         ivIcono.setColorFilter(android.graphics.Color.parseColor("#B71C1C"));
         tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
 
-        // Hacemos visible el botón secundario
         btnCancelar.setVisibility(android.view.View.VISIBLE);
-
         btnCancelar.setText("PERMANECER");
         btnIdentificarse.setText("IDENTIFICARSE");
 
-        // Ir al Login
         btnIdentificarse.setOnClickListener(v -> {
             dialog.dismiss();
-            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
         });
 
-        // Quedarse en la pantalla actual
         btnCancelar.setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
     }
 
-    // Pop-up para advertir que NO tienen mazo configurado
     private void mostrarAvisoMazoVacio() {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
-        dialog.setContentView(R.layout.dialog_personalizado); // Reutilizamos tu diseño base
+        dialog.setContentView(R.layout.dialog_personalizado);
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+            );
             dialog.getWindow().setLayout(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -227,66 +315,32 @@ public class MainActivity extends AppCompatActivity {
         tvMensaje.setText("Comandante, no puedes ir a la batalla sin tus barcos. Por favor, dirígete a los astilleros y configura tu flota antes de buscar partida.");
 
         ivIcono.setImageResource(android.R.drawable.ic_dialog_info);
-        ivIcono.setColorFilter(android.graphics.Color.parseColor("#1976D2")); // Color Azul Marino
+        ivIcono.setColorFilter(android.graphics.Color.parseColor("#1976D2"));
         tvTitulo.setTextColor(android.graphics.Color.parseColor("#1976D2"));
 
         btnCancelar.setVisibility(View.VISIBLE);
         btnCancelar.setText("MÁS TARDE");
         btnIrAConfigurar.setText("CONFIGURAR FLOTA");
 
-        // Ir directo a Configurar Flota
         btnIrAConfigurar.setOnClickListener(v -> {
             dialog.dismiss();
             startActivity(new Intent(MainActivity.this, ConfigurarFlotaActivity.class));
         });
 
-        // Quedarse en la pantalla actual
         btnCancelar.setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
     }
 
-    private void iniciarChequeoReconexion() {
-        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-        String token = prefs.getString("token", null);
-
-        if (token == null) return;
-
-        // 1. Conectar socket nada más entrar
-        SocketManager socketManager = SocketManager.getInstance();
-        socketManager.conectar(token);
-        Socket mSocket = socketManager.getSocket();
-
-        // 2. Escuchar "game:active_found" (Reconexión detectada)
-        mSocket.on("game:active_found", args -> {
-            try {
-                JSONObject data = (JSONObject) args[0];
-                String matchId = data.getString("matchId");
-
-                Log.d("RECONEXION", "¡Partida activa encontrada! ID: " + matchId);
-
-                // Redirigir automáticamente a la pantalla de juego
-                Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
-                intent.putExtra("matchId", matchId);
-                intent.putExtra("token", token);
-                intent.putExtra("esReconexion", true); // Marcamos que es reconexión
-                startActivity(intent);
-                finish(); // Cerramos el menú
-            } catch (Exception e) {
-                Log.e("RECONEXION", "Error al procesar game:active_found", e);
-            }
-        });
-
-        // 3. Escuchar "game:no_active" (Todo normal, no hay partidas pendientes)
-        mSocket.on("game:no_active", args -> {
-            Log.d("RECONEXION", "No hay partidas pendientes. Menú listo.");
-            // Aquí podrías quitar un "Loading" si tuvieras uno
-        });
-
-        // 4. Emitir el chequeo nada más conectar
-        mSocket.on(Socket.EVENT_CONNECT, args -> {
-            Log.d("RECONEXION", "Socket conectado, enviando game:check_active...");
-            mSocket.emit("game:check_active");
-        });
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mSocket != null) {
+            mSocket.off("match:ready");
+            mSocket.off("game:error");
+            mSocket.off("game:active_found");
+            mSocket.off("game:no_active");
+            mSocket.off(Socket.EVENT_CONNECT);
+        }
     }
 }
