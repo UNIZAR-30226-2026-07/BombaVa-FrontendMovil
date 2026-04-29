@@ -1,6 +1,7 @@
 package com.example.bombavafrontmovil;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -240,5 +241,32 @@ public class PantallaJuegoUi {
         if (panelInfoBarco != null) {
             panelInfoBarco.setVisibility(View.VISIBLE);
         }
+    }
+
+    // Interfaz para el callback del diálogo
+    public interface PausaCallback {
+        void onRespuesta(boolean aceptar);
+    }
+
+    // Metodo para bloquear/desbloquear la interacción
+    public void setEstadoBloqueoRed(boolean bloqueado) {
+        // Si tienes un View de "overlay" (capa transparente) en el XML, actívalo aquí
+        // Si no, podemos deshabilitar los botones principales
+        if (btnPasarTurno != null) {
+            btnPasarTurno.setEnabled(!bloqueado);
+            btnPasarTurno.setAlpha(bloqueado ? 0.5f : 1.0f);
+        }
+        if (btnPause != null) btnPause.setEnabled(!bloqueado);
+    }
+
+    public void mostrarDialogoPausaSolicitada(PausaCallback callback) {
+        // Usamos btnPause.getContext() para obtener la actividad sin problemas
+        new AlertDialog.Builder(btnPause.getContext())
+                .setTitle("Pausa Solicitada")
+                .setMessage("El oponente quiere pausar la partida. Si aceptas, la partida se guardará y volverás al menú.")
+                .setPositiveButton("ACEPTAR", (d, w) -> callback.onRespuesta(true))
+                .setNegativeButton("RECHAZAR", (d, w) -> callback.onRespuesta(false))
+                .setCancelable(false)
+                .show();
     }
 }

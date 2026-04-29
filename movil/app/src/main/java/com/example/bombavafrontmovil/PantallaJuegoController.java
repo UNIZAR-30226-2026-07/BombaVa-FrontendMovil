@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 
+import android.app.AlertDialog;
 import android.view.View;
 import android.widget.Toast;
 
@@ -138,6 +139,20 @@ public class PantallaJuegoController {
                 ui.ocultarInfoBarco();
                 actualizarRangoAtaqueVisual();
                 mostrarToast("Mina preparada. Selecciona dónde colocarla.");
+            });
+        }
+
+        if (ui.btnPause != null) {
+            ui.btnPause.setOnClickListener(v -> {
+                new AlertDialog.Builder(activity)
+                        .setTitle("Solicitar Pausa")
+                        .setMessage("¿Quieres pedirle al oponente pausar la partida?")
+                        .setPositiveButton("SÍ, SOLICITAR", (d, w) -> {
+                            gestor.solicitarPausa();
+                            mostrarToast("Petición de pausa enviada...");
+                        })
+                        .setNegativeButton("CANCELAR", null)
+                        .show();
             });
         }
     }

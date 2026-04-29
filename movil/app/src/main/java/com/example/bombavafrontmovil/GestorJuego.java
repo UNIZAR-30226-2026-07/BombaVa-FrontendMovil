@@ -40,25 +40,37 @@ public class GestorJuego {
         void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo);
         void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo);
         void onVisionUpdateParcial(List<BarcoLogico> flotaAnterior, List<BarcoLogico> flotaNueva);
+        void onOponenteConexionCambio(boolean conectado);
+        void onPausaSolicitada();
+        void onPartidaPausadaConfirmada();
+        void onPausaRechazada();
     }
 
-    public GestorJuego(Socket socket,
-                       String matchId,
-                       String userId,
-                       Map<String, UserShip> diccionarioFlota,
-                       PartidaListener listener) {
+    public GestorJuego(Socket socket, String matchId, String myUserId, PartidaListener listener, Map<String, UserShip> inventario) {
         this.socket = socket;
         this.matchId = matchId;
-        this.myUserId = userId;
-        this.diccionarioFlota = diccionarioFlota;
-        this.inventarioOriginal = new HashMap<>(diccionarioFlota);
+        this.myUserId = myUserId;
         this.listener = listener;
+        this.inventarioOriginal = inventario;
+        this.diccionarioFlota = new HashMap<>();
 
         this.mapper = new GestorJuegoMapper(this);
         this.socketBinder = new GestorJuegoSocketBinder(this);
+        this.socketBinder.configurarListeners();
 
-        socketBinder.configurarListeners();
+        // IMPORTANTE: Emitir join nada más crearse el gestor
         unirseAPartida();
+    }
+
+    private void unirseAPartida() {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            socket.emit("game:join", payload);
+            Log.d("DEBUG_BOMBA", "Emitido game:join para: " + matchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean isInvertirPerspectiva() {
@@ -107,15 +119,6 @@ public class GestorJuego {
 
     public int filaLogicaDesdeVisual(int filaVisual) {
         return invertirPerspectiva ? (14 - filaVisual) : filaVisual;
-    }
-
-    private void unirseAPartida() {
-        try {
-            socket.emit("game:join", matchId);
-            Log.d("DEBUG_JOIN", "Emit game:join -> " + matchId);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public void procesarStartInfo(Object[] args) {
@@ -399,6 +402,23 @@ public class GestorJuego {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public void solicitarPausa() {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            socket.emit("match:pause_request", payload);
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    public void responderPausa(boolean aceptar) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            String evento = aceptar ? "match:pause_accept" : "match:pause_reject";
+            socket.emit(evento, payload);
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     public void liberarListeners() {

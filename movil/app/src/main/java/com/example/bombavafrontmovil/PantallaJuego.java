@@ -108,6 +108,20 @@ public class PantallaJuego extends AppCompatActivity {
             Log.e(TAG, "Socket nulo en PantallaJuego");
         }
 
+        boolean esReconexion = getIntent().getBooleanExtra("esReconexion", false);
+        String idReconexion = getIntent().getStringExtra("matchId"); // Usamos una variable temporal
+
+        if (esReconexion && idReconexion != null) {
+            matchId = idReconexion; // ¡Solo lo sobrescribimos si de verdad estamos reconectando!
+            Log.d(TAG, "Reconectando a partida activa: " + matchId);
+            // Emitimos el join directamente
+            try {
+                JSONObject payload = new JSONObject();
+                payload.put("matchId", matchId);
+                mSocket.emit("game:join", payload);
+            } catch (Exception e) { e.printStackTrace(); }
+        }
+
         if (esHost && (matchId == null || matchId.isEmpty())) {
             mostrarPopUpEspera(codigoSala);
         }
@@ -175,8 +189,7 @@ public class PantallaJuego extends AppCompatActivity {
                 mSocket,
                 matchId,
                 myUserId,
-                diccionarioFlota,
-                new GestorJuego.PartidaListener() {
+                new GestorJuego.PartidaListener() { // <--- EL LISTENER VA ANTES
                     @Override
                     public void onSnapshotCompleto() {
                         runOnUiThread(() -> {
@@ -244,7 +257,50 @@ public class PantallaJuego extends AppCompatActivity {
                             );
                         });
                     }
-                }
+
+                    @Override
+                    public void onOponenteConexionCambio(boolean conectado) {
+                        runOnUiThread(() -> {
+                            if (!conectado) {
+                                AppNotifier.show(PantallaJuego.this, "Oponente desconectado. Esperando reanudación...", AppNotifier.Type.ERROR);
+                                ui.setEstadoBloqueoRed(true);
+                            } else {
+                                AppNotifier.show(PantallaJuego.this, "¡Oponente reconectado!", AppNotifier.Type.SUCCESS);
+                                ui.setEstadoBloqueoRed(false);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onPausaSolicitada() {
+                        runOnUiThread(() -> {
+                            ui.mostrarDialogoPausaSolicitada((aceptar) -> {
+                                gestor.responderPausa(aceptar);
+                            });
+                        });
+                    }
+
+                    @Override
+                    public void onPartidaPausadaConfirmada() {
+                        runOnUiThread(() -> {
+                            AppNotifier.show(PantallaJuego.this, "Partida pausada. Volviendo al menú...", AppNotifier.Type.INFO);
+                            new android.os.Handler().postDelayed(() -> {
+                                Intent intent = new Intent(PantallaJuego.this, MainActivity.class);
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                startActivity(intent);
+                                finish();
+                            }, 2000);
+                        });
+                    }
+
+                    @Override
+                    public void onPausaRechazada() {
+                        runOnUiThread(() -> {
+                            AppNotifier.show(PantallaJuego.this, "El oponente ha rechazado la pausa.", AppNotifier.Type.ERROR);
+                        });
+                    }
+                },
+                diccionarioFlota // <--- EL MAPA VA AL FINAL
         );
 
         controller.setGestor(gestor);

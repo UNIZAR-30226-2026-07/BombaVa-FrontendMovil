@@ -280,6 +280,42 @@ public class GestorJuegoSocketBinder {
                 Log.e(TAG, "Fallo al procesar projectile:hit", e);
             }
         });
+
+        // 1. Pausa solicitada por el rival
+        game.socket.on("match:pause_requested", args -> {
+            if (game.listener != null) {
+                // Necesitaremos añadir este metodo a PartidaListener
+                game.listener.onPausaSolicitada();
+            }
+        });
+
+        // 2. La partida se ha pausado oficialmente (Estado WAITING)
+        game.socket.on("match:paused", args -> {
+            if (game.listener != null) {
+                game.listener.onPartidaPausadaConfirmada();
+            }
+        });
+
+        // 3. El rival ha rechazado nuestra petición de pausa
+        game.socket.on("match:pause_rejected", args -> {
+            if (game.listener != null) {
+                game.listener.onPausaRechazada();
+            }
+        });
+
+        // 4. DESCONEXIÓN DEL RIVAL (Capa de bloqueo)
+        game.socket.on("match:player_disconnected", args -> {
+            if (game.listener != null) {
+                game.listener.onOponenteConexionCambio(false);
+            }
+        });
+
+        // 5. RECONEXIÓN DEL RIVAL (Quitar bloqueo)
+        game.socket.on("match:player_reconnected", args -> {
+            if (game.listener != null) {
+                game.listener.onOponenteConexionCambio(true);
+            }
+        });
     }
 
     private void procesarProyectilUpdate(Object[] args) {
@@ -332,5 +368,10 @@ public class GestorJuegoSocketBinder {
         game.socket.off("projectile:updated");
         game.socket.off("projectile:launched");
         game.socket.off("projectile:hit");
+        game.socket.off("match:pause_requested");
+        game.socket.off("match:paused");
+        game.socket.off("match:pause_rejected");
+        game.socket.off("match:player_disconnected");
+        game.socket.off("match:player_reconnected");
     }
 }
