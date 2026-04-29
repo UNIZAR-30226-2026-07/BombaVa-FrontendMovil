@@ -16,8 +16,8 @@ public class BarcoLogico {
     public int hpActual = 1;
     public int hpMax = 1;
 
-    // NUEVO: rango de visión real recibido del backend
     public int visionRange = -1;
+    public List<String> armas = new ArrayList<>();
 
     public BarcoLogico() {}
 

@@ -1,9 +1,5 @@
 package com.example.bombavafrontmovil;
 
-import android.graphics.Color;
-import android.view.View;
-import android.widget.ImageView;
-
 import java.util.Objects;
 
 public class Casilla {
@@ -25,9 +21,12 @@ public class Casilla {
     private int vidaCelda = 3;
     private String slug;
     private int vidaActual, vidaMax;
+
+    // --- CAMBIOS DEL TORPEDO AQUÍ ---
     private boolean tieneTorpedo = false;
-    private String direccionTorpedo = "N";
+    private float rotacionTorpedo = 0f; // Ahora usamos Grados (float)
     private boolean esTorpedoAliado = true;
+
     private boolean tieneMina = false;
     private boolean minaAliada = false;
 
@@ -103,18 +102,20 @@ public class Casilla {
     public void setSlug(String slug) { this.slug = slug; }
 
     public boolean hasTorpedo() { return tieneTorpedo; }
-    public void setTieneTorpedo(boolean tiene, String direccion, boolean esAliado) {
+
+    // --- NUEVO SETTER PARA GRADOS ---
+    public void setTieneTorpedo(boolean tiene, float grados, boolean esAliado) {
         this.tieneTorpedo = tiene;
-        this.direccionTorpedo = direccion;
+        this.rotacionTorpedo = grados;
         this.esTorpedoAliado = esAliado;
     }
-    public String getDireccionTorpedo() { return direccionTorpedo; }
+    public float getRotacionTorpedo() { return rotacionTorpedo; }
     public boolean isTorpedoAliado() { return esTorpedoAliado; }
 
     public void resetVisual() {
         seleccionado = false;
         enRangoAtaque = false;
-        visible = false; // por defecto todo queda cubierto por niebla
+        visible = false;
         tieneBarco = false;
         idBarco = -1;
         idBarcoStr = null;
@@ -127,9 +128,8 @@ public class Casilla {
         slug = null;
         vidaActual = 0;
         vidaMax = 0;
-        // BUG FIX: torpedo y mina también deben resetearse en cada repintado completo
         tieneTorpedo = false;
-        direccionTorpedo = "N";
+        rotacionTorpedo = 0f; // Reseteamos a 0 grados
         esTorpedoAliado = true;
         tieneMina = false;
         minaAliada = false;
@@ -153,7 +153,7 @@ public class Casilla {
         c.vidaActual = vidaActual;
         c.vidaMax = vidaMax;
         c.tieneTorpedo = tieneTorpedo;
-        c.direccionTorpedo = direccionTorpedo;
+        c.rotacionTorpedo = rotacionTorpedo; // Copiamos los grados
         c.esTorpedoAliado = esTorpedoAliado;
         c.tieneMina = tieneMina;
         c.minaAliada = minaAliada;
@@ -181,7 +181,7 @@ public class Casilla {
                 && vidaMax == otra.vidaMax
                 && Objects.equals(slug, otra.slug)
                 && tieneTorpedo == otra.tieneTorpedo
-                && Objects.equals(direccionTorpedo, otra.direccionTorpedo)
+                && Float.compare(rotacionTorpedo, otra.rotacionTorpedo) == 0 // Comparamos los grados
                 && esTorpedoAliado == otra.esTorpedoAliado
                 && tieneMina == otra.tieneMina
                 && minaAliada == otra.minaAliada;

@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 
+import android.app.AlertDialog;
 import android.view.View;
 import android.widget.Toast;
 
@@ -401,29 +402,35 @@ public class PantallaJuegoController {
     }
 
     private void actualizarBotonesArmas(String idBarco) {
+        // 1. Ocultar todos por defecto
         if (ui.btnAtk1 != null) ui.btnAtk1.setVisibility(View.GONE);
         if (ui.btnAtk2 != null) ui.btnAtk2.setVisibility(View.GONE);
         if (ui.btnAtk3 != null) ui.btnAtk3.setVisibility(View.GONE);
 
-        if (diccionarioFlota == null) return;
+        if (gestor == null) return;
 
-        UserShip ship = diccionarioFlota.get(idBarco);
-        android.util.Log.d("DEBUG_ARMAS", "UserShip asociado: " + (ship != null ? ship.getId() : "null"));
+        // 2. Obtener el barco de la partida
+        BarcoLogico barco = gestor.obtenerBarcoPorId(idBarco);
+        if (barco == null || barco.armas == null || barco.armas.isEmpty()) {
+            android.util.Log.d("DEBUG_ARMAS", "El barco no tiene armas asignadas.");
+            return;
+        }
 
-        if (ship == null || ship.getWeaponTemplates() == null) return;
+        android.util.Log.d("DEBUG_ARMAS", "Armas encontradas para este barco: " + barco.armas.toString());
 
-        for (UserShip.WeaponItem w : ship.getWeaponTemplates()) {
-            if ("cannon-base".equals(w.slug)) {
+        // 3. Encender los botones según lo que diga el servidor
+        for (String arma : barco.armas) {
+            if ("CANNON".equalsIgnoreCase(arma)) {
                 if (ui.btnAtk1 != null) {
                     ui.btnAtk1.setVisibility(View.VISIBLE);
                     ui.btnAtk1.setText("CAÑÓN");
                 }
-            } else if ("torpedo-v1".equals(w.slug)) {
+            } else if ("TORPEDO".equalsIgnoreCase(arma)) {
                 if (ui.btnAtk2 != null) {
                     ui.btnAtk2.setVisibility(View.VISIBLE);
                     ui.btnAtk2.setText("TORPEDO");
                 }
-            } else if ("mine-v1".equals(w.slug)) {
+            } else if ("MINE".equalsIgnoreCase(arma)) {
                 if (ui.btnAtk3 != null) {
                     ui.btnAtk3.setVisibility(View.VISIBLE);
                     ui.btnAtk3.setText("MINA");

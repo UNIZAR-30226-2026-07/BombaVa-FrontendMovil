@@ -17,6 +17,7 @@ import io.socket.client.Socket;
 public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "DEBUG_AI";
+    private static final String TAG_RECONEXION = "RECONEXION";
 
     private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
     private Socket mSocket;
@@ -26,7 +27,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Enlazamos las vistas
         btnCompetitivo = findViewById(R.id.btnCompetitivo);
         btnUnirse = findViewById(R.id.btnUnirse);
         btnConfigurarFlota = findViewById(R.id.btnConfigFlota);
@@ -38,121 +38,107 @@ public class MainActivity extends AppCompatActivity {
 
         // --- BOTÓN COMPETITIVO / IA ---
         if (btnCompetitivo != null) {
-            btnCompetitivo.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-                        String userId = prefs.getString("userId", "default");
-                        boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+            btnCompetitivo.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
 
-                        if (!tieneMazo) {
-                            mostrarAvisoMazoVacio();
-                            return;
-                        }
-
-                        if (mSocket == null) {
-                            AppNotifier.show(MainActivity.this, "No se pudo conectar con el servidor", AppNotifier.Type.ERROR);
-                            inicializarSocketSiHaySesion();
-                            return;
-                        }
-
-                        try {
-                            AppNotifier.show(MainActivity.this, "Buscando partida contra IA...", AppNotifier.Type.INFO);
-                            mSocket.emit("game:play_bot", new JSONObject());
-                            Log.d(TAG, "Emit game:play_bot -> {}");
-                        } catch (Exception e) {
-                            Log.e(TAG, "Error lanzando partida contra IA", e);
-                            AppNotifier.show(MainActivity.this, "Error al iniciar la partida contra IA", AppNotifier.Type.ERROR);
-                        }
-
-                    } else {
-                        mostrarDialogoAlistamiento();
+                    if (!tieneMazo) {
+                        mostrarAvisoMazoVacio();
+                        return;
                     }
+
+                    if (mSocket == null) {
+                        AppNotifier.show(MainActivity.this, "No se pudo conectar con el servidor", AppNotifier.Type.ERROR);
+                        inicializarSocketSiHaySesion();
+                        return;
+                    }
+
+                    try {
+                        AppNotifier.show(MainActivity.this, "Buscando partida contra IA...", AppNotifier.Type.INFO);
+                        mSocket.emit("game:play_bot", new JSONObject());
+                        Log.d(TAG, "Emit game:play_bot -> {}");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error lanzando partida contra IA", e);
+                        AppNotifier.show(MainActivity.this, "Error al iniciar la partida contra IA", AppNotifier.Type.ERROR);
+                    }
+
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN UNIRSE ---
         if (btnUnirse != null) {
-            btnUnirse.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-                        String userId = prefs.getString("userId", "default");
-                        boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+            btnUnirse.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
 
-                        if (tieneMazo) {
-                            startActivity(new Intent(MainActivity.this, PantallaUnirse.class));
-                        } else {
-                            mostrarAvisoMazoVacio();
-                        }
+                    if (tieneMazo) {
+                        startActivity(new Intent(MainActivity.this, PantallaUnirse.class));
                     } else {
-                        mostrarDialogoAlistamiento();
+                        mostrarAvisoMazoVacio();
                     }
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN PRÁCTICA / CREAR PARTIDA NORMAL ---
         if (btnPractica != null) {
-            btnPractica.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
-                        String userId = prefs.getString("userId", "default");
-                        boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
+            btnPractica.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                    String userId = prefs.getString("userId", "default");
+                    boolean tieneMazo = prefs.getBoolean("flota_guardada_" + userId, false);
 
-                        if (tieneMazo) {
-                            startActivity(new Intent(MainActivity.this, LobbyActivity.class));
-                        } else {
-                            mostrarAvisoMazoVacio();
-                        }
+                    if (tieneMazo) {
+                        startActivity(new Intent(MainActivity.this, LobbyActivity.class));
                     } else {
-                        mostrarDialogoAlistamiento();
+                        mostrarAvisoMazoVacio();
                     }
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN CONFIGURAR FLOTA ---
         if (btnConfigurarFlota != null) {
-            btnConfigurarFlota.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        startActivity(new Intent(MainActivity.this, ConfigurarFlotaActivity.class));
-                    } else {
-                        mostrarDialogoAlistamiento();
-                    }
+            btnConfigurarFlota.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    startActivity(new Intent(MainActivity.this, ConfigurarFlotaActivity.class));
+                } else {
+                    mostrarDialogoAlistamiento();
                 }
             });
         }
 
         // --- BOTÓN PERFIL ---
         if (btnPerfil != null) {
-            btnPerfil.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (isUsuarioLogueado()) {
-                        startActivity(new Intent(MainActivity.this, PantallaPerfil.class));
-                    } else {
-                        startActivity(new Intent(MainActivity.this, LoginActivity.class));
-                    }
+            btnPerfil.setOnClickListener(v -> {
+                if (isUsuarioLogueado()) {
+                    startActivity(new Intent(MainActivity.this, PantallaPerfil.class));
+                } else {
+                    startActivity(new Intent(MainActivity.this, LoginActivity.class));
                 }
             });
         }
 
         // --- BOTÓN AJUSTES ---
         if (btnAjustes != null) {
-            btnAjustes.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    startActivity(new Intent(MainActivity.this, PantallaAjustes.class));
-                }
-            });
+            btnAjustes.setOnClickListener(v ->
+                    startActivity(new Intent(MainActivity.this, PantallaAjustes.class))
+            );
+        }
+
+        if (isUsuarioLogueado()) {
+            iniciarChequeoReconexion();
         }
     }
 
@@ -183,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject data = (JSONObject) args[0];
                 String matchId = data.getString("matchId");
 
-                Log.d(TAG, "match:ready recibido desde game:play_bot -> matchId=" + matchId);
+                Log.d(TAG, "match:ready recibido -> matchId=" + matchId);
 
                 Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
                 intent.putExtra("MATCH_ID", matchId);
@@ -193,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 Log.e(TAG, "Error leyendo match:ready en MainActivity", e);
-                AppNotifier.show(MainActivity.this, "No se pudo abrir la partida contra IA", AppNotifier.Type.ERROR);
+                AppNotifier.show(MainActivity.this, "No se pudo abrir la partida", AppNotifier.Type.ERROR);
             }
         }));
 
@@ -203,9 +189,53 @@ public class MainActivity extends AppCompatActivity {
                 String msg = data.optString("message", "Error al iniciar partida");
                 AppNotifier.show(MainActivity.this, msg, AppNotifier.Type.ERROR);
             } catch (Exception e) {
-                AppNotifier.show(MainActivity.this, "Error al iniciar partida contra IA", AppNotifier.Type.ERROR);
+                AppNotifier.show(MainActivity.this, "Error al iniciar partida", AppNotifier.Type.ERROR);
             }
         }));
+    }
+
+    private void iniciarChequeoReconexion() {
+        if (mSocket == null) return;
+
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+        if (token == null) return;
+
+        mSocket.off("game:active_found");
+        mSocket.off("game:no_active");
+        mSocket.off(Socket.EVENT_CONNECT);
+
+        mSocket.on("game:active_found", args -> runOnUiThread(() -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String matchId = data.getString("matchId");
+
+                Log.d(TAG_RECONEXION, "¡Partida activa encontrada! ID: " + matchId);
+
+                Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
+                intent.putExtra("MATCH_ID", matchId);
+                intent.putExtra("token", token);
+                intent.putExtra("esReconexion", true);
+                startActivity(intent);
+                finish();
+            } catch (Exception e) {
+                Log.e(TAG_RECONEXION, "Error al procesar game:active_found", e);
+            }
+        }));
+
+        mSocket.on("game:no_active", args ->
+                Log.d(TAG_RECONEXION, "No hay partidas pendientes. Menú listo.")
+        );
+
+        mSocket.on(Socket.EVENT_CONNECT, args -> {
+            Log.d(TAG_RECONEXION, "Socket conectado, enviando game:check_active...");
+            mSocket.emit("game:check_active");
+        });
+
+        if (mSocket.connected()) {
+            Log.d(TAG_RECONEXION, "Socket ya conectado, enviando game:check_active...");
+            mSocket.emit("game:check_active");
+        }
     }
 
     private boolean isUsuarioLogueado() {
@@ -220,7 +250,9 @@ public class MainActivity extends AppCompatActivity {
         dialog.setContentView(R.layout.dialog_personalizado);
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+            );
             dialog.getWindow().setLayout(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -243,14 +275,12 @@ public class MainActivity extends AppCompatActivity {
         tvTitulo.setTextColor(android.graphics.Color.parseColor("#B71C1C"));
 
         btnCancelar.setVisibility(android.view.View.VISIBLE);
-
         btnCancelar.setText("PERMANECER");
         btnIdentificarse.setText("IDENTIFICARSE");
 
         btnIdentificarse.setOnClickListener(v -> {
             dialog.dismiss();
-            Intent intent = new Intent(MainActivity.this, LoginActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
         });
 
         btnCancelar.setOnClickListener(v -> dialog.dismiss());
@@ -264,7 +294,9 @@ public class MainActivity extends AppCompatActivity {
         dialog.setContentView(R.layout.dialog_personalizado);
 
         if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+            dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+            );
             dialog.getWindow().setLayout(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -306,6 +338,9 @@ public class MainActivity extends AppCompatActivity {
         if (mSocket != null) {
             mSocket.off("match:ready");
             mSocket.off("game:error");
+            mSocket.off("game:active_found");
+            mSocket.off("game:no_active");
+            mSocket.off(Socket.EVENT_CONNECT);
         }
     }
 }

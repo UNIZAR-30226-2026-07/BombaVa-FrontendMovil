@@ -93,7 +93,6 @@ public class PantallaJuegoBoard {
 
         List<Integer> celdasARepintar = new ArrayList<>();
 
-        // 4. Posiciones antiguas de proyectiles/minas
         for (int i = 0; i < snapshotAnterior.size(); i++) {
             if (snapshotAnterior.get(i).hasTorpedo() || snapshotAnterior.get(i).hasMina()) {
                 celdasARepintar.add(i);
@@ -103,14 +102,12 @@ public class PantallaJuegoBoard {
         // 5. Pintamos torpedos/minas
         sincronizarTorpedosVisuales(gestor);
 
-        // 6. Posiciones nuevas de proyectiles/minas
         for (int i = 0; i < matriz.size(); i++) {
             if (matriz.get(i).hasTorpedo() || matriz.get(i).hasMina()) {
                 celdasARepintar.add(i);
             }
         }
 
-        // 7. Añadimos cualquier otra celda modificada
         for (int i = 0; i < matriz.size(); i++) {
             if (!matriz.get(i).equivaleA(snapshotAnterior.get(i))) {
                 celdasARepintar.add(i);
@@ -127,7 +124,6 @@ public class PantallaJuegoBoard {
                                  GestorJuego gestor,
                                  String idBarcoSeleccionado,
                                  LinkedHashSet<Integer> posicionesRangoActual) {
-        // Con niebla de guerra y proyectiles conviene recalcular todo el tablero
         repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
@@ -136,24 +132,20 @@ public class PantallaJuegoBoard {
                                   GestorJuego gestor,
                                   String idBarcoSeleccionado,
                                   LinkedHashSet<Integer> posicionesRangoActual) {
-        // Con niebla de guerra y proyectiles conviene recalcular todo el tablero
         repaintFull(gestor, idBarcoSeleccionado, posicionesRangoActual);
     }
 
     private void aplicarNieblaDeGuerra(GestorJuego gestor) {
-        // 1. Todo invisible por defecto
         for (Casilla c : matriz) {
             c.setVisible(false);
         }
 
-        // 2. Mis barcos y su rango Manhattan generan visión
         for (BarcoLogico b : gestor.getFlota()) {
             if (!b.esAliado) continue;
 
             List<int[]> celdasAliadas = BarcoLogico.getCeldasPara(b.x, b.y, b.orientation, b.tipo);
             int rangoVision = b.getRangoVision();
 
-            // Las propias celdas del barco siempre visibles
             for (int[] celdaBarco : celdasAliadas) {
                 int filaLogica = celdaBarco[0];
                 int col = celdaBarco[1];
@@ -163,7 +155,6 @@ public class PantallaJuegoBoard {
                 matriz.get(filaVisual * 15 + col).setVisible(true);
             }
 
-            // Campo de visión Manhattan desde cada celda del barco
             for (Casilla casilla : matriz) {
                 int xObjetivo = casilla.getColumna();
                 int yObjetivoLogica = gestor.filaLogicaDesdeVisual(casilla.getFila());
@@ -186,7 +177,6 @@ public class PantallaJuegoBoard {
             }
         }
 
-        // 3. Ocultamos barcos enemigos en casillas no visibles
         for (Casilla c : matriz) {
             if (c.isTieneBarco() && !c.isEsAliado() && !c.isVisible()) {
                 c.setTieneBarco(false);
@@ -237,15 +227,11 @@ public class PantallaJuegoBoard {
         return 2;
     }
 
-    /**
-     * Pinta torpedos y minas sobre el tablero.
-     * x,y son coordenadas absolutas lógicas del servidor.
-     */
     public void sincronizarTorpedosVisuales(GestorJuego gestor) {
         if (gestor == null) return;
 
         for (Casilla c : matriz) {
-            c.setTieneTorpedo(false, "N", true);
+            c.setTieneTorpedo(false, 0f, true);
             c.setTieneMina(false, false);
         }
 
@@ -270,22 +256,31 @@ public class PantallaJuegoBoard {
                 int vx = p.vectorX;
                 int vy = p.vectorY;
 
-                if (perspInvertida) {
+                // --- LA MAGIA ESTÁ AQUÍ ---
+                // Si el torpedo es del enemigo, invertimos sus vectores porque
+                // el backend olvidó girarlos al rotar el tablero 180 grados.
+                if (!p.esAliado) {
                     vx = -vx;
                     vy = -vy;
                 }
 
-                String dirVisual = vectorADireccion(vx, vy);
-                c.setTieneTorpedo(true, dirVisual, p.esAliado);
+                // Inversión visual de la cámara (solo afecta al eje Y)
+                if (perspInvertida) {
+                    vy = -vy;
+                }
+
+                float rotacionGrados = vectorARotacionVisual(vx, vy);
+                c.setTieneTorpedo(true, rotacionGrados, p.esAliado);
             }
         }
     }
 
-    private String vectorADireccion(int vx, int vy) {
-        if (vy < 0) return "N";
-        if (vy > 0) return "S";
-        if (vx > 0) return "E";
-        if (vx < 0) return "W";
-        return "N";
+    private float vectorARotacionVisual(int vx, int vy) {
+        // Devolvemos la rotación natural (90º es Derecha, 270º es Izquierda)
+        if (vy < 0) return 0f;    // Norte (Arriba)
+        if (vy > 0) return 180f;  // Sur (Abajo)
+        if (vx > 0) return 90f;   // Este (Derecha)
+        if (vx < 0) return 270f;  // Oeste (Izquierda)
+        return 0f;
     }
 }
