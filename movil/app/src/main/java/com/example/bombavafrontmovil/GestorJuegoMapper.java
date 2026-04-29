@@ -103,8 +103,15 @@ public class GestorJuegoMapper {
             game.diccionarioFlota.clear();
             game.diccionarioFlota.putAll(diccionarioPartida);
 
+            // Extraemos los arrays de proyectiles del JSON inicial
+            JSONArray proyPropios = data.optJSONArray("proyPropios");
+            JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
+
+            // Reutilizamos el método del GestorJuego para inyectarlos en el tablero
+            game.sincronizarProyectilesVision(proyPropios, proyEnemigos);
+
             if (game.listener != null) {
-                game.listener.onSnapshotCompleto();
+                game.listener.onSnapshotCompleto(); // Al llamar a esto, el tablero se pintará ya con los torpedos cargados
             }
         } catch (Exception e) {
             Log.e(TAG, "Error procesando match:startInfo", e);
