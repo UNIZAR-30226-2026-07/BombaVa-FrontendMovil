@@ -9,14 +9,30 @@
         android:layout_height="match_parent"
         android:background="@drawable/fondo_celda"
         android:scaleType="fitXY"
-        android:contentDescription="Celda" />
+        android:contentDescription="Agua" />
+
+    <ImageView
+        android:id="@+id/imgBarco"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:visibility="gone"
+        android:contentDescription="Barco" />
+
+    <ImageView
+        android:id="@+id/imgTorpedo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="gone"
+        android:contentDescription="Torpedo" />
 
     <ImageView
         android:id="@+id/imgMina"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="4dp"
-        android:src="@drawable/ic_mina"
+        android:scaleType="fitCenter"
         android:visibility="gone"
         android:contentDescription="Mina naval" />
 
