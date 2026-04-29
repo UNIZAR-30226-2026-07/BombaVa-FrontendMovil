@@ -103,26 +103,40 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
-        // BARCOS
-        if (c.isTieneBarco() && c.isVisible()) {
+// BARCOS
+        if (c.isTieneBarco() && c.isVisible() && c.getVidaActual() > 0) {
             boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
             boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
 
+            boolean barcoRoto = c.getVidaMax() > 0 && c.getVidaActual() <= (c.getVidaMax() / 2);
+
             if (esVertical) {
                 if (c.isEsProa()) {
-                    vh.waterView.setImageResource(R.drawable.barco_popa);
+                    vh.waterView.setImageResource(
+                            barcoRoto ? R.drawable.barco_popa_roto : R.drawable.barco_popa
+                    );
                 } else if (esPiezaInicial) {
-                    vh.waterView.setImageResource(R.drawable.barco_proa);
+                    vh.waterView.setImageResource(
+                            barcoRoto ? R.drawable.barco_proa_roto : R.drawable.barco_proa
+                    );
                 } else {
-                    vh.waterView.setImageResource(R.drawable.barco_medio);
+                    vh.waterView.setImageResource(
+                            barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio
+                    );
                 }
             } else {
                 if (c.isEsProa()) {
-                    vh.waterView.setImageResource(R.drawable.barco_proa);
+                    vh.waterView.setImageResource(
+                            barcoRoto ? R.drawable.barco_proa_roto : R.drawable.barco_proa
+                    );
                 } else if (esPiezaInicial) {
-                    vh.waterView.setImageResource(R.drawable.barco_popa);
+                    vh.waterView.setImageResource(
+                            barcoRoto ? R.drawable.barco_popa_roto : R.drawable.barco_popa
+                    );
                 } else {
-                    vh.waterView.setImageResource(R.drawable.barco_medio);
+                    vh.waterView.setImageResource(
+                            barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio
+                    );
                 }
             }
 
