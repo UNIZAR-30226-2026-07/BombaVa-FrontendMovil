@@ -3,13 +3,20 @@ package com.example.bombavafrontmovil;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.bombavafrontmovil.network.SocketManager;
+
+import org.json.JSONObject;
+import io.socket.client.Socket;
+
 public class MainActivity extends AppCompatActivity {
 
     private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
+    private io.socket.client.Socket mSocket;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -128,6 +135,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
+
+        if (isUsuarioLogueado()) {
+            iniciarChequeoReconexion();
+        }
     }
 
     // --- MÉTODOS DE SEGURIDAD NAVAL ---
@@ -233,5 +244,49 @@ public class MainActivity extends AppCompatActivity {
         btnCancelar.setOnClickListener(v -> dialog.dismiss());
 
         dialog.show();
+    }
+
+    private void iniciarChequeoReconexion() {
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", null);
+
+        if (token == null) return;
+
+        // 1. Conectar socket nada más entrar
+        SocketManager socketManager = SocketManager.getInstance();
+        socketManager.conectar(token);
+        Socket mSocket = socketManager.getSocket();
+
+        // 2. Escuchar "game:active_found" (Reconexión detectada)
+        mSocket.on("game:active_found", args -> {
+            try {
+                JSONObject data = (JSONObject) args[0];
+                String matchId = data.getString("matchId");
+
+                Log.d("RECONEXION", "¡Partida activa encontrada! ID: " + matchId);
+
+                // Redirigir automáticamente a la pantalla de juego
+                Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
+                intent.putExtra("matchId", matchId);
+                intent.putExtra("token", token);
+                intent.putExtra("esReconexion", true); // Marcamos que es reconexión
+                startActivity(intent);
+                finish(); // Cerramos el menú
+            } catch (Exception e) {
+                Log.e("RECONEXION", "Error al procesar game:active_found", e);
+            }
+        });
+
+        // 3. Escuchar "game:no_active" (Todo normal, no hay partidas pendientes)
+        mSocket.on("game:no_active", args -> {
+            Log.d("RECONEXION", "No hay partidas pendientes. Menú listo.");
+            // Aquí podrías quitar un "Loading" si tuvieras uno
+        });
+
+        // 4. Emitir el chequeo nada más conectar
+        mSocket.on(Socket.EVENT_CONNECT, args -> {
+            Log.d("RECONEXION", "Socket conectado, enviando game:check_active...");
+            mSocket.emit("game:check_active");
+        });
     }
 }

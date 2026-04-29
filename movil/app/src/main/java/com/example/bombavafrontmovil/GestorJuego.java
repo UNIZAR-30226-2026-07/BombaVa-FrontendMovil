@@ -40,35 +40,43 @@ public class GestorJuego {
         void onBarcoMovido(String shipId, int oldX, int oldY, int newX, int newY, String orientation, int tipo);
         void onBarcoRotado(String shipId, int x, int y, String oldOrientation, String newOrientation, int tipo);
         void onVisionUpdateParcial(List<BarcoLogico> flotaAnterior, List<BarcoLogico> flotaNueva);
+        void onPausaSolicitada(String oponente);
+        void onPartidaPausadaConfirmada(String mensaje);
+        void onPausaRechazada(String mensaje);
+        void onOponenteConexionCambio(boolean conectado, String mensaje);
     }
 
-    public GestorJuego(Socket socket,
-                       String matchId,
-                       String userId,
-                       Map<String, UserShip> diccionarioFlota,
-                       PartidaListener listener) {
+    public GestorJuego(Socket socket, String matchId, String myUserId, PartidaListener listener, Map<String, UserShip> inventario) {
         this.socket = socket;
         this.matchId = matchId;
-        this.myUserId = userId;
-        this.diccionarioFlota = diccionarioFlota;
-        this.inventarioOriginal = new HashMap<>(diccionarioFlota);
+        this.myUserId = myUserId;
         this.listener = listener;
+        this.inventarioOriginal = inventario;
+        this.diccionarioFlota = new HashMap<>();
 
         this.mapper = new GestorJuegoMapper(this);
         this.socketBinder = new GestorJuegoSocketBinder(this);
+        this.socketBinder.configurarListeners();
 
-        socketBinder.configurarListeners();
+        // IMPORTANTE: Emitir join nada más crearse el gestor
         unirseAPartida();
+    }
+
+    private void unirseAPartida() {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            socket.emit("game:join", payload);
+            Log.d("DEBUG_BOMBA", "Emitido game:join para: " + matchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean isInvertirPerspectiva() {
         return invertirPerspectiva;
     }
 
-    // Compatibilidad con código previo
-    public boolean isPerspectivaInvertida() {
-        return invertirPerspectiva;
-    }
 
     public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
         try {
@@ -107,15 +115,6 @@ public class GestorJuego {
 
     public int filaLogicaDesdeVisual(int filaVisual) {
         return invertirPerspectiva ? (14 - filaVisual) : filaVisual;
-    }
-
-    private void unirseAPartida() {
-        try {
-            socket.emit("game:join", matchId);
-            Log.d("DEBUG_JOIN", "Emit game:join -> " + matchId);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     public void procesarStartInfo(Object[] args) {
@@ -396,6 +395,37 @@ public class GestorJuego {
             JSONObject payload = new JSONObject();
             payload.put("matchId", matchId);
             socket.emit("match:surrender", payload);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * El usuario pulsa el botón de pausa
+     */
+    public void solicitarPausa() {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            socket.emit("match:pause_request", payload);
+            Log.d("DEBUG_PAUSA", "Emitiendo match:pause_request para matchId: " + matchId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * El usuario responde a una solicitud del rival
+     */
+    public void responderPausa(boolean aceptada) {
+        try {
+            JSONObject payload = new JSONObject();
+            payload.put("matchId", matchId);
+            String evento = aceptada ? "match:pause_accept" : "match:reject_pause";
+            // Nota: He usado reject_pause o pause_reject según tu lista,
+            // ajustalo al que prefiera el backend. Tu lista decía "match:pause_reject"
+            socket.emit(aceptada ? "match:pause_accept" : "match:pause_reject", payload);
+            Log.d("DEBUG_PAUSA", "Respondiendo a pausa. Aceptada: " + aceptada);
         } catch (Exception e) {
             e.printStackTrace();
         }
