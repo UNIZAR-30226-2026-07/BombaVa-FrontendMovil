@@ -124,24 +124,24 @@
     </LinearLayout>
 
     <Button
-        android:id="@+id/btn_sala_mando"
-        android:layout_width="match_parent"
-        android:layout_height="65dp"
-        android:text="IR A LA SALA DE MANDO"
-        android:textSize="18sp"
-        android:backgroundTint="@color/wood_btn"
-        android:textColor="@color/wood_dark"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp"
-        android:elevation="4dp"/>
-
-    <Button
         android:id="@+id/btn_ranking"
         android:layout_width="match_parent"
         android:layout_height="65dp"
         android:text="🏆 RANKING MUNDIAL"
         android:textSize="18sp"
         android:backgroundTint="#FFB300"
+        android:textColor="@color/wood_dark"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"
+        android:elevation="4dp"/>
+
+    <Button
+        android:id="@+id/btn_sala_mando"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:text="IR A LA SALA DE MANDO"
+        android:textSize="18sp"
+        android:backgroundTint="@color/wood_btn"
         android:textColor="@color/wood_dark"
         android:textStyle="bold"
         android:layout_marginBottom="12dp"

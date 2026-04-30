@@ -26,6 +26,8 @@ public class GestorJuego {
 
     boolean esMiTurno = false;
 
+    public int numeroTurno = 1;
+
     final GestorJuegoMapper mapper;
     final GestorJuegoSocketBinder socketBinder;
 
@@ -44,6 +46,7 @@ public class GestorJuego {
         void onPartidaPausadaConfirmada(String mensaje);
         void onPausaRechazada(String mensaje);
         void onOponenteConexionCambio(boolean conectado, String mensaje);
+        void onTurnoCambiado(int turno, boolean esMiTurno);
     }
 
     public GestorJuego(Socket socket, String matchId, String myUserId, PartidaListener listener, Map<String, UserShip> inventario) {
@@ -428,6 +431,14 @@ public class GestorJuego {
             Log.d("DEBUG_PAUSA", "Respondiendo a pausa. Aceptada: " + aceptada);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    public void actualizarTurno(int turno, boolean esMiTurno) {
+        this.numeroTurno = turno;
+        this.esMiTurno = esMiTurno;
+        if (listener != null) {
+            listener.onTurnoCambiado(turno, esMiTurno);
         }
     }
 

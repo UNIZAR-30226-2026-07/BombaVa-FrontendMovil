@@ -29,8 +29,14 @@ public class GestorJuegoMapper {
             if (matchInfo != null) {
                 String currentTurnPlayer = matchInfo.optString("currentTurnPlayer", "");
                 String yourId = matchInfo.optString("yourId", game.myUserId);
-                game.esMiTurno = currentTurnPlayer.equals(yourId);
-                Log.d(TAG, "Turno inicial: " + game.esMiTurno);
+
+                // Extraemos el turno inicial
+                int turnoInicial = matchInfo.optInt("turnNumber", 1);
+                boolean miTurno = currentTurnPlayer.equals(yourId);
+
+                // Avisamos al gestor
+                game.actualizarTurno(turnoInicial, miTurno);
+                Log.d(TAG, "Turno inicial: " + miTurno + " | Número: " + turnoInicial);
             }
 
             int ammo = data.optInt("ammo", 0);
@@ -107,7 +113,7 @@ public class GestorJuegoMapper {
             JSONArray proyPropios = data.optJSONArray("proyPropios");
             JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
 
-            // Reutilizamos el método del GestorJuego para inyectarlos en el tablero
+            // Reutilizamos el metodo del GestorJuego para inyectarlos en el tablero
             game.sincronizarProyectilesVision(proyPropios, proyEnemigos);
 
             if (game.listener != null) {
@@ -235,5 +241,31 @@ public class GestorJuegoMapper {
         int width = userShip.getShipTemplate().getWidth();
         int height = userShip.getShipTemplate().getHeight();
         return Math.max(width, height);
+    }
+
+    public void procesarTurnoCambiado(Object[] args) {
+        try {
+            JSONObject data = (JSONObject) args[0];
+            String nextPlayerId = data.optString("nextPlayerId", "");
+
+            // Extraemos el número de turno del JSON
+            int turno = data.optInt("turnNumber", game.numeroTurno);
+            boolean miTurno = nextPlayerId.equals(game.myUserId);
+
+            // Avisamos al gestor del cambio de turno
+            game.actualizarTurno(turno, miTurno);
+
+            // Actualizamos los recursos también
+            JSONObject resources = data.optJSONObject("resources");
+            if (resources != null && game.listener != null) {
+                int fuel = resources.optInt("fuel", 0);
+                int ammo = resources.optInt("ammo", 0);
+                game.listener.onRecursosActualizados(fuel, ammo);
+            }
+
+            Log.d(TAG, "Cambio de turno recibido. Turno: " + turno + " | Es mi turno: " + miTurno);
+        } catch (Exception e) {
+            Log.e(TAG, "Error procesando match:turn_changed", e);
+        }
     }
 }

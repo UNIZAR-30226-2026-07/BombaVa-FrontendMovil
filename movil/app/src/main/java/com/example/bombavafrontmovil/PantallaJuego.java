@@ -194,6 +194,9 @@ public class PantallaJuego extends AppCompatActivity {
                             controller.setGestor(gestor);
                             controller.setDiccionarioFlota(diccionarioFlota);
                             ui.actualizarTurno(gestor != null && gestor.isEsMiTurno(), PantallaJuego.this);
+                            if (ui != null) {
+                                ui.actualizarTurnoDisplay(gestor.numeroTurno, gestor.esMiTurno);
+                            }
                             board.repaintFull(
                                     gestor,
                                     controller.getIdBarcoSeleccionado(),
@@ -374,6 +377,29 @@ public class PantallaJuego extends AppCompatActivity {
                         runOnUiThread(() -> {
                             mostrarDialogoPausaRechazada();
                         });
+                    }
+
+                    @Override
+                    public void onTurnoCambiado(int turno, boolean esMiTurno) {
+                        Log.d("DEBUG_TURNO", "Gestor avisa a la Activity. ¿La interfaz UI está lista?: " + (ui != null));
+
+                        if (ui != null) {
+                            // ENVOLVEMOS LAS ACTUALIZACIONES VISUALES EN runOnUiThread
+                            runOnUiThread(() -> {
+                                ui.actualizarTurnoDisplay(turno, esMiTurno);
+                                ui.actualizarTurno(esMiTurno, PantallaJuego.this);
+                            });
+                        } else {
+                            // Reintento si la UI aún no ha cargado al arrancar
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                if (ui != null) {
+                                    runOnUiThread(() -> {
+                                        ui.actualizarTurnoDisplay(turno, esMiTurno);
+                                        ui.actualizarTurno(esMiTurno, PantallaJuego.this);
+                                    });
+                                }
+                            }, 500);
+                        }
                     }
                 },
                 diccionarioFlota
