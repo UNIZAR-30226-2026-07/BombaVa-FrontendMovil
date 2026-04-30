@@ -10,7 +10,6 @@ import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.bombavafrontmovil.models.RankingUser;
@@ -26,7 +25,7 @@ import retrofit2.Response;
 
 public class PantallaPerfil extends AppCompatActivity {
 
-    private TextView tvUsername, tvEmail, tvStatus;
+    private TextView tvUsername, tvEmail, tvStatus, tvElo; // Añadido tvElo
     private Button btnSalaMando, btnCerrarSesion, btnRanking;
     private ImageButton btnEditar;
 
@@ -38,12 +37,12 @@ public class PantallaPerfil extends AppCompatActivity {
         // Enlazamos los elementos de la interfaz
         tvUsername = findViewById(R.id.tv_perfil_username);
         tvEmail = findViewById(R.id.tv_perfil_email);
+        tvElo = findViewById(R.id.tv_perfil_elo); // Enlazado el ELO
         tvStatus = findViewById(R.id.tv_perfil_status);
         btnSalaMando = findViewById(R.id.btn_sala_mando);
         btnCerrarSesion = findViewById(R.id.btn_cerrar_sesion);
         btnEditar = findViewById(R.id.btnEditarPerfil);
         btnRanking = findViewById(R.id.btn_ranking);
-
 
         btnRanking.setOnClickListener(v -> mostrarDialogoRanking());
 
@@ -73,7 +72,7 @@ public class PantallaPerfil extends AppCompatActivity {
             String textoUsuario = tvUsername.getText().toString();
             String textoCorreo = tvEmail.getText().toString();
 
-            // Limpiamos los textos
+            // Limpiamos los textos (por si aca mantienes los prefijos, aunque en este nuevo diseño ya están en etiquetas separadas)
             String usuarioLimpio = textoUsuario.replace("USUARIO: ", "").trim();
             String correoLimpio = textoCorreo.replace("CORREO: ", "").replace("EMAIL: ", "").trim();
 
@@ -116,7 +115,13 @@ public class PantallaPerfil extends AppCompatActivity {
                     } else {
                         tvUsername.setText("USUARIO NO ENCONTRADO");
                     }
+
                     tvEmail.setText(usuario.getEmail() != null ? usuario.getEmail() : "Correo disponible...");
+
+                    // NUEVO: Asignamos el ELO recuperado de la API
+                    // Asegúrate de que en User.java tengas el getter getEloRating() o similar
+                    tvElo.setText(String.valueOf(usuario.getEloRating()) + " \u2694\uFE0F"); // Añadimos un emoji de espadas cruzadas para que quede épico
+
                     tvStatus.setText("Estado: LISTO PARA COMBATE");
                 } else {
                     // Si el token ha caducado o el server da error 401/403
