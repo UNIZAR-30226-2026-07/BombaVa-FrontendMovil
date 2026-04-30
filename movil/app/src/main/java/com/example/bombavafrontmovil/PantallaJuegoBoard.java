@@ -120,8 +120,13 @@ public class PantallaJuegoBoard {
         }
 
         Set<Integer> celdasUnicas = new HashSet<>(celdasARepintar);
-        for (Integer pos : celdasUnicas) {
-            adapter.notifyItemChanged(pos);
+
+        if (celdasUnicas.size() > 30) {
+            adapter.notifyDataSetChanged();
+        } else {
+            for (Integer pos : celdasUnicas) {
+                adapter.notifyItemChanged(pos);
+            }
         }
     }
 
