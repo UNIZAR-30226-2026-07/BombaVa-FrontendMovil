@@ -28,11 +28,15 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
         public final ImageView waterView;
+        public final ImageView imgBarco;
+        public final ImageView imgTorpedo;
         public final ImageView imgMina;
 
         public ViewHolder(View view) {
             super(view);
             waterView = view.findViewById(R.id.view_water);
+            imgBarco = view.findViewById(R.id.imgBarco);
+            imgTorpedo = view.findViewById(R.id.imgTorpedo);
             imgMina = view.findViewById(R.id.imgMina);
         }
     }
@@ -56,22 +60,32 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder vh, int pos) {
         Casilla c = tableroDatos.get(pos);
 
-        vh.waterView.setRotation(0f);
-        vh.waterView.clearColorFilter();
-        vh.waterView.setImageDrawable(null);
+        // =========================
+        // RESET GENERAL
+        // =========================
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
-
-        if (vh.imgMina != null) {
-            vh.imgMina.setVisibility(View.GONE);
-            vh.imgMina.clearColorFilter();
-            vh.imgMina.setImageDrawable(null);
-        }
-
         if (vh.waterView.getBackground() != null) {
             vh.waterView.getBackground().clearColorFilter();
         }
 
-        // Casilla visible / oculta por niebla
+        vh.imgBarco.setVisibility(View.GONE);
+        vh.imgBarco.setImageDrawable(null);
+        vh.imgBarco.clearColorFilter();
+        vh.imgBarco.setRotation(0f);
+
+        vh.imgTorpedo.setVisibility(View.GONE);
+        vh.imgTorpedo.setImageDrawable(null);
+        vh.imgTorpedo.clearColorFilter();
+        vh.imgTorpedo.setRotation(0f);
+
+        vh.imgMina.setVisibility(View.GONE);
+        vh.imgMina.setImageDrawable(null);
+        vh.imgMina.clearColorFilter();
+        vh.imgMina.setRotation(0f);
+
+        // =========================
+        // FONDO: SOLO AGUA / NIEBLA / RANGO
+        // =========================
         if (!c.isVisible()) {
             if (vh.waterView.getBackground() != null) {
                 vh.waterView.getBackground().setColorFilter(
@@ -79,8 +93,8 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
                         PorterDuff.Mode.SRC_ATOP
                 );
             }
-        } else {
-            if (c.isEnRangoAtaque() && vh.waterView.getBackground() != null) {
+        } else if (c.isEnRangoAtaque()) {
+            if (vh.waterView.getBackground() != null) {
                 vh.waterView.getBackground().setColorFilter(
                         Color.argb(70, 255, 255, 180),
                         PorterDuff.Mode.SRC_ATOP
@@ -88,8 +102,80 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
+        // =========================
+        // BARCOS: SOLO PNG DEL BARCO
+        // =========================
+        if (c.isTieneBarco() && c.isVisible() && c.getVidaActual() > 0) {
+            vh.imgBarco.setVisibility(View.VISIBLE);
+
+            boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
+            boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
+            boolean barcoRoto = c.getVidaMax() > 0 && c.getVidaActual() <= (c.getVidaMax() / 2);
+
+            int resId;
+
+            if (esVertical) {
+                if (c.isEsProa()) {
+                    resId = barcoRoto ? R.drawable.barco_popa_roto : R.drawable.barco_popa;
+                } else if (esPiezaInicial) {
+                    resId = barcoRoto ? R.drawable.barco_proa_roto : R.drawable.barco_proa;
+                } else {
+                    resId = barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio;
+                }
+            } else {
+                if (c.isEsProa()) {
+                    resId = barcoRoto ? R.drawable.barco_proa_roto : R.drawable.barco_proa;
+                } else if (esPiezaInicial) {
+                    resId = barcoRoto ? R.drawable.barco_popa_roto : R.drawable.barco_popa;
+                } else {
+                    resId = barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio;
+                }
+            }
+
+            vh.imgBarco.setImageResource(resId);
+
+            float rot;
+            switch (c.getDireccion()) {
+                case 0:
+                    rot = 180f; // S
+                    break;
+                case 1:
+                    rot = 270f; // W
+                    break;
+                case 2:
+                    rot = 0f;   // N
+                    break;
+                case 3:
+                    rot = 90f;  // E
+                    break;
+                default:
+                    rot = 0f;
+                    break;
+            }
+            vh.imgBarco.setRotation(rot);
+
+            // Amarillo suave SOLO al PNG del barco seleccionado
+            if (c.isSeleccionado()) {
+                vh.imgBarco.setColorFilter(
+                        Color.argb(110, 255, 235, 59),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            }
+            // Rojo suave SOLO al PNG del barco enemigo
+            else if (!c.isEsAliado()) {
+                vh.imgBarco.setColorFilter(
+                        Color.argb(70, 255, 80, 80),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            } else {
+                vh.imgBarco.clearColorFilter();
+            }
+        }
+
+        // =========================
         // MINAS
-        if (vh.imgMina != null && c.hasMina() && c.isVisible()) {
+        // =========================
+        if (c.hasMina() && c.isVisible()) {
             vh.imgMina.setVisibility(View.VISIBLE);
             vh.imgMina.setImageResource(R.drawable.ic_mina);
 
@@ -103,69 +189,21 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
-        // BARCOS
-        if (c.isTieneBarco() && c.isVisible()) {
-            boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
-            boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
-
-            if (esVertical) {
-                if (c.isEsProa()) {
-                    vh.waterView.setImageResource(R.drawable.barco_popa);
-                } else if (esPiezaInicial) {
-                    vh.waterView.setImageResource(R.drawable.barco_proa);
-                } else {
-                    vh.waterView.setImageResource(R.drawable.barco_medio);
-                }
-            } else {
-                if (c.isEsProa()) {
-                    vh.waterView.setImageResource(R.drawable.barco_proa);
-                } else if (esPiezaInicial) {
-                    vh.waterView.setImageResource(R.drawable.barco_popa);
-                } else {
-                    vh.waterView.setImageResource(R.drawable.barco_medio);
-                }
-            }
-
-            float rot;
-            switch (c.getDireccion()) {
-                case 0: rot = 180f; break; // S
-                case 1: rot = 270f; break; // W
-                case 2: rot = 0f; break;   // N
-                case 3: rot = 90f; break;  // E
-                default: rot = 0f; break;
-            }
-
-            vh.waterView.setRotation(rot);
-
-            if (c.isSeleccionado()) {
-                vh.waterView.setColorFilter(
-                        Color.argb(110, 255, 235, 59),
-                        PorterDuff.Mode.SRC_ATOP
-                );
-            } else if (!c.isEsAliado()) {
-                vh.waterView.setColorFilter(
-                        Color.argb(70, 255, 80, 80),
-                        PorterDuff.Mode.SRC_ATOP
-                );
-            } else {
-                vh.waterView.clearColorFilter();
-            }
-        }
-
+        // =========================
         // TORPEDOS
+        // =========================
         if (c.hasTorpedo() && c.isVisible()) {
-            vh.waterView.setImageResource(R.drawable.ic_torpedo);
-
-            // APLICAMOS ROTACIÓN DIRECTA DEL FLOAT DE LA CASILLA
-            vh.waterView.setRotation(c.getRotacionTorpedo());
+            vh.imgTorpedo.setVisibility(View.VISIBLE);
+            vh.imgTorpedo.setImageResource(R.drawable.ic_torpedo);
+            vh.imgTorpedo.setRotation(c.getRotacionTorpedo());
 
             if (!c.isTorpedoAliado()) {
-                vh.waterView.setColorFilter(
+                vh.imgTorpedo.setColorFilter(
                         Color.argb(200, 255, 50, 50),
                         PorterDuff.Mode.SRC_ATOP
                 );
             } else {
-                vh.waterView.clearColorFilter();
+                vh.imgTorpedo.clearColorFilter();
             }
         }
 
