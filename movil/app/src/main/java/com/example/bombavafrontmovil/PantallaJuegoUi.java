@@ -2,6 +2,7 @@ package com.example.bombavafrontmovil;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -32,7 +33,7 @@ public class PantallaJuegoUi {
     public final TextView txtInfoTitulo;
     public final TextView txtInfoGlobal;
     public final TextView txtInfoCeldas;
-    public final TextView txtTurnoStatus;
+    public final TextView txtTurnoStatus, txtTurnoDisplay;
 
     public final Button btnPasarTurno;
     public final ImageButton btnPause;
@@ -57,6 +58,9 @@ public class PantallaJuegoUi {
     private Runnable hideNotificationRunnable;
 
     public PantallaJuegoUi(Activity activity) {
+        txtTurnoDisplay = activity.findViewById(R.id.tvTurnoDisplay);
+        Log.d("DEBUG_TURNO", "¿Se ha encontrado el texto del turno en el XML?: " + (txtTurnoDisplay != null));;
+
         layNoSel = activity.findViewById(R.id.txtNoSelection);
         layMain = activity.findViewById(R.id.layoutMainActions);
         layMove = activity.findViewById(R.id.layoutMoveActions);
@@ -268,5 +272,14 @@ public class PantallaJuegoUi {
                 .setNegativeButton("RECHAZAR", (d, w) -> callback.onRespuesta(false))
                 .setCancelable(false)
                 .show();
+    }
+
+    public void actualizarTurnoDisplay(int numeroTurno, boolean esMiTurno) {
+        if (txtTurnoDisplay != null) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                // Ahora solo pintamos el número de turno, el estado lo pinta txtTurnoStatus
+                txtTurnoDisplay.setText("Turno " + numeroTurno + " - ");
+            });
+        }
     }
 }

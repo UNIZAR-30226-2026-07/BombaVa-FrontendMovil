@@ -35,23 +35,7 @@ public class GestorJuegoSocketBinder {
         game.socket.on("match:turn_changed", args -> {
             Log.d(TAG, "¡SERVER RESPONDE! match:turn_changed -> " + args[0]);
             try {
-                JSONObject data = (JSONObject) args[0];
-                String nextPlayerId = data.getString("nextPlayerId");
-                game.esMiTurno = nextPlayerId.equals(game.myUserId);
-
-                if (data.has("resources") && game.esMiTurno) {
-                    JSONObject res = data.getJSONObject("resources");
-                    if (game.listener != null) {
-                        game.listener.onRecursosActualizados(
-                                res.optInt("fuel", -1),
-                                res.optInt("ammo", -1)
-                        );
-                    }
-                }
-
-                if (game.listener != null) {
-                    game.listener.onSnapshotCompleto();
-                }
+                game.mapper.procesarTurnoCambiado(args);
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en match:turn_changed", e);
             }

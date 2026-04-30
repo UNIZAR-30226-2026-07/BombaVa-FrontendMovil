@@ -41,7 +41,7 @@ public class PantallaJuego extends AppCompatActivity {
     private Socket mSocket;
     private android.app.Dialog dialogoEspera;
     private android.app.Dialog dialogoEsperandoPausa;
-    private android.app.Dialog dialogoDesconexionRival; // Cambiado a Dialog en vez de AlertDialog
+    private android.app.Dialog dialogoDesconexionRival;
     private android.os.CountDownTimer timerDesconexion;
 
     private final Map<String, UserShip> diccionarioFlota = new HashMap<>();
@@ -194,11 +194,44 @@ public class PantallaJuego extends AppCompatActivity {
                             controller.setGestor(gestor);
                             controller.setDiccionarioFlota(diccionarioFlota);
                             ui.actualizarTurno(gestor != null && gestor.isEsMiTurno(), PantallaJuego.this);
+                            if (ui != null) {
+                                ui.actualizarTurnoDisplay(gestor.numeroTurno, gestor.esMiTurno);
+                            }
                             board.repaintFull(
                                     gestor,
                                     controller.getIdBarcoSeleccionado(),
                                     controller.getPosicionesRangoActual()
                             );
+
+                            board.repaintFull(
+                                    gestor,
+                                    controller.getIdBarcoSeleccionado(),
+                                    controller.getPosicionesRangoActual()
+                            );
+
+                            // 1. Buscamos el tablero
+                            androidx.recyclerview.widget.RecyclerView rv = findViewById(R.id.rvBoard);
+
+                            // 2. rv.post() asegura que el código de dentro SOLO se ejecute
+                            // CUANDO Android haya terminado de calcular y colocar las 225 casillas
+                            rv.post(() -> {
+                                // 3. Le damos un pequeñísimo respiro a la gráfica (200ms) para
+                                // cargar los colores de la niebla y los barcos por detrás.
+                                rv.postDelayed(() -> {
+                                    android.view.View telon = findViewById(R.id.layCargaTablero);
+                                    if (telon != null && telon.getVisibility() == android.view.View.VISIBLE) {
+                                        // Animamos la desaparición
+                                        telon.animate()
+                                                .alpha(0f)
+                                                .setDuration(300)
+                                                .withEndAction(() -> {
+                                                    telon.setVisibility(android.view.View.GONE);
+                                                    telon.setAlpha(1f); // Lo restauramos por si hay reconexiones
+                                                })
+                                                .start();
+                                    }
+                                }, 200);
+                            });
                         });
                     }
 
@@ -263,10 +296,8 @@ public class PantallaJuego extends AppCompatActivity {
                     public void onOponenteConexionCambio(boolean conectado, String mensaje) {
                         runOnUiThread(() -> {
                             if (!conectado) {
-                                // 1. Bloqueamos la interfaz
                                 ui.setEstadoBloqueoRed(true);
 
-                                // 2. Creamos el diálogo personalizado para la desconexión
                                 if (dialogoDesconexionRival == null) {
                                     dialogoDesconexionRival = new android.app.Dialog(PantallaJuego.this);
                                     dialogoDesconexionRival.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
@@ -279,7 +310,7 @@ public class PantallaJuego extends AppCompatActivity {
                                                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT
                                         );
                                     }
-                                    dialogoDesconexionRival.setCancelable(false); // No se puede cerrar
+                                    dialogoDesconexionRival.setCancelable(false);
 
                                     android.widget.TextView tvTitulo = dialogoDesconexionRival.findViewById(R.id.tvDialogTitle);
                                     android.widget.Button btnAccion = dialogoDesconexionRival.findViewById(R.id.btnDialogAction);
@@ -298,7 +329,6 @@ public class PantallaJuego extends AppCompatActivity {
                                 dialogoDesconexionRival.show();
                                 AppNotifier.show(PantallaJuego.this, "Rival desconectado", AppNotifier.Type.ERROR);
 
-                                // 3. Iniciamos el contador
                                 if (timerDesconexion != null) {
                                     timerDesconexion.cancel();
                                 }
@@ -329,7 +359,6 @@ public class PantallaJuego extends AppCompatActivity {
                                 }.start();
 
                             } else {
-                                // RIVAL SE HA RECONECTADO
                                 ui.setEstadoBloqueoRed(false);
                                 if (timerDesconexion != null) {
                                     timerDesconexion.cancel();
@@ -352,12 +381,10 @@ public class PantallaJuego extends AppCompatActivity {
                     @Override
                     public void onPartidaPausadaConfirmada(String mensaje) {
                         runOnUiThread(() -> {
-                            // Cerramos el diálogo de espera si estaba abierto
                             if (dialogoEsperandoPausa != null && dialogoEsperandoPausa.isShowing()) {
                                 dialogoEsperandoPausa.dismiss();
                             }
 
-                            // Usamos el mensaje que viene del servidor
                             AppNotifier.show(PantallaJuego.this, mensaje, AppNotifier.Type.INFO);
 
                             new android.os.Handler().postDelayed(() -> {
@@ -374,6 +401,27 @@ public class PantallaJuego extends AppCompatActivity {
                         runOnUiThread(() -> {
                             mostrarDialogoPausaRechazada();
                         });
+                    }
+
+                    @Override
+                    public void onTurnoCambiado(int turno, boolean esMiTurno) {
+                        Log.d("DEBUG_TURNO", "Gestor avisa a la Activity. ¿La interfaz UI está lista?: " + (ui != null));
+
+                        if (ui != null) {
+                            runOnUiThread(() -> {
+                                ui.actualizarTurnoDisplay(turno, esMiTurno);
+                                ui.actualizarTurno(esMiTurno, PantallaJuego.this);
+                            });
+                        } else {
+                            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                                if (ui != null) {
+                                    runOnUiThread(() -> {
+                                        ui.actualizarTurnoDisplay(turno, esMiTurno);
+                                        ui.actualizarTurno(esMiTurno, PantallaJuego.this);
+                                    });
+                                }
+                            }, 500);
+                        }
                     }
                 },
                 diccionarioFlota
@@ -420,7 +468,6 @@ public class PantallaJuego extends AppCompatActivity {
 
     // ------------------ POPUPS PERSONALIZADOS ------------------
 
-    // 1. Diálogo de Fin de Partida (Victoria/Derrota)
     private void mostrarDialogoFinPartida(String ganadorId, String razon) {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
@@ -475,7 +522,6 @@ public class PantallaJuego extends AppCompatActivity {
         dialog.show();
     }
 
-    // 2. Diálogo cuando el rival te pide Pausa
     private void mostrarDialogoOponentePidePausa(String oponente) {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
@@ -520,7 +566,6 @@ public class PantallaJuego extends AppCompatActivity {
         dialog.show();
     }
 
-    // 3. Diálogo cuando TÚ pulsas tu propio botón de Pausa
     private void mostrarDialogoMiMenuPausa() {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
@@ -549,7 +594,6 @@ public class PantallaJuego extends AppCompatActivity {
         tvTitulo.setTextColor(android.graphics.Color.parseColor("#5C3A21"));
 
         btnRendirse.setVisibility(android.view.View.VISIBLE);
-        // Cambia esto:
         btnRendirse.setText("RENDIRSE");
         btnSolicitar.setText("PAUSAR");
 
@@ -561,7 +605,7 @@ public class PantallaJuego extends AppCompatActivity {
         btnSolicitar.setOnClickListener(v -> {
             dialog.dismiss();
             if(gestor != null) {
-                mostrarDialogoEsperandoPausa(); // ¡Esto faltaba por añadir en tu código!
+                mostrarDialogoEsperandoPausa();
                 gestor.solicitarPausa();
             }
         });
@@ -569,7 +613,6 @@ public class PantallaJuego extends AppCompatActivity {
         dialog.show();
     }
 
-    // 4. Diálogo de "Esperando respuesta a la tregua..."
     private void mostrarDialogoEsperandoPausa() {
         dialogoEsperandoPausa = new android.app.Dialog(this);
         dialogoEsperandoPausa.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
@@ -602,7 +645,6 @@ public class PantallaJuego extends AppCompatActivity {
         dialogoEsperandoPausa.show();
     }
 
-    // 5. Diálogo de "Pausa Rechazada"
     private void mostrarDialogoPausaRechazada() {
         if (dialogoEsperandoPausa != null && dialogoEsperandoPausa.isShowing()) {
             dialogoEsperandoPausa.dismiss();

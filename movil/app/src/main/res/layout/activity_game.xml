@@ -16,14 +16,18 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <TextView
+            android:id="@+id/tvTurnoDisplay"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Turno: Jugador"
+            android:text="Turno: -"
+            android:textSize="18sp"
             android:textColor="@color/white"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:layout_gravity="center_vertical"/>
 
         <ImageButton
+            android:id="@+id/btnPause"
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:src="@android:drawable/ic_media_pause"
