@@ -13,9 +13,12 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.bombavafrontmovil.models.RankingUser;
 import com.example.bombavafrontmovil.models.User;
 import com.example.bombavafrontmovil.network.ApiService;
 import com.example.bombavafrontmovil.network.RetrofitClient;
+
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -24,7 +27,7 @@ import retrofit2.Response;
 public class PantallaPerfil extends AppCompatActivity {
 
     private TextView tvUsername, tvEmail, tvStatus;
-    private Button btnSalaMando, btnCerrarSesion;
+    private Button btnSalaMando, btnCerrarSesion, btnRanking;
     private ImageButton btnEditar;
 
     @Override
@@ -39,6 +42,10 @@ public class PantallaPerfil extends AppCompatActivity {
         btnSalaMando = findViewById(R.id.btn_sala_mando);
         btnCerrarSesion = findViewById(R.id.btn_cerrar_sesion);
         btnEditar = findViewById(R.id.btnEditarPerfil);
+        btnRanking = findViewById(R.id.btn_ranking);
+
+
+        btnRanking.setOnClickListener(v -> mostrarDialogoRanking());
 
         // Configuramos el botón de la Sala de Mando
         btnSalaMando.setOnClickListener(new View.OnClickListener() {
@@ -185,5 +192,48 @@ public class PantallaPerfil extends AppCompatActivity {
         Intent intent = new Intent(this, LoginActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    private void mostrarDialogoRanking() {
+        // Creamos el diálogo
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_ranking);
+        dialog.getWindow().setLayout(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        dialog.getWindow().setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+
+        androidx.recyclerview.widget.RecyclerView rv = dialog.findViewById(R.id.rvRanking);
+        rv.setLayoutManager(new androidx.recyclerview.widget.LinearLayoutManager(this));
+
+        Button btnClose = dialog.findViewById(R.id.btnCloseRanking);
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+
+        // Obtener el token
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", "");
+
+        // Llamada a la API
+        ApiService apiService = RetrofitClient.getApiService();
+        apiService.obtenerRanking("Bearer " + token).enqueue(new Callback<List<RankingUser>>() {
+            @Override
+            public void onResponse(Call<List<RankingUser>> call, Response<List<RankingUser>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    RankingAdapter adapter = new RankingAdapter(response.body());
+                    rv.setAdapter(adapter);
+                } else {
+                    // Opcional: Mostrar Toast de error si falla
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<RankingUser>> call, Throwable t) {
+                // Opcional: Mostrar Toast de error de red
+            }
+        });
     }
 }

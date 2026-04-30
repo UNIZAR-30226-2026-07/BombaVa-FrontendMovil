@@ -49,4 +49,7 @@ public interface ApiService {
 
     @DELETE("/api/inventory/ships/{shipId}/weapons/{weaponSlug}")
     Call<Void> desequiparArma(@Path("shipId") String shipId, @Path("weaponSlug") String weaponSlug, @Header("Authorization") String token);
+
+    @GET("api/auth/ranking")
+    Call<List<RankingUser>> obtenerRanking(@Header("Authorization") String token);
 }

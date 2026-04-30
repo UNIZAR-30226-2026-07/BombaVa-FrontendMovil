@@ -35,17 +35,15 @@
         android:padding="24dp"
         android:gravity="center"
         android:elevation="8dp"
-        android:layout_marginBottom="40dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="ALMIRANTE"
-            android:textColor="@color/wood_dark"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.1"
-            android:layout_marginBottom="24dp"/>
+        android:layout_marginBottom="32dp"> <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ALMIRANTE"
+        android:textColor="@color/wood_dark"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1"
+        android:layout_marginBottom="24dp"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -54,42 +52,44 @@
             android:textColor="@color/wood_dark"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:alpha="0.8" /> <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp">
+            android:alpha="0.8" />
 
-        <LinearLayout
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingStart="48dp"
-            android:paddingEnd="48dp"
-            android:minHeight="44dp">
+            android:layout_marginBottom="24dp">
 
-            <TextView
-                android:id="@+id/tv_perfil_username"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:text="SERGITOFOX"
-                android:textColor="@color/wood_dark"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+                android:paddingStart="48dp"
+                android:paddingEnd="48dp"
+                android:minHeight="44dp">
 
-        <ImageButton
-            android:id="@+id/btnEditarPerfil"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:layout_gravity="center_vertical|end"
-            android:background="@drawable/bg_circulo_boton"
-            android:contentDescription="Editar Perfil"
-            android:elevation="2dp"
-            android:padding="10dp"
-            android:src="@drawable/ic_lapiz"
-            app:tint="#FFFFFF" />
-    </FrameLayout>
+                <TextView
+                    android:id="@+id/tv_perfil_username"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="SERGITOFOX"
+                    android:textColor="@color/wood_dark"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnEditarPerfil"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center_vertical|end"
+                android:background="@drawable/bg_circulo_boton"
+                android:contentDescription="Editar Perfil"
+                android:elevation="2dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_lapiz"
+                app:tint="#FFFFFF" />
+        </FrameLayout>
 
         <TextView
             android:layout_width="wrap_content"
@@ -98,17 +98,19 @@
             android:textColor="@color/wood_dark"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:alpha="0.8" /> <TextView
-        android:id="@+id/tv_perfil_email"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="44dp"
-        android:text="serfoznad@gmail.com"
-        android:textColor="@color/wood_dark"
-        android:textSize="20sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="24dp"
-        android:gravity="center"/>
+            android:alpha="0.8" />
+
+        <TextView
+            android:id="@+id/tv_perfil_email"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="44dp"
+            android:text="serfoznad@gmail.com"
+            android:textColor="@color/wood_dark"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="24dp"
+            android:gravity="center"/>
 
         <TextView
             android:id="@+id/tv_perfil_status"
@@ -130,7 +132,20 @@
         android:backgroundTint="@color/wood_btn"
         android:textColor="@color/wood_dark"
         android:textStyle="bold"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="12dp"
+        android:elevation="4dp"/>
+
+    <Button
+        android:id="@+id/btn_ranking"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:text="🏆 RANKING MUNDIAL"
+        android:textSize="18sp"
+        android:backgroundTint="#FFB300"
+        android:textColor="@color/wood_dark"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"
+        android:elevation="4dp"/>
 
     <Button
         android:id="@+id/btn_cerrar_sesion"
@@ -140,6 +155,7 @@
         android:textSize="16sp"
         android:backgroundTint="#D02204"
         android:textColor="@color/white"
-        android:textStyle="bold"/>
+        android:textStyle="bold"
+        android:elevation="2dp"/>
 
 </LinearLayout>
