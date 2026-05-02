@@ -161,10 +161,10 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
                         PorterDuff.Mode.SRC_ATOP
                 );
             }
-            // Rojo suave SOLO al PNG del barco enemigo
+            // Tinte ROJO INTENSO al PNG del barco enemigo
             else if (!c.isEsAliado()) {
                 vh.imgBarco.setColorFilter(
-                        Color.argb(70, 255, 80, 80),
+                        Color.argb(160, 255, 0, 0), // Alpha subido a 160 y Rojo puro
                         PorterDuff.Mode.SRC_ATOP
                 );
             } else {

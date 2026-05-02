@@ -22,6 +22,8 @@ public class MainActivity extends AppCompatActivity {
     private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
     private Socket mSocket;
 
+    private boolean esperandoPartidaIA = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,11 +59,13 @@ public class MainActivity extends AppCompatActivity {
 
                     try {
                         AppNotifier.show(MainActivity.this, "Buscando partida contra IA...", AppNotifier.Type.INFO);
+                        esperandoPartidaIA = true; // MARCAMOS QUE ES IA
                         mSocket.emit("game:play_bot", new JSONObject());
                         Log.d(TAG, "Emit game:play_bot -> {}");
                     } catch (Exception e) {
                         Log.e(TAG, "Error lanzando partida contra IA", e);
                         AppNotifier.show(MainActivity.this, "Error al iniciar la partida contra IA", AppNotifier.Type.ERROR);
+                        esperandoPartidaIA = false; // Reset en caso de error
                     }
 
                 } else {
@@ -170,11 +174,14 @@ public class MainActivity extends AppCompatActivity {
                 String matchId = data.getString("matchId");
 
                 Log.d(TAG, "match:ready recibido -> matchId=" + matchId);
-
                 Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
                 intent.putExtra("MATCH_ID", matchId);
                 intent.putExtra("CODIGO_SALA", "");
                 intent.putExtra("ES_HOST", true);
+
+                intent.putExtra("ES_IA", esperandoPartidaIA);
+                esperandoPartidaIA = false;
+
                 startActivity(intent);
 
             } catch (Exception e) {
