@@ -108,24 +108,27 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         if (c.isTieneBarco() && c.isVisible() && c.getVidaActual() > 0) {
             vh.imgBarco.setVisibility(View.VISIBLE);
 
-            boolean esPiezaInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
-            boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
             boolean barcoRoto = c.getVidaMax() > 0 && c.getVidaActual() <= (c.getVidaMax() / 2);
+            boolean esExtremoInicial = (c.getIndiceEnBarco() == 0 && c.getTipoBarco() > 1);
+            boolean esExtremoFinal = c.isEsProa();
+            boolean esVertical = (c.getDireccion() == 0 || c.getDireccion() == 2);
 
             int resId;
 
-            if (esVertical) {
-                if (c.isEsProa()) {
+            if (c.getTipoBarco() <= 1) {
+                resId = barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio;
+            } else if (esVertical) {
+                if (esExtremoFinal) {
                     resId = barcoRoto ? R.drawable.barco_popa_roto : R.drawable.barco_popa;
-                } else if (esPiezaInicial) {
+                } else if (esExtremoInicial) {
                     resId = barcoRoto ? R.drawable.barco_proa_roto : R.drawable.barco_proa;
                 } else {
                     resId = barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio;
                 }
             } else {
-                if (c.isEsProa()) {
+                if (esExtremoFinal) {
                     resId = barcoRoto ? R.drawable.barco_proa_roto : R.drawable.barco_proa;
-                } else if (esPiezaInicial) {
+                } else if (esExtremoInicial) {
                     resId = barcoRoto ? R.drawable.barco_popa_roto : R.drawable.barco_popa;
                 } else {
                     resId = barcoRoto ? R.drawable.barco_medio_roto : R.drawable.barco_medio;
