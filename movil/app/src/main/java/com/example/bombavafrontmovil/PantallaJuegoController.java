@@ -464,4 +464,20 @@ public class PantallaJuegoController {
             ui.mostrarNotificacion(texto, PantallaJuegoUi.TipoNotificacion.SUCCESS);
         }
     }
+
+    public void deseleccionarBarco() {
+        if (idBarcoSeleccionado != null) {
+            String anterior = idBarcoSeleccionado;
+            idBarcoSeleccionado = null;
+            cancelarModoAtaque();
+
+            if (ui != null) {
+                ui.ocultarInfoBarco();
+                ui.mostrar(ui.layNoSel);
+            }
+
+            // Repintamos para quitar el tinte amarillo
+            actualizarSeleccionBarco(anterior, null);
+        }
+    }
 }

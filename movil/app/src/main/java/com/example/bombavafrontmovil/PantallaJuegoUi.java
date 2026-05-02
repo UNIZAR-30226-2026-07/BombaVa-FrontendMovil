@@ -56,6 +56,9 @@ public class PantallaJuegoUi {
     private final Handler notificationHandler = new Handler(Looper.getMainLooper());
     private TextView notificationBanner;
     private Runnable hideNotificationRunnable;
+    // Variables para saber si hemos fijado el tope de cada barra
+    private boolean isMaxFuelSet = false;
+    private boolean isMaxAmmoSet = false;
 
     public PantallaJuegoUi(Activity activity) {
         txtTurnoDisplay = activity.findViewById(R.id.tvTurnoDisplay);
@@ -182,13 +185,40 @@ public class PantallaJuegoUi {
     }
 
     public void actualizarRecursos(int fuel, int ammo) {
+        // Solo actualizamos el combustible si el servidor envía un valor válido
         if (fuel >= 0) {
-            barFuel.setProgress(fuel);
-            txtFuel.setText(String.valueOf(fuel));
+            if (txtFuel != null) txtFuel.setText(String.valueOf(fuel));
+            if (barFuel != null) {
+                // Fijamos el máximo la primera vez, o si recibimos más fuel del que teníamos
+                if (!isMaxFuelSet || fuel > barFuel.getMax()) {
+                    barFuel.setMax(Math.max(fuel, 1));
+                    isMaxFuelSet = true;
+                }
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    barFuel.setProgress(fuel, true);
+                } else {
+                    barFuel.setProgress(fuel);
+                }
+            }
         }
+
+        // Solo actualizamos la munición si el servidor envía un valor válido
         if (ammo >= 0) {
-            barAmmo.setProgress(ammo);
-            txtAmmo.setText(String.valueOf(ammo));
+            if (txtAmmo != null) txtAmmo.setText(String.valueOf(ammo));
+            if (barAmmo != null) {
+                // Fijamos el máximo la primera vez, o si recibimos más munición
+                if (!isMaxAmmoSet || ammo > barAmmo.getMax()) {
+                    barAmmo.setMax(Math.max(ammo, 1));
+                    isMaxAmmoSet = true;
+                }
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                    barAmmo.setProgress(ammo, true);
+                } else {
+                    barAmmo.setProgress(ammo);
+                }
+            }
         }
     }
 

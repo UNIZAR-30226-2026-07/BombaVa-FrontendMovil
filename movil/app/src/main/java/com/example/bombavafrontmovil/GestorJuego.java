@@ -19,6 +19,8 @@ public class GestorJuego {
     final List<BarcoLogico> flota = new ArrayList<>();
     final String matchId;
     final String myUserId;
+
+    private boolean perspectivaFijada = false;
     final PartidaListener listener;
     final Map<String, UserShip> diccionarioFlota;
     final Map<String, UserShip> inventarioOriginal;
@@ -83,19 +85,23 @@ public class GestorJuego {
 
     public void recalcularPerspectiva(JSONArray myFleet, JSONArray enemyFleet) {
         try {
+            if (perspectivaFijada) {
+                return;
+            }
+
             if (myFleet == null || myFleet.length() == 0) {
                 return;
             }
 
             double mediaMy = mediaY(myFleet);
 
-            // La perspectiva depende solo de mi flota.
-            // Si mi flota está en la mitad superior lógica, invertimos para pintarla abajo.
+            // La perspectiva se calcula UNA sola vez al inicio de la partida
             invertirPerspectiva = mediaMy < 7.0;
+            perspectivaFijada = true;
 
             Log.d(
                     "DEBUG_PERSPECTIVA",
-                    "mediaMy=" + mediaMy +
+                    "PERSPECTIVA FIJADA -> mediaMy=" + mediaMy +
                             " invertir=" + invertirPerspectiva
             );
         } catch (Exception e) {

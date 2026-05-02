@@ -137,6 +137,10 @@ public class PantallaJuego extends AppCompatActivity {
     private void configurarBotonesBase() {
         ui.btnPasarTurno.setOnClickListener(v -> {
             if (gestor != null) {
+                // Limpiamos la selección visual antes de pasar turno
+                if (controller != null) {
+                    controller.deseleccionarBarco();
+                }
                 gestor.terminarTurno();
             }
         });
