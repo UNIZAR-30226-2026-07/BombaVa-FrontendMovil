@@ -60,6 +60,12 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         AppNotifier.show(MainActivity.this, "Buscando partida contra IA...", AppNotifier.Type.INFO);
                         esperandoPartidaIA = true; // MARCAMOS QUE ES IA
+                        prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+                        String token = prefs.getString("token", "");
+
+                        SocketManager.getInstance().conectar(token);
+                        mSocket = SocketManager.getInstance().getSocket();
+                        configurarListenersSocketMain();
                         mSocket.emit("game:play_bot", new JSONObject());
                         Log.d(TAG, "Emit game:play_bot -> {}");
                     } catch (Exception e) {

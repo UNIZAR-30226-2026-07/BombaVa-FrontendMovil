@@ -470,6 +470,11 @@ public class PantallaJuego extends AppCompatActivity {
         if (gestor != null) {
             gestor.liberarListeners();
         }
+        if (esPartidaIA) {
+
+            SocketManager.getInstance().desconectar();
+
+        }
     }
 
     // ------------------ POPUPS PERSONALIZADOS ------------------
