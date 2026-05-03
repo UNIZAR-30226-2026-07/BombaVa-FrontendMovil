@@ -22,6 +22,8 @@ public class MainActivity extends AppCompatActivity {
     private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
     private Socket mSocket;
 
+    private boolean esperandoPartidaIA = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,11 +59,18 @@ public class MainActivity extends AppCompatActivity {
 
                     try {
                         AppNotifier.show(MainActivity.this, "Buscando partida contra IA...", AppNotifier.Type.INFO);
+
+                        prefs.edit().putBoolean("intencion_ia_pendiente", true).apply();
+
+                        String token = prefs.getString("token", "");
+                        SocketManager.getInstance().conectar(token);
+                        mSocket = SocketManager.getInstance().getSocket();
+                        configurarListenersSocketMain();
                         mSocket.emit("game:play_bot", new JSONObject());
-                        Log.d(TAG, "Emit game:play_bot -> {}");
                     } catch (Exception e) {
                         Log.e(TAG, "Error lanzando partida contra IA", e);
                         AppNotifier.show(MainActivity.this, "Error al iniciar la partida contra IA", AppNotifier.Type.ERROR);
+                        esperandoPartidaIA = false; // Reset en caso de error
                     }
 
                 } else {
@@ -168,18 +177,26 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject data = (JSONObject) args[0];
                 String matchId = data.getString("matchId");
+                SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
 
-                Log.d(TAG, "match:ready recibido -> matchId=" + matchId);
+                // Comprobamos si teníamos una intención pendiente en el disco duro
+                boolean eraIntencionIA = prefs.getBoolean("intencion_ia_pendiente", false);
+
+                if (eraIntencionIA) {
+                    // Guardamos permanentemente que este MatchID es de IA
+                    prefs.edit().putBoolean("is_ia_" + matchId, true).apply();
+                    // Limpiamos la intención para no afectar a futuras partidas
+                    prefs.edit().putBoolean("intencion_ia_pendiente", false).apply();
+                }
+
+                boolean esIAFinal = prefs.getBoolean("is_ia_" + matchId, false);
 
                 Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
                 intent.putExtra("MATCH_ID", matchId);
-                intent.putExtra("CODIGO_SALA", "");
-                intent.putExtra("ES_HOST", true);
+                intent.putExtra("ES_IA", esIAFinal);
                 startActivity(intent);
-
             } catch (Exception e) {
                 Log.e(TAG, "Error leyendo match:ready en MainActivity", e);
-                AppNotifier.show(MainActivity.this, "No se pudo abrir la partida", AppNotifier.Type.ERROR);
             }
         }));
 
@@ -210,12 +227,22 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject data = (JSONObject) args[0];
                 String matchId = data.getString("matchId");
 
-                Log.d(TAG_RECONEXION, "¡Partida activa encontrada! ID: " + matchId);
+                // Comprobamos si justo la app se reinició milisegundos después de pedir IA
+                boolean eraIntencionIA = prefs.getBoolean("intencion_ia_pendiente", false);
+                if (eraIntencionIA) {
+                    prefs.edit().putBoolean("is_ia_" + matchId, true).apply();
+                    prefs.edit().putBoolean("intencion_ia_pendiente", false).apply();
+                }
+
+                // Recuperamos el valor real de la partida
+                boolean eraIA = prefs.getBoolean("is_ia_" + matchId, false);
 
                 Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
                 intent.putExtra("MATCH_ID", matchId);
                 intent.putExtra("token", token);
                 intent.putExtra("esReconexion", true);
+                intent.putExtra("ES_IA", eraIA);
+
                 startActivity(intent);
                 finish();
             } catch (Exception e) {

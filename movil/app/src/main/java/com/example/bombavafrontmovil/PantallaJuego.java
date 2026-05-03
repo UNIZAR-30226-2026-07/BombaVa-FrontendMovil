@@ -47,6 +47,7 @@ public class PantallaJuego extends AppCompatActivity {
     private final Map<String, UserShip> diccionarioFlota = new HashMap<>();
     private boolean diccionarioListo = false;
     private Object[] mensajeRetrasadoStartInfo = null;
+    private boolean esPartidaIA;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +58,9 @@ public class PantallaJuego extends AppCompatActivity {
         matchId = intent.getStringExtra("MATCH_ID");
         codigoSala = intent.getStringExtra("CODIGO_SALA");
         esHost = intent.getBooleanExtra("ES_HOST", false);
+        esPartidaIA = intent.getBooleanExtra("ES_IA", false);
+
+        Log.e("DEBUG_IA_TRACE", "[6] PantallaJuego arranca. Intent me dice que esPartidaIA es: " + esPartidaIA);
 
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         token = prefs.getString("token", "");
@@ -135,6 +139,10 @@ public class PantallaJuego extends AppCompatActivity {
     private void configurarBotonesBase() {
         ui.btnPasarTurno.setOnClickListener(v -> {
             if (gestor != null) {
+                // Limpiamos la selección visual antes de pasar turno
+                if (controller != null) {
+                    controller.deseleccionarBarco();
+                }
                 gestor.terminarTurno();
             }
         });
@@ -432,7 +440,7 @@ public class PantallaJuego extends AppCompatActivity {
         controller.configurarBotones();
 
         if (mensajeRetrasadoStartInfo != null) {
-            Log.d(TAG, "Procesando match:startInfo retrasado");
+            Log.d(TAG, "Inyectando match:startInfo retrasado al GestorJuego");
             gestor.procesarStartInfo(mensajeRetrasadoStartInfo);
             mensajeRetrasadoStartInfo = null;
         }
@@ -463,6 +471,11 @@ public class PantallaJuego extends AppCompatActivity {
 
         if (gestor != null) {
             gestor.liberarListeners();
+        }
+        if (esPartidaIA) {
+
+            SocketManager.getInstance().desconectar();
+
         }
     }
 
@@ -587,15 +600,21 @@ public class PantallaJuego extends AppCompatActivity {
         android.widget.ImageView ivIcono = dialog.findViewById(R.id.ivDialogIcon);
 
         tvTitulo.setText("MENÚ DE COMANDO");
-        tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nPuedes solicitar una tregua al rival para guardar la partida, o izar la bandera blanca y rendirte.");
-
         ivIcono.setImageResource(android.R.drawable.ic_menu_manage);
         ivIcono.setColorFilter(android.graphics.Color.parseColor("#5C3A21"));
         tvTitulo.setTextColor(android.graphics.Color.parseColor("#5C3A21"));
 
         btnRendirse.setVisibility(android.view.View.VISIBLE);
         btnRendirse.setText("RENDIRSE");
-        btnSolicitar.setText("PAUSAR");
+
+        if (esPartidaIA) {
+            tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nAl estar en una simulación de entrenamiento táctico contra la IA, no se permiten treguas. Solo puedes rendirte.");
+            btnSolicitar.setVisibility(android.view.View.GONE); // Ocultamos el botón
+        } else {
+            tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nPuedes solicitar una tregua al rival para guardar la partida, o izar la bandera blanca y rendirte.");
+            btnSolicitar.setVisibility(android.view.View.VISIBLE);
+            btnSolicitar.setText("PAUSAR");
+        }
 
         btnRendirse.setOnClickListener(v -> {
             dialog.dismiss();
