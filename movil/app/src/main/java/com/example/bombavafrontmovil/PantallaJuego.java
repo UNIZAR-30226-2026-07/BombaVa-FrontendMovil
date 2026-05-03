@@ -60,6 +60,8 @@ public class PantallaJuego extends AppCompatActivity {
         esHost = intent.getBooleanExtra("ES_HOST", false);
         esPartidaIA = intent.getBooleanExtra("ES_IA", false);
 
+        Log.e("DEBUG_IA_TRACE", "[6] PantallaJuego arranca. Intent me dice que esPartidaIA es: " + esPartidaIA);
+
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         token = prefs.getString("token", "");
         myUserId = prefs.getString("userId", "");
@@ -438,7 +440,7 @@ public class PantallaJuego extends AppCompatActivity {
         controller.configurarBotones();
 
         if (mensajeRetrasadoStartInfo != null) {
-            Log.d(TAG, "Procesando match:startInfo retrasado");
+            Log.d(TAG, "Inyectando match:startInfo retrasado al GestorJuego");
             gestor.procesarStartInfo(mensajeRetrasadoStartInfo);
             mensajeRetrasadoStartInfo = null;
         }
