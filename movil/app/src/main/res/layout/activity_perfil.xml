@@ -122,14 +122,24 @@
 
             <TextView
                 android:id="@+id/tv_perfil_elo"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0 ⚔️"
-                android:textColor="#D84315"
-                android:textSize="28sp"
+                android:text="PUNTUACIÓN ELO: ---"
+                android:textColor="#FFD54F"
+                android:textSize="18sp"
                 android:textStyle="bold"
-                android:layout_marginBottom="16dp"
-                android:gravity="center"/>
+                android:layout_gravity="center"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/tv_perfil_winrate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="EFECTIVIDAD: --%"
+                android:textColor="#81C784"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_gravity="center" />
 
             <TextView
                 android:id="@+id/tv_perfil_status"

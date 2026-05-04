@@ -14,10 +14,23 @@ public class User {
     @SerializedName("email")
     private String email;
 
+    // --- NUEVOS CAMPOS ---
+    @SerializedName("wins")
+    private int wins;
+
+    @SerializedName("totalGames")
+    private int totalGames;
+
+    @SerializedName("winRate")
+    private double winRate;
+
     public String getUsername() { return username; }
-    public int getEloRating() {
-        return eloRating;
-    }
+    public int getEloRating() { return eloRating; }
     public String getEmail() { return email; }
     public String getId() { return id; }
+
+    // --- NUEVOS GETTERS ---
+    public int getWins() { return wins; }
+    public int getTotalGames() { return totalGames; }
+    public double getWinRate() { return winRate; }
 }

@@ -25,7 +25,7 @@ import retrofit2.Response;
 
 public class PantallaPerfil extends AppCompatActivity {
 
-    private TextView tvUsername, tvEmail, tvStatus, tvElo; // Añadido tvElo
+    private TextView tvUsername, tvEmail, tvStatus, tvElo, tvWinRate;
     private Button btnSalaMando, btnCerrarSesion, btnRanking;
     private ImageButton btnEditar;
 
@@ -43,6 +43,7 @@ public class PantallaPerfil extends AppCompatActivity {
         btnCerrarSesion = findViewById(R.id.btn_cerrar_sesion);
         btnEditar = findViewById(R.id.btnEditarPerfil);
         btnRanking = findViewById(R.id.btn_ranking);
+        tvWinRate = findViewById(R.id.tv_perfil_winrate);
 
         btnRanking.setOnClickListener(v -> mostrarDialogoRanking());
 
@@ -64,6 +65,7 @@ public class PantallaPerfil extends AppCompatActivity {
 
         // La primera vez que entramos, cargamos los datos
         cargarDatosDelUsuario();
+        obtenerPerfil();
 
         btnEditar.setOnClickListener(v -> {
             Intent intent = new Intent(PantallaPerfil.this, EditarPerfilActivity.class);
@@ -238,6 +240,34 @@ public class PantallaPerfil extends AppCompatActivity {
             @Override
             public void onFailure(Call<List<RankingUser>> call, Throwable t) {
                 // Opcional: Mostrar Toast de error de red
+            }
+        });
+    }
+
+    private void obtenerPerfil() {
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        String token = prefs.getString("token", "");
+
+        ApiService apiService = RetrofitClient.getApiService();
+        apiService.obtenerPerfil("Bearer " + token).enqueue(new Callback<User>() {
+            @Override
+            public void onResponse(Call<User> call, Response<User> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    User user = response.body();
+                    tvUsername.setText(user.getUsername().toUpperCase());
+                    tvEmail.setText(user.getEmail());
+                    tvElo.setText("PUNTUACIÓN ELO: " + user.getEloRating());
+
+                    // 3. Pintamos el WinRate
+                    tvWinRate.setText("EFECTIVIDAD: " + user.getWinRate() + "%");
+
+                    tvStatus.setText("ALMIRANTE EN SERVICIO");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<User> call, Throwable t) {
+                tvStatus.setText("ERROR DE CONEXIÓN");
             }
         });
     }
