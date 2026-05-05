@@ -1,5 +1,7 @@
 package com.example.bombavafrontmovil.network;
 
+import com.example.bombavafrontmovil.BuildConfig;
+
 import android.util.Log;
 
 import java.net.URISyntaxException;
@@ -10,7 +12,7 @@ import io.socket.client.Socket;
 
 public class SocketManager {
     private static final String TAG = "SOCKET";
-    private static final String SERVER_URL = "http://10.0.2.2:3000";
+    private static final String SERVER_URL = BuildConfig.SOCKET_URL;
 
     private static SocketManager instance;
     private Socket mSocket;

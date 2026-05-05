@@ -18,14 +18,22 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+    
+    buildFeatures {
+        buildConfig = true
+    }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            
+            buildConfigField("String", "API_URL", "\"https://bombava-backend-vbgv.onrender.com/\"")
+            buildConfigField("String", "SOCKET_URL", "\"https://bombava-backend-vbgv.onrender.com\"")
+        }
+        debug {
+            buildConfigField("String", "API_URL", "\"http://10.0.2.2:3000/\"")
+            buildConfigField("String", "SOCKET_URL", "\"http://10.0.2.2:3000\"")
         }
     }
     compileOptions {
