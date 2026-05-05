@@ -171,30 +171,14 @@
 
             <Button
                 android:id="@+id/btnForward"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:layout_weight="1"
                 android:text="Delante"
                 android:background="@android:color/transparent"
                 android:textColor="@color/wood_dark"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
-            <View
-                android:layout_width="2dp"
-                android:layout_height="match_parent"
-                android:background="@color/wood_dark" />
-
-            <Button
-                android:id="@+id/btnBackward"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:text="Atrás"
-                android:background="@android:color/transparent"
-                android:textColor="@color/wood_dark"
-                android:textSize="14sp"
-                android:textStyle="bold" />
         </LinearLayout>
 
         <View
@@ -234,6 +218,8 @@
                 android:textColor="@color/wood_dark"
                 android:textSize="14sp"
                 android:textStyle="bold" />
+
         </LinearLayout>
     </LinearLayout>
+
 </FrameLayout>

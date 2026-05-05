@@ -16,10 +16,10 @@
         android:textColor="@color/wood_border"
         android:textSize="28sp"
         android:textStyle="bold"
+        android:layout_marginTop="40dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:layout_marginTop="40dp"/>
+        app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
         android:id="@+id/codeContainer"
@@ -39,18 +39,38 @@
             android:layout_height="wrap_content"
             android:text="Tu Código de Partida:"
             android:textColor="@color/wood_text_color"
-            android:textSize="20sp"/>
+            android:textSize="20sp" />
 
-        <TextView
-            android:id="@+id/tvGameCode"
+        <LinearLayout
+            android:id="@+id/codeRow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="----"
-            android:textColor="@color/wood_text_color"
-            android:textSize="48sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.1"
-            android:layout_marginTop="16dp"/>
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="16dp">
+
+            <TextView
+                android:id="@+id/tvGameCode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="----"
+                android:textColor="@color/wood_text_color"
+                android:textSize="48sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/btnCopyCode"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="16dp"
+                android:background="@drawable/style_wood_button_rect"
+                android:text="COPIAR"
+                android:textColor="@color/wood_text_color"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
@@ -58,7 +78,8 @@
             android:text="Comparte este código con tu rival"
             android:textColor="@color/wood_text_color"
             android:textSize="14sp"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginTop="8dp" />
+
     </LinearLayout>
 
     <androidx.appcompat.widget.AppCompatButton
@@ -70,9 +91,9 @@
         android:textColor="@color/wood_text_color"
         android:textSize="20sp"
         android:textStyle="bold"
+        android:layout_marginBottom="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginBottom="24dp"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
