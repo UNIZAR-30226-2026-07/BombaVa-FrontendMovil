@@ -1,5 +1,8 @@
 package com.example.bombavafrontmovil;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -19,6 +22,8 @@ public class LobbyActivity extends AppCompatActivity {
 
     private TextView tvGameCode;
     private Button btnGoToGame;
+    private Button btnCopyCode;
+
     private Socket mSocket;
     private String codigoGenerado = "";
 
@@ -29,10 +34,14 @@ public class LobbyActivity extends AppCompatActivity {
 
         tvGameCode = findViewById(R.id.tvGameCode);
         btnGoToGame = findViewById(R.id.btnGoToGame);
+        btnCopyCode = findViewById(R.id.btnCopyCode);
 
         tvGameCode.setText("Generando...");
         btnGoToGame.setEnabled(false);
         btnGoToGame.setText("Esperando rival...");
+
+        btnCopyCode.setEnabled(false);
+        btnCopyCode.setAlpha(0.5f);
 
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         String token = prefs.getString("token", "");
@@ -41,11 +50,33 @@ public class LobbyActivity extends AppCompatActivity {
         mSocket = SocketManager.getInstance().getSocket();
 
         configurarListenersSocket();
-        mSocket.emit("lobby:create");
+
+        if (mSocket != null) {
+            mSocket.emit("lobby:create");
+        } else {
+            AppNotifier.show(this, "Error de conexión con el servidor", AppNotifier.Type.ERROR);
+        }
 
         btnGoToGame.setOnClickListener(v ->
                 AppNotifier.show(this, "Espera a que se una un rival", AppNotifier.Type.INFO)
         );
+
+        btnCopyCode.setOnClickListener(v -> copiarCodigoAlPortapapeles());
+    }
+
+    private void copiarCodigoAlPortapapeles() {
+        if (codigoGenerado == null || codigoGenerado.trim().isEmpty()) {
+            AppNotifier.show(this, "Todavía no hay código para copiar", AppNotifier.Type.INFO);
+            return;
+        }
+
+        ClipboardManager clipboardManager =
+                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+
+        ClipData clipData = ClipData.newPlainText("Código de partida", codigoGenerado);
+        clipboardManager.setPrimaryClip(clipData);
+
+        AppNotifier.show(this, "Código copiado al portapapeles", AppNotifier.Type.SUCCESS);
     }
 
     private void configurarListenersSocket() {
@@ -54,6 +85,10 @@ public class LobbyActivity extends AppCompatActivity {
                 JSONObject data = (JSONObject) args[0];
                 codigoGenerado = data.getString("codigo");
                 tvGameCode.setText(codigoGenerado);
+
+                btnCopyCode.setEnabled(true);
+                btnCopyCode.setAlpha(1f);
+
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -62,7 +97,8 @@ public class LobbyActivity extends AppCompatActivity {
         mSocket.on("match:startInfo", args -> {
             try {
                 GameStartCache.pendingStartInfo = (JSONObject) args[0];
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         });
 
         mSocket.on("match:ready", args -> runOnUiThread(() -> {
@@ -76,6 +112,7 @@ public class LobbyActivity extends AppCompatActivity {
                 intent.putExtra("ES_HOST", true);
                 startActivity(intent);
                 finish();
+
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -94,6 +131,7 @@ public class LobbyActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
         if (mSocket != null) {
             mSocket.off("lobby:created");
             mSocket.off("match:startInfo");

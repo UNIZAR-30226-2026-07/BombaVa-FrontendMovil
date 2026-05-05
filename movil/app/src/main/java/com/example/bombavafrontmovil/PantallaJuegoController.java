@@ -68,8 +68,7 @@ public class PantallaJuegoController {
         View btnForward = activity.findViewById(R.id.btnForward);
         if (btnForward != null) btnForward.setOnClickListener(v -> moverSeleccionado(true));
 
-        View btnBackward = activity.findViewById(R.id.btnBackward);
-        if (btnBackward != null) btnBackward.setOnClickListener(v -> moverSeleccionado(false));
+
 
         View btnRotateL = activity.findViewById(R.id.btnRotateL);
         if (btnRotateL != null) btnRotateL.setOnClickListener(v -> rotarSeleccionado(-90));
