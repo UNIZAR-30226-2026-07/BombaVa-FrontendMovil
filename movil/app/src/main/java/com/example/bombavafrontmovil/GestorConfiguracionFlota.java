@@ -95,10 +95,22 @@ public class GestorConfiguracionFlota {
         rotacionPorBarco.remove(idBarco);
     }
 
-    public void equiparArma(int idBarco, String armaSlug) {
+    public boolean equiparArma(int idBarco, String armaSlug) {
         Set<String> armas = armasPorBarco.getOrDefault(idBarco, new HashSet<>());
+
+        // Si ya la tiene, no hacemos nada, pero lo consideramos válido
+        if (armas.contains(armaSlug)) {
+            return true;
+        }
+
+        int maxArmas = getMaxArmasPermitidas(idBarco);
+        if (armas.size() >= maxArmas) {
+            return false;
+        }
+
         armas.add(armaSlug);
         armasPorBarco.put(idBarco, armas);
+        return true;
     }
 
     public void desequiparArma(int idBarco, String armaSlug) {
@@ -113,6 +125,15 @@ public class GestorConfiguracionFlota {
 
     public boolean tieneArmaEquipada(int idBarco, String armaSlug) {
         return armasPorBarco.containsKey(idBarco) && armasPorBarco.get(idBarco).contains(armaSlug);
+    }
+    private int getMaxArmasPermitidas(int idBarco) {
+        int tamano = getTamanoBarco(idBarco);
+
+        if (tamano == 1) return 1;
+        if (tamano == 3) return 2;
+        if (tamano == 5) return 3;
+
+        return 0;
     }
 
     public List<ShipPosition> obtenerPosicionesParaBackend(String realIdBarco5, String realIdBarco3, String realIdBarco1) {
