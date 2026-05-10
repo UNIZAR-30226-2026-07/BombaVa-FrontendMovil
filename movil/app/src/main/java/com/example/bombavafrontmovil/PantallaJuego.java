@@ -81,21 +81,29 @@ public class PantallaJuego extends AppCompatActivity {
 
         configurarBotonesBase();
 
+        // Obtenemos el socket
         mSocket = SocketManager.getInstance().getSocket();
 
-        if (GameStartCache.pendingStartInfo != null) {
+        // MIRAR EN EL BUZÓN GLOBAL
+        Object infoAtrapada = SocketManager.getInstance().popCachedStartInfo();
+
+        if (infoAtrapada != null) {
+            // El servidor fue más rápido que nosotros y el SocketManager lo atrapó
+            mensajeRetrasadoStartInfo = new Object[]{infoAtrapada};
+            Log.e("DEBUG_CARRERA", "ÉXITO: match:startInfo recuperado de la trampa del SocketManager.");
+        } else if (GameStartCache.pendingStartInfo != null) {
+            // Fallback por si tu sistema antiguo atrapó algo
             mensajeRetrasadoStartInfo = new Object[]{GameStartCache.pendingStartInfo};
             GameStartCache.pendingStartInfo = null;
-            Log.d(TAG, "match:startInfo recuperado desde caché");
         }
 
+
         if (mSocket != null) {
+            // Trampa Local: Por si el paquete llega JUSTO AHORA mientras descargamos el diccionario de barcos
             mSocket.on("match:startInfo", args -> runOnUiThread(() -> {
                 if (gestor == null) {
                     mensajeRetrasadoStartInfo = args;
-                    Log.d(TAG, "match:startInfo recibido antes de crear GestorJuego, se guarda temporalmente");
-                } else {
-                    Log.d(TAG, "match:startInfo ignorado en PantallaJuego porque ya lo gestiona GestorJuegoSocketBinder");
+                    Log.e("DEBUG_CARRERA", "match:startInfo llegó justo durante la carga de la UI. Guardado.");
                 }
             }));
 
