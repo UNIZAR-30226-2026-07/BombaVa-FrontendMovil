@@ -48,7 +48,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     private List<CeldaVisual> celdasTablero;
     private List<UserShip> inventarioBarcos = new ArrayList<>();
 
-    private boolean enHorizontal = true;
     private int tamanoSeleccionado = 0, faseActual = 1, idBarcoSeleccionadoParaArma = 0;
     private String armaTemporal = "";
 
@@ -56,6 +55,9 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     private Button btnRotar, btnGuardarArma;
 
     private Map<String, Set<String>> armasOriginalesBackend = new HashMap<>();
+
+    // Estado de orientación de 4 puntos ("N", "E", "S", "W")
+    private String orientacionActual = "N";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +73,9 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         descargarArmasDisponibles();
 
         ImageView btnInfoLeyenda = findViewById(R.id.btn_info_leyenda);
-        btnInfoLeyenda.setOnClickListener(v -> mostrarDialogoLeyenda());
+        if(btnInfoLeyenda != null) {
+            btnInfoLeyenda.setOnClickListener(v -> mostrarDialogoLeyenda());
+        }
     }
 
     private void vincularVistasYListeners() {
@@ -108,10 +112,19 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             uiHelper.resaltarBarco(1);
         });
 
-        btnRotar.setOnClickListener(v -> {
-            enHorizontal = !enHorizontal;
-            btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)");
-        });
+        // Lógica de 4 direcciones
+        if (btnRotar != null) {
+            btnRotar.setText("ROTAR (N)");
+            btnRotar.setOnClickListener(v -> {
+                switch (orientacionActual) {
+                    case "N": orientacionActual = "E"; break;
+                    case "E": orientacionActual = "S"; break;
+                    case "S": orientacionActual = "W"; break;
+                    case "W": orientacionActual = "N"; break;
+                }
+                btnRotar.setText("ROTAR (" + orientacionActual + ")");
+            });
+        }
 
         View btnColeccion = findViewById(R.id.btn_coleccion_barcos);
         if (btnColeccion != null) {
@@ -123,9 +136,15 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         findViewById(R.id.btn_torpedo).setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
 
         findViewById(R.id.btn_cancelar_arma).setOnClickListener(v -> cancelarSeleccionArma());
-        btnGuardarArma.setOnClickListener(v -> guardarArmaBarco());
+        if (btnGuardarArma != null) {
+            btnGuardarArma.setOnClickListener(v -> guardarArmaBarco());
+        }
         findViewById(R.id.btn_confirmar).setOnClickListener(v -> avanzarFase());
-        findViewById(R.id.btn_limpiar_todo).setOnClickListener(v -> limpiarTableroCompleto());
+
+        View btnLimpiar = findViewById(R.id.btn_limpiar_todo);
+        if(btnLimpiar != null) {
+            btnLimpiar.setOnClickListener(v -> limpiarTableroCompleto());
+        }
     }
 
     private void configurarTablero() {
@@ -206,6 +225,17 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
+    // Método auxiliar para convertir "N", "E" etc a grados visuales
+    private float obtenerGradosVisuales(String orientacion) {
+        switch (orientacion) {
+            case "E": return 90f;   // Proa mirando a la derecha
+            case "S": return 180f;  // Proa mirando hacia abajo
+            case "W": return 270f;  // Proa mirando a la izquierda
+            case "N":
+            default: return 0f;     // Proa mirando hacia arriba
+        }
+    }
+
     private void intentarColocarOQuitarBarco(int pos, int idExistente) {
         if (idExistente != 0) {
             if (tamanoSeleccionado == 0) {
@@ -216,11 +246,14 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         if (tamanoSeleccionado == 0) return;
 
-        int pAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, enHorizontal);
+        boolean esHorizontal = orientacionActual.equals("E") || orientacionActual.equals("W");
 
-        if (gestorLogica.validarColocacion(pAjustada, tamanoSeleccionado, enHorizontal) == 0) {
-            gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, enHorizontal);
-            dibujarBarcoEnVista(pAjustada, tamanoSeleccionado, enHorizontal);
+        int pAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, esHorizontal);
+
+        if (gestorLogica.validarColocacion(pAjustada, tamanoSeleccionado, esHorizontal) == 0) {
+            gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, esHorizontal);
+
+            dibujarBarcoEnVista(pAjustada, tamanoSeleccionado, orientacionActual, esHorizontal);
 
             tamanoSeleccionado = 0;
             uiHelper.resaltarBarco(0);
@@ -253,17 +286,28 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
-    private void dibujarBarcoEnVista(int pos, int tam, boolean hor) {
+    private void dibujarBarcoEnVista(int pos, int tam, String orientacion, boolean hor) {
+        float grados = obtenerGradosVisuales(orientacion);
+
         for (int i = 0; i < tam; i++) {
             CeldaVisual c = celdasTablero.get(hor ? (pos + i) : (pos + (i * 15)));
-            c.rotacion = hor ? 90f : 0f;
+
+            c.rotacion = grados;
 
             if (tam == 1) {
                 c.idImagenBarco = R.drawable.barco_medio;
             } else if (i == 0) {
-                c.idImagenBarco = hor ? R.drawable.barco_popa : R.drawable.barco_proa;
+                if (orientacion.equals("S") || orientacion.equals("E")) {
+                    c.idImagenBarco = R.drawable.barco_popa;
+                } else {
+                    c.idImagenBarco = R.drawable.barco_proa;
+                }
             } else if (i == tam - 1) {
-                c.idImagenBarco = hor ? R.drawable.barco_proa : R.drawable.barco_popa;
+                if (orientacion.equals("S") || orientacion.equals("E")) {
+                    c.idImagenBarco = R.drawable.barco_proa;
+                } else {
+                    c.idImagenBarco = R.drawable.barco_popa;
+                }
             } else {
                 c.idImagenBarco = R.drawable.barco_medio;
             }
@@ -403,6 +447,31 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
+    private void limpiarTableroCompleto() {
+        for (int i = 0; i < 225; i++) {
+            celdasTablero.get(i).idImagenBarco = 0;
+            celdasTablero.get(i).seleccionadaParaArma = false;
+        }
+        gestorLogica.resetearTablero();
+        uiHelper.ocultarBarcosColocados(false, false, false);
+        adaptador.notifyDataSetChanged();
+    }
+
+    private void descargarArmasDisponibles() {
+        String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
+        ApiClient.getApiService().obtenerArmasDisponibles("Bearer " + token)
+                .enqueue(new Callback<List<Weapon>>() {
+                    @Override
+                    public void onResponse(Call<List<Weapon>> call, Response<List<Weapon>> response) {
+                        // Aquí se pueden cargar armas extra si las hay
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Weapon>> call, Throwable t) {
+                    }
+                });
+    }
+
     private void descargarInventarioDelCuartelGeneral() {
         String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
 
@@ -427,9 +496,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
                                 if (b.getWeaponTemplates() != null) {
                                     for (UserShip.WeaponItem item : b.getWeaponTemplates()) {
-                                        if (item.slug != null) {
-                                            armasDetectadas.add(item.slug);
-                                        }
+                                        if (item.slug != null) armasDetectadas.add(item.slug);
                                     }
                                 }
 
@@ -453,8 +520,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                                         if (item.slug != null) armasDetectadas.add(item.slug);
                                     }
                                 }
-
-                                Log.d("FLOTA_DEBUG", "Barco " + b.getId() + " | Armas finales leídas: " + armasDetectadas);
 
                                 if (!armasDetectadas.isEmpty()) {
                                     if (!armasOriginalesBackend.containsKey(b.getId())) {
@@ -559,11 +624,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         List<ShipPosition> posiciones = gestorLogica.obtenerPosicionesParaBackend(
                 realIdBarco5, realIdBarco3, realIdBarco1
-        );
-
-        android.util.Log.d(
-                "DEBUG_ORIENTACION",
-                "🚀 [PRE-ENVÍO] Posiciones generadas: " + new com.google.gson.Gson().toJson(posiciones)
         );
 
         if (posiciones.isEmpty()) {
@@ -698,66 +758,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
-    private void actualizarTodaLaVistaTablero() {
-        for (int i = 0; i < 225; i++) {
-            celdasTablero.get(i).idImagenBarco = 0;
-        }
-
-        for (int id = 1; id < gestorLogica.getIdBarcoActual(); id++) {
-            int inicio = -1;
-            for (int p = 0; p < 225; p++) {
-                if (gestorLogica.getIdBarcoEn(p) == id) {
-                    inicio = p;
-                    break;
-                }
-            }
-
-            if (inicio != -1) {
-                int tam = gestorLogica.getTamanoBarco(id);
-                boolean hor = (inicio + 1 < 225 && gestorLogica.getIdBarcoEn(inicio + 1) == id);
-                dibujarBarcoEnVista(inicio, tam, hor);
-            }
-        }
-
-        uiHelper.ocultarBarcosColocados(
-                gestorLogica.estaBarcoColocado(5),
-                gestorLogica.estaBarcoColocado(3),
-                gestorLogica.estaBarcoColocado(1)
-        );
-
-        adaptador.notifyDataSetChanged();
-    }
-
-    private void limpiarTableroCompleto() {
-        gestorLogica.resetearTablero();
-
-        for (CeldaVisual c : celdasTablero) {
-            c.idImagenBarco = 0;
-            c.seleccionadaParaArma = false;
-        }
-
-        faseActual = 1;
-        uiHelper.ocultarBarcosColocados(false, false, false);
-        ((TextView) findViewById(R.id.tv_title)).setText("Configura tu Flota");
-        layoutControlesColocacion.setVisibility(View.VISIBLE);
-        layoutControlesArmas.setVisibility(View.GONE);
-        adaptador.notifyDataSetChanged();
-    }
-
-    private void descargarArmasDisponibles() {
-        String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
-        ApiClient.getApiService().obtenerArmasDisponibles("Bearer " + token)
-                .enqueue(new Callback<List<Weapon>>() {
-                    @Override
-                    public void onResponse(Call<List<Weapon>> call, Response<List<Weapon>> response) {
-                    }
-
-                    @Override
-                    public void onFailure(Call<List<Weapon>> call, Throwable t) {
-                    }
-                });
-    }
-
     private void sincronizarArmasConUI() {
         for (int i = 1; i < gestorLogica.getIdBarcoActual(); i++) {
             int t = gestorLogica.getTamanoBarco(i);
@@ -785,5 +785,42 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    private void actualizarTodaLaVistaTablero() {
+        for (int i = 0; i < 225; i++) {
+            celdasTablero.get(i).idImagenBarco = 0;
+        }
+
+        for (int id = 1; id < gestorLogica.getIdBarcoActual(); id++) {
+            int inicio = -1;
+            for (int p = 0; p < 225; p++) {
+                if (gestorLogica.getIdBarcoEn(p) == id) {
+                    inicio = p;
+                    break;
+                }
+            }
+
+            if (inicio != -1) {
+                int tam = gestorLogica.getTamanoBarco(id);
+                boolean esHorizontal = true;
+
+                // TRUCO: Deducimos la orientación comprobando si la casilla de la derecha tiene el mismo barco
+                if (tam > 1) {
+                    // Si sumamos 1 (derecha) y no nos salimos del tablero, y es del mismo barco -> Horizontal
+                    if ((inicio + 1) < 225 && gestorLogica.getIdBarcoEn(inicio + 1) == id) {
+                        esHorizontal = true;
+                    } else {
+                        esHorizontal = false; // Si no, va hacia abajo (Vertical)
+                    }
+                }
+
+                // Convertimos el boolean a las letras de orientación para poder pintarlo
+                String orientacionDetectada = esHorizontal ? "E" : "N";
+
+                dibujarBarcoEnVista(inicio, tam, orientacionDetectada, esHorizontal);
+            }
+        }
+        adaptador.notifyDataSetChanged();
     }
 }
