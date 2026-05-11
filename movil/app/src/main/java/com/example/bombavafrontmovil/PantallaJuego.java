@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.socket.client.Socket;
+import io.socket.emitter.Emitter;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -50,6 +52,9 @@ public class PantallaJuego extends AppCompatActivity {
     private boolean esPartidaIA;
     private boolean startInfoProcesado = false;
 
+    private Emitter.Listener matchStartInfoListener;
+    private Emitter.Listener matchReadyListener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,7 +73,14 @@ public class PantallaJuego extends AppCompatActivity {
         boolean esIAPrefs = matchId != null && prefs.getBoolean("is_ia_" + matchId, false);
         esPartidaIA = esIAIntent || esIAPrefs;
 
-        Log.e("DEBUG_IA_TRACE", "[6] PantallaJuego arranca. matchId=" + matchId + " | ES_IA intent=" + esIAIntent + " | ES_IA prefs=" + esIAPrefs + " | final=" + esPartidaIA);
+        if (esPartidaIA && matchId != null && !matchId.isEmpty()) {
+            prefs.edit().putBoolean("is_ia_" + matchId, true).apply();
+        }
+
+        Log.e("DEBUG_IA_TRACE", "[6] PantallaJuego arranca. matchId=" + matchId +
+                " | ES_IA intent=" + esIAIntent +
+                " | ES_IA prefs=" + esIAPrefs +
+                " | final=" + esPartidaIA);
 
         Log.d(TAG, "Iniciando PantallaJuego. matchId=" + matchId + " | userId=" + myUserId + " | esHost=" + esHost);
 
@@ -84,6 +96,7 @@ public class PantallaJuego extends AppCompatActivity {
         controller = new PantallaJuegoController(this, ui, board);
 
         configurarBotonesBase();
+        configurarBotonAtras();
 
         mSocket = SocketManager.getInstance().getSocket();
 
@@ -99,13 +112,12 @@ public class PantallaJuego extends AppCompatActivity {
         }
 
         if (mSocket != null) {
-            mSocket.off("match:startInfo");
-            mSocket.on("match:startInfo", args -> runOnUiThread(() -> {
+            matchStartInfoListener = args -> runOnUiThread(() -> {
                 Log.e("DEBUG_CARRERA", "match:startInfo recibido en PantallaJuego.");
                 manejarStartInfoEntrante(args);
-            }));
+            });
 
-            mSocket.on("match:ready", args -> runOnUiThread(() -> {
+            matchReadyListener = args -> runOnUiThread(() -> {
                 try {
                     JSONObject data = (JSONObject) args[0];
                     matchId = data.getString("matchId");
@@ -116,7 +128,10 @@ public class PantallaJuego extends AppCompatActivity {
                 } catch (Exception e) {
                     Log.e(TAG, "Fallo al leer match:ready", e);
                 }
-            }));
+            });
+
+            mSocket.on("match:startInfo", matchStartInfoListener);
+            mSocket.on("match:ready", matchReadyListener);
         } else {
             Log.e(TAG, "Socket nulo en PantallaJuego");
         }
@@ -142,6 +157,28 @@ public class PantallaJuego extends AppCompatActivity {
 
         descargarDiccionarioFlota();
         intentarArrancarPartida();
+    }
+
+    private void configurarBotonAtras() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (esPartidaIAActual()) {
+                    mostrarDialogoMiMenuPausa();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
+    }
+
+    private boolean esPartidaIAActual() {
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        boolean porPrefs = matchId != null && prefs.getBoolean("is_ia_" + matchId, false);
+        boolean finalIA = esPartidaIA || porPrefs;
+        esPartidaIA = finalIA;
+        return finalIA;
     }
 
     private void manejarStartInfoEntrante(Object[] args) {
@@ -469,8 +506,12 @@ public class PantallaJuego extends AppCompatActivity {
         if (dialogoEspera != null && dialogoEspera.isShowing()) dialogoEspera.dismiss();
 
         if (mSocket != null) {
-            mSocket.off("match:startInfo");
-            mSocket.off("match:ready");
+            if (matchStartInfoListener != null) {
+                mSocket.off("match:startInfo", matchStartInfoListener);
+            }
+            if (matchReadyListener != null) {
+                mSocket.off("match:ready", matchReadyListener);
+            }
         }
 
         if (gestor != null) {
@@ -526,9 +567,11 @@ public class PantallaJuego extends AppCompatActivity {
 
             SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
 
-            if (esPartidaIA) {
+            if (esPartidaIAActual()) {
                 prefs.edit().putBoolean("skip_reconnect_once", true).apply();
-                prefs.edit().remove("is_ia_" + matchId).apply();
+                if (matchId != null) {
+                    prefs.edit().remove("is_ia_" + matchId).apply();
+                }
                 prefs.edit().putBoolean("intencion_ia_pendiente", false).apply();
 
                 SocketManager.getInstance().desconectar();
@@ -588,7 +631,8 @@ public class PantallaJuego extends AppCompatActivity {
     }
 
     private void mostrarDialogoMiMenuPausa() {
-        Log.d("DEBUG_IA_TRACE", "mostrarDialogoMiMenuPausa -> esPartidaIA=" + esPartidaIA + " | matchId=" + matchId);
+        boolean partidaIAActual = esPartidaIAActual();
+        Log.d("DEBUG_IA_TRACE", "mostrarDialogoMiMenuPausa -> esPartidaIA=" + partidaIAActual + " | matchId=" + matchId);
 
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
@@ -617,7 +661,7 @@ public class PantallaJuego extends AppCompatActivity {
         btnRendirse.setVisibility(android.view.View.VISIBLE);
         btnRendirse.setText("RENDIRSE");
 
-        if (esPartidaIA) {
+        if (partidaIAActual) {
             tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nAl estar en una simulación de entrenamiento táctico contra la IA, no se permiten treguas. Solo puedes rendirte.");
             btnSolicitar.setVisibility(android.view.View.GONE);
         } else {

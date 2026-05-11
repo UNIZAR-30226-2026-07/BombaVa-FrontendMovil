@@ -51,7 +51,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     private String armaTemporal = "";
 
     private LinearLayout layoutControlesColocacion, layoutControlesArmas;
-    private Button btnRotar, btnGuardarArma;
+    private Button btnRotar, btnGuardarArma, btnLimpiarTodo;
 
     private Map<String, Set<String>> armasOriginalesBackend = new HashMap<>();
 
@@ -81,6 +81,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         layoutControlesArmas = findViewById(R.id.layout_controles_armas);
         btnRotar = findViewById(R.id.btn_rotate);
         btnGuardarArma = findViewById(R.id.btn_guardar_arma);
+        btnLimpiarTodo = findViewById(R.id.btn_limpiar_todo);
 
         Button btnShip5 = findViewById(R.id.btn_ship_5x1);
         Button btnShip3 = findViewById(R.id.btn_ship_3x1);
@@ -148,9 +149,8 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         findViewById(R.id.btn_confirmar).setOnClickListener(v -> avanzarFase());
 
-        View btnLimpiar = findViewById(R.id.btn_limpiar_todo);
-        if (btnLimpiar != null) {
-            btnLimpiar.setOnClickListener(v -> limpiarTableroCompleto());
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setOnClickListener(v -> limpiarTableroCompleto());
         }
     }
 
@@ -371,6 +371,11 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         layoutControlesArmas.setVisibility(View.VISIBLE);
         layoutControlesColocacion.setVisibility(View.GONE);
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setVisibility(View.GONE);
+        }
+
         adaptador.notifyDataSetChanged();
     }
 
@@ -432,6 +437,25 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
     private void cancelarSeleccionArma() {
         layoutControlesArmas.setVisibility(View.GONE);
+        layoutControlesColocacion.setVisibility(View.GONE);
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setVisibility(View.GONE);
+        }
+
+        TextView tvTitle = findViewById(R.id.tv_title);
+        if (tvTitle != null && faseActual == 2) {
+            tvTitle.setText("Elige un barco para configurar armas");
+        }
+
+        armaTemporal = "";
+        idBarcoSeleccionadoParaArma = 0;
+
+        if (btnGuardarArma != null) {
+            btnGuardarArma.setText("SELECCIONA");
+            btnGuardarArma.setEnabled(false);
+        }
+
         for (CeldaVisual c : celdasTablero) {
             c.seleccionadaParaArma = false;
         }
@@ -445,7 +469,15 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                     && gestorLogica.estaBarcoColocado(1)) {
                 faseActual = 2;
                 layoutControlesColocacion.setVisibility(View.GONE);
-                ((TextView) findViewById(R.id.tv_title)).setText("Modifica tus Armas");
+
+                if (btnLimpiarTodo != null) {
+                    btnLimpiarTodo.setVisibility(View.GONE);
+                }
+
+                TextView tvTitle = findViewById(R.id.tv_title);
+                if (tvTitle != null) {
+                    tvTitle.setText("Elige un barco para configurar armas");
+                }
             } else {
                 AppNotifier.show(this, "Faltan barcos por colocar", AppNotifier.Type.ERROR);
             }
@@ -459,7 +491,26 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             celdasTablero.get(i).idImagenBarco = 0;
             celdasTablero.get(i).seleccionadaParaArma = false;
         }
+
         gestorLogica.resetearTablero();
+
+        faseActual = 1;
+        armaTemporal = "";
+        idBarcoSeleccionadoParaArma = 0;
+        tamanoSeleccionado = 0;
+
+        layoutControlesArmas.setVisibility(View.GONE);
+        layoutControlesColocacion.setVisibility(View.VISIBLE);
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setVisibility(View.VISIBLE);
+        }
+
+        TextView tvTitle = findViewById(R.id.tv_title);
+        if (tvTitle != null) {
+            tvTitle.setText("Configura tu Flota");
+        }
+
         uiHelper.ocultarBarcosColocados(false, false, false);
         adaptador.notifyDataSetChanged();
     }
