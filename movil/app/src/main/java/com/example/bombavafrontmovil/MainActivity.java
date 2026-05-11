@@ -22,8 +22,6 @@ public class MainActivity extends AppCompatActivity {
     private View btnCompetitivo, btnUnirse, btnConfigurarFlota, btnPerfil, btnAjustes, btnPractica;
     private Socket mSocket;
 
-    private boolean esperandoPartidaIA = false;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -38,7 +36,6 @@ public class MainActivity extends AppCompatActivity {
 
         inicializarSocketSiHaySesion();
 
-        // --- BOTÓN COMPETITIVO / IA ---
         if (btnCompetitivo != null) {
             btnCompetitivo.setOnClickListener(v -> {
                 if (isUsuarioLogueado()) {
@@ -66,11 +63,12 @@ public class MainActivity extends AppCompatActivity {
                         SocketManager.getInstance().conectar(token);
                         mSocket = SocketManager.getInstance().getSocket();
                         configurarListenersSocketMain();
+
                         mSocket.emit("game:play_bot", new JSONObject());
+                        Log.d(TAG, "Emit game:play_bot -> {}");
                     } catch (Exception e) {
                         Log.e(TAG, "Error lanzando partida contra IA", e);
                         AppNotifier.show(MainActivity.this, "Error al iniciar la partida contra IA", AppNotifier.Type.ERROR);
-                        esperandoPartidaIA = false; // Reset en caso de error
                     }
 
                 } else {
@@ -79,7 +77,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // --- BOTÓN UNIRSE ---
         if (btnUnirse != null) {
             btnUnirse.setOnClickListener(v -> {
                 if (isUsuarioLogueado()) {
@@ -98,7 +95,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // --- BOTÓN PRÁCTICA / CREAR PARTIDA NORMAL ---
         if (btnPractica != null) {
             btnPractica.setOnClickListener(v -> {
                 if (isUsuarioLogueado()) {
@@ -117,7 +113,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // --- BOTÓN CONFIGURAR FLOTA ---
         if (btnConfigurarFlota != null) {
             btnConfigurarFlota.setOnClickListener(v -> {
                 if (isUsuarioLogueado()) {
@@ -128,7 +123,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // --- BOTÓN PERFIL ---
         if (btnPerfil != null) {
             btnPerfil.setOnClickListener(v -> {
                 if (isUsuarioLogueado()) {
@@ -139,7 +133,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // --- BOTÓN AJUSTES ---
         if (btnAjustes != null) {
             btnAjustes.setOnClickListener(v ->
                     startActivity(new Intent(MainActivity.this, PantallaAjustes.class))
@@ -147,7 +140,15 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (isUsuarioLogueado()) {
-            iniciarChequeoReconexion();
+            SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+            boolean skipReconnectOnce = prefs.getBoolean("skip_reconnect_once", false);
+
+            if (skipReconnectOnce) {
+                prefs.edit().putBoolean("skip_reconnect_once", false).apply();
+                Log.d(TAG_RECONEXION, "Saltando chequeo de reconexión una vez.");
+            } else {
+                iniciarChequeoReconexion();
+            }
         }
     }
 
@@ -179,22 +180,24 @@ public class MainActivity extends AppCompatActivity {
                 String matchId = data.getString("matchId");
                 SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
 
-                // Comprobamos si teníamos una intención pendiente en el disco duro
                 boolean eraIntencionIA = prefs.getBoolean("intencion_ia_pendiente", false);
 
                 if (eraIntencionIA) {
-                    // Guardamos permanentemente que este MatchID es de IA
                     prefs.edit().putBoolean("is_ia_" + matchId, true).apply();
-                    // Limpiamos la intención para no afectar a futuras partidas
                     prefs.edit().putBoolean("intencion_ia_pendiente", false).apply();
                 }
 
                 boolean esIAFinal = prefs.getBoolean("is_ia_" + matchId, false);
 
+                mSocket.off("game:active_found");
+                mSocket.off("game:no_active");
+                mSocket.off(Socket.EVENT_CONNECT);
+
                 Intent intent = new Intent(MainActivity.this, PantallaJuego.class);
                 intent.putExtra("MATCH_ID", matchId);
                 intent.putExtra("ES_IA", esIAFinal);
                 startActivity(intent);
+                finish();
             } catch (Exception e) {
                 Log.e(TAG, "Error leyendo match:ready en MainActivity", e);
             }
@@ -227,14 +230,12 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject data = (JSONObject) args[0];
                 String matchId = data.getString("matchId");
 
-                // Comprobamos si justo la app se reinició milisegundos después de pedir IA
                 boolean eraIntencionIA = prefs.getBoolean("intencion_ia_pendiente", false);
                 if (eraIntencionIA) {
                     prefs.edit().putBoolean("is_ia_" + matchId, true).apply();
                     prefs.edit().putBoolean("intencion_ia_pendiente", false).apply();
                 }
 
-                // Recuperamos el valor real de la partida
                 boolean eraIA = prefs.getBoolean("is_ia_" + matchId, false);
 
                 Intent intent = new Intent(MainActivity.this, PantallaJuego.class);

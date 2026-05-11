@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -7,7 +8,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.content.Context;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -22,7 +22,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bombavafrontmovil.models.EquipWeaponRequest;
 import com.example.bombavafrontmovil.models.FleetConfigRequest;
-import com.example.bombavafrontmovil.models.Position;
 import com.example.bombavafrontmovil.models.ShipPosition;
 import com.example.bombavafrontmovil.models.UserShip;
 import com.example.bombavafrontmovil.models.Weapon;
@@ -56,7 +55,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
     private Map<String, Set<String>> armasOriginalesBackend = new HashMap<>();
 
-    // Estado de orientación de 4 puntos ("N", "E", "S", "W")
     private String orientacionActual = "N";
 
     @Override
@@ -73,7 +71,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         descargarArmasDisponibles();
 
         ImageView btnInfoLeyenda = findViewById(R.id.btn_info_leyenda);
-        if(btnInfoLeyenda != null) {
+        if (btnInfoLeyenda != null) {
             btnInfoLeyenda.setOnClickListener(v -> mostrarDialogoLeyenda());
         }
     }
@@ -112,15 +110,22 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             uiHelper.resaltarBarco(1);
         });
 
-        // Lógica de 4 direcciones
         if (btnRotar != null) {
             btnRotar.setText("ROTAR (N)");
             btnRotar.setOnClickListener(v -> {
                 switch (orientacionActual) {
-                    case "N": orientacionActual = "E"; break;
-                    case "E": orientacionActual = "S"; break;
-                    case "S": orientacionActual = "W"; break;
-                    case "W": orientacionActual = "N"; break;
+                    case "N":
+                        orientacionActual = "E";
+                        break;
+                    case "E":
+                        orientacionActual = "S";
+                        break;
+                    case "S":
+                        orientacionActual = "W";
+                        break;
+                    case "W":
+                        orientacionActual = "N";
+                        break;
                 }
                 btnRotar.setText("ROTAR (" + orientacionActual + ")");
             });
@@ -136,13 +141,15 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         findViewById(R.id.btn_torpedo).setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
 
         findViewById(R.id.btn_cancelar_arma).setOnClickListener(v -> cancelarSeleccionArma());
+
         if (btnGuardarArma != null) {
             btnGuardarArma.setOnClickListener(v -> guardarArmaBarco());
         }
+
         findViewById(R.id.btn_confirmar).setOnClickListener(v -> avanzarFase());
 
         View btnLimpiar = findViewById(R.id.btn_limpiar_todo);
-        if(btnLimpiar != null) {
+        if (btnLimpiar != null) {
             btnLimpiar.setOnClickListener(v -> limpiarTableroCompleto());
         }
     }
@@ -225,14 +232,17 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
-    // Método auxiliar para convertir "N", "E" etc a grados visuales
     private float obtenerGradosVisuales(String orientacion) {
         switch (orientacion) {
-            case "E": return 90f;   // Proa mirando a la derecha
-            case "S": return 180f;  // Proa mirando hacia abajo
-            case "W": return 270f;  // Proa mirando a la izquierda
+            case "E":
+                return 90f;
+            case "S":
+                return 180f;
+            case "W":
+                return 270f;
             case "N":
-            default: return 0f;     // Proa mirando hacia arriba
+            default:
+                return 0f;
         }
     }
 
@@ -247,12 +257,10 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         if (tamanoSeleccionado == 0) return;
 
         boolean esHorizontal = orientacionActual.equals("E") || orientacionActual.equals("W");
-
         int pAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, esHorizontal);
 
         if (gestorLogica.validarColocacion(pAjustada, tamanoSeleccionado, esHorizontal) == 0) {
-            gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, esHorizontal);
-
+            gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, esHorizontal, orientacionActual);
             dibujarBarcoEnVista(pAjustada, tamanoSeleccionado, orientacionActual, esHorizontal);
 
             tamanoSeleccionado = 0;
@@ -291,7 +299,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         for (int i = 0; i < tam; i++) {
             CeldaVisual c = celdasTablero.get(hor ? (pos + i) : (pos + (i * 15)));
-
             c.rotacion = grados;
 
             if (tam == 1) {
@@ -463,7 +470,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                 .enqueue(new Callback<List<Weapon>>() {
                     @Override
                     public void onResponse(Call<List<Weapon>> call, Response<List<Weapon>> response) {
-                        // Aquí se pueden cargar armas extra si las hay
                     }
 
                     @Override
@@ -803,24 +809,13 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
             if (inicio != -1) {
                 int tam = gestorLogica.getTamanoBarco(id);
-                boolean esHorizontal = true;
-
-                // TRUCO: Deducimos la orientación comprobando si la casilla de la derecha tiene el mismo barco
-                if (tam > 1) {
-                    // Si sumamos 1 (derecha) y no nos salimos del tablero, y es del mismo barco -> Horizontal
-                    if ((inicio + 1) < 225 && gestorLogica.getIdBarcoEn(inicio + 1) == id) {
-                        esHorizontal = true;
-                    } else {
-                        esHorizontal = false; // Si no, va hacia abajo (Vertical)
-                    }
-                }
-
-                // Convertimos el boolean a las letras de orientación para poder pintarlo
-                String orientacionDetectada = esHorizontal ? "E" : "N";
+                String orientacionDetectada = gestorLogica.getOrientacionBarco(id);
+                boolean esHorizontal = orientacionDetectada.equals("E") || orientacionDetectada.equals("W");
 
                 dibujarBarcoEnVista(inicio, tam, orientacionDetectada, esHorizontal);
             }
         }
+
         adaptador.notifyDataSetChanged();
     }
 }
