@@ -116,11 +116,13 @@
             <Button
                 android:id="@+id/btn_rotate"
                 style="@style/BotonMadera"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textAllCaps="true"
-                android:text="ROTAR" />
+                android:layout_marginStart="8dp"
+                android:text="ROTAR (N)"  android:textSize="12sp"
+                app:layout_constraintBottom_toBottomOf="@+id/btn_coleccion_barcos"
+                app:layout_constraintStart_toEndOf="@+id/btn_coleccion_barcos"
+                app:layout_constraintTop_toTopOf="@+id/btn_coleccion_barcos" />
         </LinearLayout>
 
         <LinearLayout

@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.socket.client.Socket;
+import io.socket.emitter.Emitter;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -48,6 +50,10 @@ public class PantallaJuego extends AppCompatActivity {
     private boolean diccionarioListo = false;
     private Object[] mensajeRetrasadoStartInfo = null;
     private boolean esPartidaIA;
+    private boolean startInfoProcesado = false;
+
+    private Emitter.Listener matchStartInfoListener;
+    private Emitter.Listener matchReadyListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,13 +64,23 @@ public class PantallaJuego extends AppCompatActivity {
         matchId = intent.getStringExtra("MATCH_ID");
         codigoSala = intent.getStringExtra("CODIGO_SALA");
         esHost = intent.getBooleanExtra("ES_HOST", false);
-        esPartidaIA = intent.getBooleanExtra("ES_IA", false);
-
-        Log.e("DEBUG_IA_TRACE", "[6] PantallaJuego arranca. Intent me dice que esPartidaIA es: " + esPartidaIA);
 
         SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
         token = prefs.getString("token", "");
         myUserId = prefs.getString("userId", "");
+
+        boolean esIAIntent = intent.getBooleanExtra("ES_IA", false);
+        boolean esIAPrefs = matchId != null && prefs.getBoolean("is_ia_" + matchId, false);
+        esPartidaIA = esIAIntent || esIAPrefs;
+
+        if (esPartidaIA && matchId != null && !matchId.isEmpty()) {
+            prefs.edit().putBoolean("is_ia_" + matchId, true).apply();
+        }
+
+        Log.e("DEBUG_IA_TRACE", "[6] PantallaJuego arranca. matchId=" + matchId +
+                " | ES_IA intent=" + esIAIntent +
+                " | ES_IA prefs=" + esIAPrefs +
+                " | final=" + esPartidaIA);
 
         Log.d(TAG, "Iniciando PantallaJuego. matchId=" + matchId + " | userId=" + myUserId + " | esHost=" + esHost);
 
@@ -80,26 +96,28 @@ public class PantallaJuego extends AppCompatActivity {
         controller = new PantallaJuegoController(this, ui, board);
 
         configurarBotonesBase();
+        configurarBotonAtras();
 
         mSocket = SocketManager.getInstance().getSocket();
 
-        if (GameStartCache.pendingStartInfo != null) {
+        Object infoAtrapada = SocketManager.getInstance().popCachedStartInfo();
+
+        if (infoAtrapada != null) {
+            mensajeRetrasadoStartInfo = new Object[]{infoAtrapada};
+            Log.e("DEBUG_CARRERA", "ÉXITO: match:startInfo recuperado desde SocketManager.");
+        } else if (GameStartCache.pendingStartInfo != null) {
             mensajeRetrasadoStartInfo = new Object[]{GameStartCache.pendingStartInfo};
             GameStartCache.pendingStartInfo = null;
-            Log.d(TAG, "match:startInfo recuperado desde caché");
+            Log.e("DEBUG_CARRERA", "ÉXITO: match:startInfo recuperado desde GameStartCache.");
         }
 
         if (mSocket != null) {
-            mSocket.on("match:startInfo", args -> runOnUiThread(() -> {
-                if (gestor == null) {
-                    mensajeRetrasadoStartInfo = args;
-                    Log.d(TAG, "match:startInfo recibido antes de crear GestorJuego, se guarda temporalmente");
-                } else {
-                    Log.d(TAG, "match:startInfo ignorado en PantallaJuego porque ya lo gestiona GestorJuegoSocketBinder");
-                }
-            }));
+            matchStartInfoListener = args -> runOnUiThread(() -> {
+                Log.e("DEBUG_CARRERA", "match:startInfo recibido en PantallaJuego.");
+                manejarStartInfoEntrante(args);
+            });
 
-            mSocket.on("match:ready", args -> runOnUiThread(() -> {
+            matchReadyListener = args -> runOnUiThread(() -> {
                 try {
                     JSONObject data = (JSONObject) args[0];
                     matchId = data.getString("matchId");
@@ -110,7 +128,10 @@ public class PantallaJuego extends AppCompatActivity {
                 } catch (Exception e) {
                     Log.e(TAG, "Fallo al leer match:ready", e);
                 }
-            }));
+            });
+
+            mSocket.on("match:startInfo", matchStartInfoListener);
+            mSocket.on("match:ready", matchReadyListener);
         } else {
             Log.e(TAG, "Socket nulo en PantallaJuego");
         }
@@ -125,7 +146,9 @@ public class PantallaJuego extends AppCompatActivity {
                 JSONObject payload = new JSONObject();
                 payload.put("matchId", matchId);
                 mSocket.emit("game:join", payload);
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         if (esHost && (matchId == null || matchId.isEmpty())) {
@@ -136,10 +159,47 @@ public class PantallaJuego extends AppCompatActivity {
         intentarArrancarPartida();
     }
 
+    private void configurarBotonAtras() {
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (esPartidaIAActual()) {
+                    mostrarDialogoMiMenuPausa();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                }
+            }
+        });
+    }
+
+    private boolean esPartidaIAActual() {
+        SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+        boolean porPrefs = matchId != null && prefs.getBoolean("is_ia_" + matchId, false);
+        boolean finalIA = esPartidaIA || porPrefs;
+        esPartidaIA = finalIA;
+        return finalIA;
+    }
+
+    private void manejarStartInfoEntrante(Object[] args) {
+        if (args == null || args.length == 0) return;
+        if (startInfoProcesado) return;
+
+        if (gestor == null || !diccionarioListo) {
+            mensajeRetrasadoStartInfo = args;
+            Log.e("DEBUG_CARRERA", "match:startInfo guardado en espera. gestorListo=" + (gestor != null) + " | diccionarioListo=" + diccionarioListo);
+            return;
+        }
+
+        startInfoProcesado = true;
+        Log.e("DEBUG_CARRERA", "Procesando match:startInfo ahora que todo está listo.");
+        gestor.procesarStartInfo(args);
+        mensajeRetrasadoStartInfo = null;
+    }
+
     private void configurarBotonesBase() {
         ui.btnPasarTurno.setOnClickListener(v -> {
             if (gestor != null) {
-                // Limpiamos la selección visual antes de pasar turno
                 if (controller != null) {
                     controller.deseleccionarBarco();
                 }
@@ -205,11 +265,6 @@ public class PantallaJuego extends AppCompatActivity {
                             if (ui != null) {
                                 ui.actualizarTurnoDisplay(gestor.numeroTurno, gestor.esMiTurno);
                             }
-                            board.repaintFull(
-                                    gestor,
-                                    controller.getIdBarcoSeleccionado(),
-                                    controller.getPosicionesRangoActual()
-                            );
 
                             board.repaintFull(
                                     gestor,
@@ -217,29 +272,20 @@ public class PantallaJuego extends AppCompatActivity {
                                     controller.getPosicionesRangoActual()
                             );
 
-                            // 1. Buscamos el tablero
                             androidx.recyclerview.widget.RecyclerView rv = findViewById(R.id.rvBoard);
-
-                            // 2. rv.post() asegura que el código de dentro SOLO se ejecute
-                            // CUANDO Android haya terminado de calcular y colocar las 225 casillas
-                            rv.post(() -> {
-                                // 3. Le damos un pequeñísimo respiro a la gráfica (200ms) para
-                                // cargar los colores de la niebla y los barcos por detrás.
-                                rv.postDelayed(() -> {
-                                    android.view.View telon = findViewById(R.id.layCargaTablero);
-                                    if (telon != null && telon.getVisibility() == android.view.View.VISIBLE) {
-                                        // Animamos la desaparición
-                                        telon.animate()
-                                                .alpha(0f)
-                                                .setDuration(300)
-                                                .withEndAction(() -> {
-                                                    telon.setVisibility(android.view.View.GONE);
-                                                    telon.setAlpha(1f); // Lo restauramos por si hay reconexiones
-                                                })
-                                                .start();
-                                    }
-                                }, 200);
-                            });
+                            rv.post(() -> rv.postDelayed(() -> {
+                                android.view.View telon = findViewById(R.id.layCargaTablero);
+                                if (telon != null && telon.getVisibility() == android.view.View.VISIBLE) {
+                                    telon.animate()
+                                            .alpha(0f)
+                                            .setDuration(300)
+                                            .withEndAction(() -> {
+                                                telon.setVisibility(android.view.View.GONE);
+                                                telon.setAlpha(1f);
+                                            })
+                                            .start();
+                                }
+                            }, 200));
                         });
                     }
 
@@ -381,9 +427,7 @@ public class PantallaJuego extends AppCompatActivity {
 
                     @Override
                     public void onPausaSolicitada(String oponente) {
-                        runOnUiThread(() -> {
-                            mostrarDialogoOponentePidePausa(oponente);
-                        });
+                        runOnUiThread(() -> mostrarDialogoOponentePidePausa(oponente));
                     }
 
                     @Override
@@ -406,9 +450,7 @@ public class PantallaJuego extends AppCompatActivity {
 
                     @Override
                     public void onPausaRechazada(String mensaje) {
-                        runOnUiThread(() -> {
-                            mostrarDialogoPausaRechazada();
-                        });
+                        runOnUiThread(PantallaJuego.this::mostrarDialogoPausaRechazada);
                     }
 
                     @Override
@@ -440,9 +482,8 @@ public class PantallaJuego extends AppCompatActivity {
         controller.configurarBotones();
 
         if (mensajeRetrasadoStartInfo != null) {
-            Log.d(TAG, "Inyectando match:startInfo retrasado al GestorJuego");
-            gestor.procesarStartInfo(mensajeRetrasadoStartInfo);
-            mensajeRetrasadoStartInfo = null;
+            Log.d(TAG, "Intentando procesar match:startInfo retrasado");
+            manejarStartInfoEntrante(mensajeRetrasadoStartInfo);
         }
     }
 
@@ -465,21 +506,18 @@ public class PantallaJuego extends AppCompatActivity {
         if (dialogoEspera != null && dialogoEspera.isShowing()) dialogoEspera.dismiss();
 
         if (mSocket != null) {
-            mSocket.off("match:startInfo");
-            mSocket.off("match:ready");
+            if (matchStartInfoListener != null) {
+                mSocket.off("match:startInfo", matchStartInfoListener);
+            }
+            if (matchReadyListener != null) {
+                mSocket.off("match:ready", matchReadyListener);
+            }
         }
 
         if (gestor != null) {
             gestor.liberarListeners();
         }
-        if (esPartidaIA) {
-
-            SocketManager.getInstance().desconectar();
-
-        }
     }
-
-    // ------------------ POPUPS PERSONALIZADOS ------------------
 
     private void mostrarDialogoFinPartida(String ganadorId, String razon) {
         android.app.Dialog dialog = new android.app.Dialog(this);
@@ -526,6 +564,19 @@ public class PantallaJuego extends AppCompatActivity {
 
         btnAccion.setOnClickListener(v -> {
             dialog.dismiss();
+
+            SharedPreferences prefs = getSharedPreferences("BOMBA_VA", MODE_PRIVATE);
+
+            if (esPartidaIAActual()) {
+                prefs.edit().putBoolean("skip_reconnect_once", true).apply();
+                if (matchId != null) {
+                    prefs.edit().remove("is_ia_" + matchId).apply();
+                }
+                prefs.edit().putBoolean("intencion_ia_pendiente", false).apply();
+
+                SocketManager.getInstance().desconectar();
+            }
+
             Intent intent = new Intent(PantallaJuego.this, MainActivity.class);
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
@@ -568,18 +619,21 @@ public class PantallaJuego extends AppCompatActivity {
 
         btnRechazar.setOnClickListener(v -> {
             dialog.dismiss();
-            if(gestor != null) gestor.responderPausa(false);
+            if (gestor != null) gestor.responderPausa(false);
         });
 
         btnAceptar.setOnClickListener(v -> {
             dialog.dismiss();
-            if(gestor != null) gestor.responderPausa(true);
+            if (gestor != null) gestor.responderPausa(true);
         });
 
         dialog.show();
     }
 
     private void mostrarDialogoMiMenuPausa() {
+        boolean partidaIAActual = esPartidaIAActual();
+        Log.d("DEBUG_IA_TRACE", "mostrarDialogoMiMenuPausa -> esPartidaIA=" + partidaIAActual + " | matchId=" + matchId);
+
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dialog_personalizado);
@@ -607,9 +661,9 @@ public class PantallaJuego extends AppCompatActivity {
         btnRendirse.setVisibility(android.view.View.VISIBLE);
         btnRendirse.setText("RENDIRSE");
 
-        if (esPartidaIA) {
+        if (partidaIAActual) {
             tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nAl estar en una simulación de entrenamiento táctico contra la IA, no se permiten treguas. Solo puedes rendirte.");
-            btnSolicitar.setVisibility(android.view.View.GONE); // Ocultamos el botón
+            btnSolicitar.setVisibility(android.view.View.GONE);
         } else {
             tvMensaje.setText("¿Qué orden deseas ejecutar, comandante?\n\nPuedes solicitar una tregua al rival para guardar la partida, o izar la bandera blanca y rendirte.");
             btnSolicitar.setVisibility(android.view.View.VISIBLE);
@@ -618,12 +672,12 @@ public class PantallaJuego extends AppCompatActivity {
 
         btnRendirse.setOnClickListener(v -> {
             dialog.dismiss();
-            if(gestor != null) gestor.rendirse();
+            if (gestor != null) gestor.rendirse();
         });
 
         btnSolicitar.setOnClickListener(v -> {
             dialog.dismiss();
-            if(gestor != null) {
+            if (gestor != null) {
                 mostrarDialogoEsperandoPausa();
                 gestor.solicitarPausa();
             }

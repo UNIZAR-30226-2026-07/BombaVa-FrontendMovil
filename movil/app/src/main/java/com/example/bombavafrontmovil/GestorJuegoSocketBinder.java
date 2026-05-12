@@ -2,7 +2,6 @@ package com.example.bombavafrontmovil;
 
 import android.util.Log;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
@@ -21,16 +20,6 @@ public class GestorJuegoSocketBinder {
         liberarListeners();
 
         game.socket.on("game:joined", args -> Log.d(TAG, "¡SERVER CONFIRMA! game:joined recibido."));
-
-        game.socket.on("match:startInfo", args -> {
-            try {
-                JSONObject data = (JSONObject) args[0];
-                Log.d("DEBUG_ORIENTACION", "📥 [SOCKET] match:startInfo recibido COMPLETO: " + data.toString());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            game.procesarStartInfo(args);
-        });
 
         game.socket.on("match:turn_changed", args -> {
             Log.d(TAG, "¡SERVER RESPONDE! match:turn_changed -> " + args[0]);
@@ -53,10 +42,6 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null && esMiAccion) {
                     game.listener.onRecursosActualizados(fuelRes, -1);
                 }
-
-                // IMPORTANTE:
-                // No actualizamos posiciones aquí.
-                // La fuente de verdad es match:vision_update.
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:moved", e);
             }
@@ -74,10 +59,6 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null && esMiAccion) {
                     game.listener.onRecursosActualizados(fuelRes, -1);
                 }
-
-                // IMPORTANTE:
-                // No actualizamos orientación aquí.
-                // La fuente de verdad es match:vision_update.
             } catch (Exception e) {
                 Log.e(TAG, "Fallo en ship:rotated", e);
             }
@@ -109,10 +90,9 @@ public class GestorJuegoSocketBinder {
                 Log.w("DEBUG_TORPEDO", "📩 [UPDATED] Recibido del server: " + data.toString());
 
                 List<BarcoLogico> nuevaFlota = new ArrayList<>();
-                JSONArray myFleet = data.optJSONArray("myFleet");
-                JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
+                org.json.JSONArray myFleet = data.optJSONArray("myFleet");
+                org.json.JSONArray enemyFleet = data.optJSONArray("visibleEnemyFleet");
 
-                // Recalcular SOLO perspectiva visual
                 if (myFleet != null) {
                     game.recalcularPerspectiva(myFleet, enemyFleet);
                 }
@@ -171,8 +151,8 @@ public class GestorJuegoSocketBinder {
                 game.flota.clear();
                 game.flota.addAll(nuevaFlota);
 
-                JSONArray proyPropios = data.optJSONArray("proyPropios");
-                JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
+                org.json.JSONArray proyPropios = data.optJSONArray("proyPropios");
+                org.json.JSONArray proyEnemigos = data.optJSONArray("proyEnemigos");
                 game.sincronizarProyectilesVision(proyPropios, proyEnemigos);
 
                 if (game.listener != null) {
@@ -265,7 +245,6 @@ public class GestorJuegoSocketBinder {
             }
         });
 
-        // 1. Alguien pide pausa
         game.socket.on("match:pause_requested", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -273,10 +252,11 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onPausaSolicitada(oponente);
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
 
-        // 2. Confirmación de pausa (Estado WAITING)
         game.socket.on("match:paused", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -284,10 +264,11 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onPartidaPausadaConfirmada(mensaje);
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
 
-        // 3. El oponente dijo que NO
         game.socket.on("match:pause_rejected", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -295,10 +276,11 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onPausaRechazada(mensaje);
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
 
-        // 4. DESCONEXIÓN DEL RIVAL (Capa de bloqueo)
         game.socket.on("match:player_disconnected", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -306,10 +288,11 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onOponenteConexionCambio(false, mensaje);
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
 
-        // 5. RECONEXIÓN DEL RIVAL (Quitar bloqueo)
         game.socket.on("match:player_reconnected", args -> {
             try {
                 JSONObject data = (JSONObject) args[0];
@@ -317,7 +300,9 @@ public class GestorJuegoSocketBinder {
                 if (game.listener != null) {
                     game.listener.onOponenteConexionCambio(true, mensaje);
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         });
     }
 

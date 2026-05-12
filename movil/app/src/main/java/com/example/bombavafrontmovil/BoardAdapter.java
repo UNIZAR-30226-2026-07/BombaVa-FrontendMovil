@@ -60,9 +60,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
     public void onBindViewHolder(@NonNull ViewHolder vh, int pos) {
         Casilla c = tableroDatos.get(pos);
 
-        // =========================
         // RESET GENERAL
-        // =========================
         vh.waterView.setBackgroundResource(R.drawable.fondo_celda);
         if (vh.waterView.getBackground() != null) {
             vh.waterView.getBackground().clearColorFilter();
@@ -83,28 +81,24 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
         vh.imgMina.clearColorFilter();
         vh.imgMina.setRotation(0f);
 
-        // =========================
-        // FONDO: SOLO AGUA / NIEBLA / RANGO
-        // =========================
-        if (!c.isVisible()) {
-            if (vh.waterView.getBackground() != null) {
-                vh.waterView.getBackground().setColorFilter(
-                        Color.argb(210, 10, 20, 35),
-                        PorterDuff.Mode.SRC_ATOP
-                );
-            }
-        } else if (c.isEnRangoAtaque()) {
+        // FONDO: PRIORIDAD RANGO > NIEBLA
+        if (c.isEnRangoAtaque()) {
             if (vh.waterView.getBackground() != null) {
                 vh.waterView.getBackground().setColorFilter(
                         Color.argb(70, 255, 255, 180),
                         PorterDuff.Mode.SRC_ATOP
                 );
             }
+        } else if (!c.isVisible()) {
+            if (vh.waterView.getBackground() != null) {
+                vh.waterView.getBackground().setColorFilter(
+                        Color.argb(210, 10, 20, 35),
+                        PorterDuff.Mode.SRC_ATOP
+                );
+            }
         }
 
-        // =========================
-        // BARCOS: SOLO PNG DEL BARCO
-        // =========================
+        // BARCOS
         if (c.isTieneBarco() && c.isVisible() && c.getVidaActual() > 0) {
             vh.imgBarco.setVisibility(View.VISIBLE);
 
@@ -157,15 +151,12 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
             vh.imgBarco.setRotation(rot);
 
-            // Amarillo suave SOLO al PNG del barco seleccionado
             if (c.isSeleccionado()) {
                 vh.imgBarco.setColorFilter(
                         Color.argb(110, 255, 235, 59),
                         PorterDuff.Mode.SRC_ATOP
                 );
-            }
-            // Rojo suave SOLO al PNG del barco enemigo
-            else if (!c.isEsAliado()) {
+            } else if (!c.isEsAliado()) {
                 vh.imgBarco.setColorFilter(
                         Color.argb(160, 255, 0, 0),
                         PorterDuff.Mode.SRC_ATOP
@@ -175,9 +166,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
-        // =========================
         // MINAS
-        // =========================
         if (c.hasMina() && c.isVisible()) {
             vh.imgMina.setVisibility(View.VISIBLE);
             vh.imgMina.setImageResource(R.drawable.ic_mina);
@@ -192,9 +181,7 @@ public class BoardAdapter extends RecyclerView.Adapter<BoardAdapter.ViewHolder> 
             }
         }
 
-        // =========================
         // TORPEDOS
-        // =========================
         if (c.hasTorpedo() && c.isVisible()) {
             vh.imgTorpedo.setVisibility(View.VISIBLE);
             vh.imgTorpedo.setImageResource(R.drawable.ic_torpedo);

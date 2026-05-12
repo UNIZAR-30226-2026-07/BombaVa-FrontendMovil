@@ -1,5 +1,6 @@
 package com.example.bombavafrontmovil;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -7,7 +8,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
-import android.content.Context;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -22,7 +22,6 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.bombavafrontmovil.models.EquipWeaponRequest;
 import com.example.bombavafrontmovil.models.FleetConfigRequest;
-import com.example.bombavafrontmovil.models.Position;
 import com.example.bombavafrontmovil.models.ShipPosition;
 import com.example.bombavafrontmovil.models.UserShip;
 import com.example.bombavafrontmovil.models.Weapon;
@@ -48,14 +47,15 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
     private List<CeldaVisual> celdasTablero;
     private List<UserShip> inventarioBarcos = new ArrayList<>();
 
-    private boolean enHorizontal = true;
     private int tamanoSeleccionado = 0, faseActual = 1, idBarcoSeleccionadoParaArma = 0;
     private String armaTemporal = "";
 
     private LinearLayout layoutControlesColocacion, layoutControlesArmas;
-    private Button btnRotar, btnGuardarArma;
+    private Button btnRotar, btnGuardarArma, btnLimpiarTodo;
 
     private Map<String, Set<String>> armasOriginalesBackend = new HashMap<>();
+
+    private String orientacionActual = "N";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +71,9 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         descargarArmasDisponibles();
 
         ImageView btnInfoLeyenda = findViewById(R.id.btn_info_leyenda);
-        btnInfoLeyenda.setOnClickListener(v -> mostrarDialogoLeyenda());
+        if (btnInfoLeyenda != null) {
+            btnInfoLeyenda.setOnClickListener(v -> mostrarDialogoLeyenda());
+        }
     }
 
     private void vincularVistasYListeners() {
@@ -79,6 +81,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         layoutControlesArmas = findViewById(R.id.layout_controles_armas);
         btnRotar = findViewById(R.id.btn_rotate);
         btnGuardarArma = findViewById(R.id.btn_guardar_arma);
+        btnLimpiarTodo = findViewById(R.id.btn_limpiar_todo);
 
         Button btnShip5 = findViewById(R.id.btn_ship_5x1);
         Button btnShip3 = findViewById(R.id.btn_ship_3x1);
@@ -108,10 +111,26 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
             uiHelper.resaltarBarco(1);
         });
 
-        btnRotar.setOnClickListener(v -> {
-            enHorizontal = !enHorizontal;
-            btnRotar.setText(enHorizontal ? "Rotar (H)" : "Rotar (V)");
-        });
+        if (btnRotar != null) {
+            btnRotar.setText("ROTAR (N)");
+            btnRotar.setOnClickListener(v -> {
+                switch (orientacionActual) {
+                    case "N":
+                        orientacionActual = "E";
+                        break;
+                    case "E":
+                        orientacionActual = "S";
+                        break;
+                    case "S":
+                        orientacionActual = "W";
+                        break;
+                    case "W":
+                        orientacionActual = "N";
+                        break;
+                }
+                btnRotar.setText("ROTAR (" + orientacionActual + ")");
+            });
+        }
 
         View btnColeccion = findViewById(R.id.btn_coleccion_barcos);
         if (btnColeccion != null) {
@@ -123,9 +142,16 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         findViewById(R.id.btn_torpedo).setOnClickListener(v -> seleccionarArmaTemporal("Torpedo"));
 
         findViewById(R.id.btn_cancelar_arma).setOnClickListener(v -> cancelarSeleccionArma());
-        btnGuardarArma.setOnClickListener(v -> guardarArmaBarco());
+
+        if (btnGuardarArma != null) {
+            btnGuardarArma.setOnClickListener(v -> guardarArmaBarco());
+        }
+
         findViewById(R.id.btn_confirmar).setOnClickListener(v -> avanzarFase());
-        findViewById(R.id.btn_limpiar_todo).setOnClickListener(v -> limpiarTableroCompleto());
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setOnClickListener(v -> limpiarTableroCompleto());
+        }
     }
 
     private void configurarTablero() {
@@ -206,6 +232,20 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
+    private float obtenerGradosVisuales(String orientacion) {
+        switch (orientacion) {
+            case "E":
+                return 90f;
+            case "S":
+                return 180f;
+            case "W":
+                return 270f;
+            case "N":
+            default:
+                return 0f;
+        }
+    }
+
     private void intentarColocarOQuitarBarco(int pos, int idExistente) {
         if (idExistente != 0) {
             if (tamanoSeleccionado == 0) {
@@ -216,11 +256,12 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         if (tamanoSeleccionado == 0) return;
 
-        int pAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, enHorizontal);
+        boolean esHorizontal = orientacionActual.equals("E") || orientacionActual.equals("W");
+        int pAjustada = gestorLogica.ajustarPosicion(pos, tamanoSeleccionado, esHorizontal);
 
-        if (gestorLogica.validarColocacion(pAjustada, tamanoSeleccionado, enHorizontal) == 0) {
-            gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, enHorizontal);
-            dibujarBarcoEnVista(pAjustada, tamanoSeleccionado, enHorizontal);
+        if (gestorLogica.validarColocacion(pAjustada, tamanoSeleccionado, esHorizontal) == 0) {
+            gestorLogica.colocarBarco(pAjustada, tamanoSeleccionado, esHorizontal, orientacionActual);
+            dibujarBarcoEnVista(pAjustada, tamanoSeleccionado, orientacionActual, esHorizontal);
 
             tamanoSeleccionado = 0;
             uiHelper.resaltarBarco(0);
@@ -253,17 +294,27 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
-    private void dibujarBarcoEnVista(int pos, int tam, boolean hor) {
+    private void dibujarBarcoEnVista(int pos, int tam, String orientacion, boolean hor) {
+        float grados = obtenerGradosVisuales(orientacion);
+
         for (int i = 0; i < tam; i++) {
             CeldaVisual c = celdasTablero.get(hor ? (pos + i) : (pos + (i * 15)));
-            c.rotacion = hor ? 90f : 0f;
+            c.rotacion = grados;
 
             if (tam == 1) {
                 c.idImagenBarco = R.drawable.barco_medio;
             } else if (i == 0) {
-                c.idImagenBarco = hor ? R.drawable.barco_popa : R.drawable.barco_proa;
+                if (orientacion.equals("S") || orientacion.equals("E")) {
+                    c.idImagenBarco = R.drawable.barco_popa;
+                } else {
+                    c.idImagenBarco = R.drawable.barco_proa;
+                }
             } else if (i == tam - 1) {
-                c.idImagenBarco = hor ? R.drawable.barco_proa : R.drawable.barco_popa;
+                if (orientacion.equals("S") || orientacion.equals("E")) {
+                    c.idImagenBarco = R.drawable.barco_proa;
+                } else {
+                    c.idImagenBarco = R.drawable.barco_popa;
+                }
             } else {
                 c.idImagenBarco = R.drawable.barco_medio;
             }
@@ -320,6 +371,11 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         layoutControlesArmas.setVisibility(View.VISIBLE);
         layoutControlesColocacion.setVisibility(View.GONE);
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setVisibility(View.GONE);
+        }
+
         adaptador.notifyDataSetChanged();
     }
 
@@ -381,6 +437,25 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
     private void cancelarSeleccionArma() {
         layoutControlesArmas.setVisibility(View.GONE);
+        layoutControlesColocacion.setVisibility(View.GONE);
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setVisibility(View.GONE);
+        }
+
+        TextView tvTitle = findViewById(R.id.tv_title);
+        if (tvTitle != null && faseActual == 2) {
+            tvTitle.setText("Elige un barco para configurar armas");
+        }
+
+        armaTemporal = "";
+        idBarcoSeleccionadoParaArma = 0;
+
+        if (btnGuardarArma != null) {
+            btnGuardarArma.setText("SELECCIONA");
+            btnGuardarArma.setEnabled(false);
+        }
+
         for (CeldaVisual c : celdasTablero) {
             c.seleccionadaParaArma = false;
         }
@@ -394,13 +469,64 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                     && gestorLogica.estaBarcoColocado(1)) {
                 faseActual = 2;
                 layoutControlesColocacion.setVisibility(View.GONE);
-                ((TextView) findViewById(R.id.tv_title)).setText("Modifica tus Armas");
+
+                if (btnLimpiarTodo != null) {
+                    btnLimpiarTodo.setVisibility(View.GONE);
+                }
+
+                TextView tvTitle = findViewById(R.id.tv_title);
+                if (tvTitle != null) {
+                    tvTitle.setText("Elige un barco para configurar armas");
+                }
             } else {
                 AppNotifier.show(this, "Faltan barcos por colocar", AppNotifier.Type.ERROR);
             }
         } else {
             enviarFlotaAlServidor();
         }
+    }
+
+    private void limpiarTableroCompleto() {
+        for (int i = 0; i < 225; i++) {
+            celdasTablero.get(i).idImagenBarco = 0;
+            celdasTablero.get(i).seleccionadaParaArma = false;
+        }
+
+        gestorLogica.resetearTablero();
+
+        faseActual = 1;
+        armaTemporal = "";
+        idBarcoSeleccionadoParaArma = 0;
+        tamanoSeleccionado = 0;
+
+        layoutControlesArmas.setVisibility(View.GONE);
+        layoutControlesColocacion.setVisibility(View.VISIBLE);
+
+        if (btnLimpiarTodo != null) {
+            btnLimpiarTodo.setVisibility(View.VISIBLE);
+        }
+
+        TextView tvTitle = findViewById(R.id.tv_title);
+        if (tvTitle != null) {
+            tvTitle.setText("Configura tu Flota");
+        }
+
+        uiHelper.ocultarBarcosColocados(false, false, false);
+        adaptador.notifyDataSetChanged();
+    }
+
+    private void descargarArmasDisponibles() {
+        String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
+        ApiClient.getApiService().obtenerArmasDisponibles("Bearer " + token)
+                .enqueue(new Callback<List<Weapon>>() {
+                    @Override
+                    public void onResponse(Call<List<Weapon>> call, Response<List<Weapon>> response) {
+                    }
+
+                    @Override
+                    public void onFailure(Call<List<Weapon>> call, Throwable t) {
+                    }
+                });
     }
 
     private void descargarInventarioDelCuartelGeneral() {
@@ -427,9 +553,7 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
                                 if (b.getWeaponTemplates() != null) {
                                     for (UserShip.WeaponItem item : b.getWeaponTemplates()) {
-                                        if (item.slug != null) {
-                                            armasDetectadas.add(item.slug);
-                                        }
+                                        if (item.slug != null) armasDetectadas.add(item.slug);
                                     }
                                 }
 
@@ -453,8 +577,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                                         if (item.slug != null) armasDetectadas.add(item.slug);
                                     }
                                 }
-
-                                Log.d("FLOTA_DEBUG", "Barco " + b.getId() + " | Armas finales leídas: " + armasDetectadas);
 
                                 if (!armasDetectadas.isEmpty()) {
                                     if (!armasOriginalesBackend.containsKey(b.getId())) {
@@ -559,11 +681,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
 
         List<ShipPosition> posiciones = gestorLogica.obtenerPosicionesParaBackend(
                 realIdBarco5, realIdBarco3, realIdBarco1
-        );
-
-        android.util.Log.d(
-                "DEBUG_ORIENTACION",
-                "🚀 [PRE-ENVÍO] Posiciones generadas: " + new com.google.gson.Gson().toJson(posiciones)
         );
 
         if (posiciones.isEmpty()) {
@@ -698,66 +815,6 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
         }
     }
 
-    private void actualizarTodaLaVistaTablero() {
-        for (int i = 0; i < 225; i++) {
-            celdasTablero.get(i).idImagenBarco = 0;
-        }
-
-        for (int id = 1; id < gestorLogica.getIdBarcoActual(); id++) {
-            int inicio = -1;
-            for (int p = 0; p < 225; p++) {
-                if (gestorLogica.getIdBarcoEn(p) == id) {
-                    inicio = p;
-                    break;
-                }
-            }
-
-            if (inicio != -1) {
-                int tam = gestorLogica.getTamanoBarco(id);
-                boolean hor = (inicio + 1 < 225 && gestorLogica.getIdBarcoEn(inicio + 1) == id);
-                dibujarBarcoEnVista(inicio, tam, hor);
-            }
-        }
-
-        uiHelper.ocultarBarcosColocados(
-                gestorLogica.estaBarcoColocado(5),
-                gestorLogica.estaBarcoColocado(3),
-                gestorLogica.estaBarcoColocado(1)
-        );
-
-        adaptador.notifyDataSetChanged();
-    }
-
-    private void limpiarTableroCompleto() {
-        gestorLogica.resetearTablero();
-
-        for (CeldaVisual c : celdasTablero) {
-            c.idImagenBarco = 0;
-            c.seleccionadaParaArma = false;
-        }
-
-        faseActual = 1;
-        uiHelper.ocultarBarcosColocados(false, false, false);
-        ((TextView) findViewById(R.id.tv_title)).setText("Configura tu Flota");
-        layoutControlesColocacion.setVisibility(View.VISIBLE);
-        layoutControlesArmas.setVisibility(View.GONE);
-        adaptador.notifyDataSetChanged();
-    }
-
-    private void descargarArmasDisponibles() {
-        String token = getSharedPreferences("BOMBA_VA", MODE_PRIVATE).getString("token", "");
-        ApiClient.getApiService().obtenerArmasDisponibles("Bearer " + token)
-                .enqueue(new Callback<List<Weapon>>() {
-                    @Override
-                    public void onResponse(Call<List<Weapon>> call, Response<List<Weapon>> response) {
-                    }
-
-                    @Override
-                    public void onFailure(Call<List<Weapon>> call, Throwable t) {
-                    }
-                });
-    }
-
     private void sincronizarArmasConUI() {
         for (int i = 1; i < gestorLogica.getIdBarcoActual(); i++) {
             int t = gestorLogica.getTamanoBarco(i);
@@ -785,5 +842,31 @@ public class ConfigurarFlotaActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    private void actualizarTodaLaVistaTablero() {
+        for (int i = 0; i < 225; i++) {
+            celdasTablero.get(i).idImagenBarco = 0;
+        }
+
+        for (int id = 1; id < gestorLogica.getIdBarcoActual(); id++) {
+            int inicio = -1;
+            for (int p = 0; p < 225; p++) {
+                if (gestorLogica.getIdBarcoEn(p) == id) {
+                    inicio = p;
+                    break;
+                }
+            }
+
+            if (inicio != -1) {
+                int tam = gestorLogica.getTamanoBarco(id);
+                String orientacionDetectada = gestorLogica.getOrientacionBarco(id);
+                boolean esHorizontal = orientacionDetectada.equals("E") || orientacionDetectada.equals("W");
+
+                dibujarBarcoEnVista(inicio, tam, orientacionDetectada, esHorizontal);
+            }
+        }
+
+        adaptador.notifyDataSetChanged();
     }
 }
